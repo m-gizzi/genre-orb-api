@@ -1,0 +1,13 @@
+# Sidekiq configuration
+# See: https://github.com/sidekiq/sidekiq/wiki/Advanced-Options
+
+:concurrency: 5
+
+:queues:
+  - default
+  - mailers
+  - sync
+  - metadata
+
+# Scheduled jobs (via sidekiq-cron)
+# These will be configured in config/initializers/sidekiq_cron.rb
