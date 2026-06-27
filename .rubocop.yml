@@ -19,6 +19,14 @@ AllCops:
     - "vendor/**/*"
     - "config/initializers/new_framework_defaults_*.rb"
 
+Layout/LineLength:
+  Exclude:
+    - "config/initializers/devise.rb"
+
+Lint/EmptyBlock:
+  Exclude:
+    - "config/routes.rb"
+
 Metrics/BlockLength:
   Exclude:
     - "spec/**/*"

@@ -1,0 +1,8 @@
+# Rails Best Practices configuration
+# See: https://github.com/flyerhzm/rails_best_practices
+
+RemoveUnusedMethodsInControllersCheck:
+  except_methods:
+    - "#respond_with"
+    - "#respond_to_on_destroy"
+    - "#authenticate_user!"
