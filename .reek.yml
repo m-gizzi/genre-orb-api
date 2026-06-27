@@ -1,0 +1,13 @@
+# Reek configuration for Genre Orb API
+# See https://github.com/troessner/reek/blob/master/docs/defaults.reek.yml
+
+exclude_paths:
+  - db/migrate
+  - bin
+  - config
+  - spec
+  - vendor
+
+detectors:
+  IrresponsibleModule:
+    enabled: false
