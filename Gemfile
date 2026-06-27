@@ -1,19 +1,21 @@
+# frozen_string_literal: true
+
 source "https://rubygems.org"
 
-gem "rails", "~> 8.1.3"
+gem "alba"
+gem "bootsnap", require: false
+gem "devise"
+gem "image_processing", "~> 1.2"
+gem "kamal", require: false
 gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"
-gem "tzinfo-data", platforms: %i[windows jruby]
-gem "bootsnap", require: false
-gem "kamal", require: false
-gem "thruster", require: false
-gem "image_processing", "~> 1.2"
 gem "rack-cors"
-gem "devise"
+gem "rails", "~> 8.1.3"
 gem "sidekiq"
 gem "sidekiq-cron"
 gem "strong_migrations"
-gem "alba"
+gem "thruster", require: false
+gem "tzinfo-data", platforms: %i[windows jruby]
 
 group :development do
   gem "bullet"
@@ -22,21 +24,23 @@ group :development do
 end
 
 group :development, :test do
-  gem "debug", platforms: %i[mri windows], require: "debug/prelude"
-  gem "bundler-audit", require: false
   gem "brakeman", require: false
+  gem "bundler-audit", require: false
+  gem "debug", platforms: %i[mri windows], require: "debug/prelude"
   gem "factory_bot_rails"
   gem "rspec-rails"
   gem "rubocop", require: false
+  gem "rubocop-factory_bot", require: false
+  gem "rubocop-performance", require: false
   gem "rubocop-rails", require: false
   gem "rubocop-rspec", require: false
-  gem "rubocop-performance", require: false
+  gem "rubocop-rspec_rails", require: false
 end
 
 group :test do
-  gem "simplecov", require: false
-  gem "webmock"
-  gem "vcr"
-  gem "shoulda-matchers"
   gem "database_cleaner-active_record"
+  gem "shoulda-matchers"
+  gem "simplecov", require: false
+  gem "vcr"
+  gem "webmock"
 end
