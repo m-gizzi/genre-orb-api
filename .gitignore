@@ -31,3 +31,9 @@
 # Ignore key files for decrypting credentials and more.
 /config/*.key
 
+# Ignore SimpleCov coverage reports
+/coverage/
+
+# Ignore RSpec examples persistence file
+/spec/examples.txt
+
