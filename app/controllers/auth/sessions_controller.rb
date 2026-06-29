@@ -17,8 +17,8 @@ module Auth
       end
     end
 
-    def respond_to_on_destroy
-      if current_user
+    def respond_to_on_destroy(signed_out = nil)
+      if signed_out
         render json: { message: "Logged out successfully" }, status: :ok
       else
         render json: { error: "No active session" }, status: :unauthorized
