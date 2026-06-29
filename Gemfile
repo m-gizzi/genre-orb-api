@@ -5,7 +5,7 @@ source "https://rubygems.org"
 gem "alba"
 gem "bootsnap", require: false
 gem "devise"
-gem "image_processing", "~> 1.2"
+gem "image_processing", "~> 2.0"
 gem "kamal", require: false
 gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"
