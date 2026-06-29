@@ -7,9 +7,13 @@
 
 # Read more: https://github.com/cyu/rack-cors
 
+# Set CORS_ORIGINS env var as comma-separated list of allowed origins
+# Example: CORS_ORIGINS="http://localhost:5174,https://genreorb.com"
+cors_origins = ENV.fetch("CORS_ORIGINS").split(",").map(&:strip)
+
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
-    origins "http://localhost:5173", "http://127.0.0.1:5173"
+    origins(*cors_origins)
 
     resource "*",
              headers: :any,
