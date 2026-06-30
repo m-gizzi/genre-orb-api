@@ -36,6 +36,7 @@ jobs:
     env:
       RAILS_ENV: test
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/genre_orb_api_test
+      CORS_ORIGINS: http://localhost:3000
 
     steps:
       - name: Checkout code
