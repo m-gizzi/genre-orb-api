@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class ServiceConnection < ApplicationRecord
-  belongs_to :user
+  belongs_to :user, inverse_of: :service_connections
 
   encrypts :access_token
   encrypts :refresh_token
@@ -10,7 +10,7 @@ class ServiceConnection < ApplicationRecord
 
   validates :service_user_id, presence: true
   validates :access_token, presence: true
-  validates :user_id, uniqueness: { scope: :service_type, message: "already has a %{value} connection" }
+  validates :user_id, uniqueness: { scope: :service_type }
 
   def token_expired?
     return true if token_expires_at.nil?

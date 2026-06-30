@@ -5,8 +5,8 @@ class User < ApplicationRecord
          :recoverable, :rememberable, :validatable,
          :omniauthable, omniauth_providers: [:spotify]
 
-  has_many :service_connections, dependent: :destroy
-  has_one :spotify_connection, -> { spotify }, class_name: "ServiceConnection", dependent: :destroy
+  has_many :service_connections, dependent: :destroy, inverse_of: :user
+  has_one :spotify_connection, -> { spotify }, class_name: "ServiceConnection", dependent: :destroy, inverse_of: :user
 
   enum :registration_source, { email: 0, spotify: 1 }, validate: true
 

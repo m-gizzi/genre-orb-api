@@ -68,3 +68,9 @@ Style/TrailingCommaInArguments:
 Rails/SkipsModelValidations:
   Exclude:
     - "spec/**/*"
+
+RSpec/MultipleExpectations:
+  Max: 3
+
+RSpec/NestedGroups:
+  Max: 5
