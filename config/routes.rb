@@ -16,6 +16,7 @@ Rails.application.routes.draw do
 
   namespace :auth do
     get "me", to: "users#me"
+    delete "spotify", to: "spotify#destroy"
   end
 
   namespace :api do
