@@ -9,6 +9,8 @@ module Auth
         user: {
           id: current_user.id,
           email: current_user.email,
+          spotify_connected: current_user.spotify_connected?,
+          spotify_profile: current_user.spotify_connection&.profile_data,
         },
       }
     end
