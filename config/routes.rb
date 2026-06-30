@@ -11,6 +11,7 @@ Rails.application.routes.draw do
              controllers: {
                sessions: "auth/sessions",
                registrations: "auth/registrations",
+               omniauth_callbacks: "auth/omniauth_callbacks",
              }
 
   namespace :auth do
