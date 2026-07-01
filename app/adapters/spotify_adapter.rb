@@ -28,7 +28,7 @@ class SpotifyAdapter
 
   attr_reader :service_connection
 
-  def request(method, path, body: nil, params: nil, retry_on_401: true)
+  def request(method, path, body: nil, params: nil, retry_unauthorized: true)
     ensure_valid_token!
 
     response = connection.send(method) do |req|
@@ -39,10 +39,10 @@ class SpotifyAdapter
 
     handle_response(response)
   rescue AuthenticationError
-    raise unless retry_on_401
+    raise unless retry_unauthorized
 
     refresh_token!
-    request(method, path, body: body, params: params, retry_on_401: false)
+    request(method, path, body: body, params: params, retry_unauthorized: false)
   end
 
   def connection
@@ -63,26 +63,37 @@ class SpotifyAdapter
   end
 
   def refresh_token!
+    data = fetch_refreshed_token
+    update_service_connection(data)
+    @connection = nil
+  end
+
+  def fetch_refreshed_token
     response = Faraday.post(TOKEN_URL) do |req|
       req.headers["Content-Type"] = "application/x-www-form-urlencoded"
-      req.body = URI.encode_www_form(
-        grant_type: "refresh_token",
-        refresh_token: service_connection.refresh_token,
-        client_id: spotify_client_id,
-        client_secret: spotify_client_secret,
-      )
+      req.body = refresh_token_body
     end
 
     raise TokenRefreshError, "Failed to refresh token: #{response.body}" unless response.success?
 
-    data = JSON.parse(response.body)
+    JSON.parse(response.body)
+  end
+
+  def refresh_token_body
+    URI.encode_www_form(
+      grant_type: "refresh_token",
+      refresh_token: service_connection.refresh_token,
+      client_id: spotify_client_id,
+      client_secret: spotify_client_secret,
+    )
+  end
+
+  def update_service_connection(data)
     service_connection.update!(
       access_token: data["access_token"],
       refresh_token: data["refresh_token"] || service_connection.refresh_token,
       token_expires_at: Time.current + data["expires_in"].to_i.seconds,
     )
-
-    @connection = nil
   end
 
   def handle_response(response)

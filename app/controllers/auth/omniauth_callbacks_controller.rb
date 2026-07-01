@@ -2,38 +2,45 @@
 
 module Auth
   class OmniauthCallbacksController < Devise::OmniauthCallbacksController
+    class InvalidOauthOriginError < StandardError; end
+
+    rescue_from InvalidOauthOriginError, with: :handle_invalid_origin
+
     def spotify
-      auth = request.env["omniauth.auth"]
-      origin = request.env["omniauth.origin"]
+      ensure_valid_oauth_origin!
 
-      unless valid_origin?(origin)
-        Rails.logger.warn("Invalid OAuth origin attempted: #{origin}")
-        head :bad_request
-        return
-      end
-
-      result = SpotifyOauthService.new(current_user, auth).call
-
+      result = SpotifyOauthService.new(current_user, omniauth_auth).call
       sign_in(result.user) if result.success? && !user_signed_in?
 
-      redirect_to build_callback_url(origin, success: result.success?, error: result.error), allow_other_host: true
+      redirect_to build_callback_url(omniauth_origin, success: result.success?, error: result.error),
+                  allow_other_host: true
     end
 
     def failure
-      origin = request.env["omniauth.origin"]
-      error_code = params[:error]
-      error_message = I18n.t(error_code, scope: "oauth.errors", default: I18n.t("oauth.errors.default"))
+      ensure_valid_oauth_origin!
 
-      unless valid_origin?(origin)
-        Rails.logger.warn("Invalid OAuth origin in failure callback: #{origin}")
-        head :bad_request
-        return
-      end
-
-      redirect_to build_callback_url(origin, success: false, error: error_message), allow_other_host: true
+      error_message = I18n.t(params[:error], scope: "oauth.errors", default: I18n.t("oauth.errors.default"))
+      redirect_to build_callback_url(omniauth_origin, success: false, error: error_message), allow_other_host: true
     end
 
     private
+
+    def ensure_valid_oauth_origin!
+      raise InvalidOauthOriginError unless valid_origin?(omniauth_origin)
+    end
+
+    def handle_invalid_origin
+      Rails.logger.warn("Invalid OAuth origin attempted: #{omniauth_origin}")
+      head :bad_request
+    end
+
+    def omniauth_auth
+      request.env["omniauth.auth"]
+    end
+
+    def omniauth_origin
+      request.env["omniauth.origin"]
+    end
 
     def build_callback_url(origin, success:, error: nil)
       uri = URI.parse(origin)
