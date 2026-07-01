@@ -28,4 +28,11 @@
 #       enabled: "ON"
 
 en:
-  hello: "Hello world"
+  oauth:
+    errors:
+      access_denied: "You declined to connect your Spotify account"
+      invalid_credentials: "Spotify rejected our app credentials. Please contact support."
+      invalid_request: "The authorization request was invalid. Please try again."
+      server_error: "Spotify is having issues. Please try again later."
+      temporarily_unavailable: "Spotify is temporarily unavailable. Please try again later."
+      default: "Authentication failed. Please try again."
