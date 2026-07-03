@@ -10,9 +10,10 @@ module Auth
       ensure_valid_oauth_origin!
 
       result = SpotifyOauthService.new(current_user, omniauth_auth).call
-      sign_in(result.user) if result.success? && !user_signed_in?
+      success = result.success?
+      sign_in(result.user) if success && !user_signed_in?
 
-      redirect_to build_callback_url(omniauth_origin, success: result.success?, error: result.error),
+      redirect_to build_callback_url(omniauth_origin, success: success, error: result.error),
                   allow_other_host: true
     end
 

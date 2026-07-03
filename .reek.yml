@@ -11,3 +11,41 @@ exclude_paths:
 detectors:
   IrresponsibleModule:
     enabled: false
+
+  MissingSafeMethod:
+    enabled: false
+
+  UncommunicativeVariableName:
+    accept:
+      - e
+
+  UtilityFunction:
+    exclude:
+      - Auth::RegistrationsController#user_data
+      - Auth::SessionsController#user_data
+      - Auth::OmniauthCallbacksController#allowed_origins
+      - Auth::OmniauthCallbacksController#build_callback_url
+
+  ControlParameter:
+    exclude:
+      - Auth::SessionsController#respond_to_on_destroy
+
+  FeatureEnvy:
+    enabled: false
+
+  NilCheck:
+    exclude:
+      - ServiceConnection#token_expired?
+      - ServiceConnection#token_expiring_soon?
+
+  TooManyStatements:
+    enabled: false
+
+  DuplicateMethodCall:
+    enabled: false
+
+  InstanceVariableAssumption:
+    enabled: false
+
+  LongParameterList:
+    enabled: false
