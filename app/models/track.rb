@@ -13,7 +13,7 @@ class Track < ApplicationRecord
   has_many :playlists, through: :playlist_tracks
 
   validates :title, presence: true
-  validates :spotify_id, uniqueness: true
+  validates :spotify_id, uniqueness: true, allow_nil: true
   validates :duration_ms,
             numericality: { only_integer: true, greater_than: 0 },
             allow_nil: true

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class SmartPlaylist < ApplicationRecord
-  EVALUTATION_EXPIRES = 1.day
+  EVALUATION_EXPIRES = 1.day
 
   belongs_to :user, inverse_of: :smart_playlists
 
@@ -20,7 +20,7 @@ class SmartPlaylist < ApplicationRecord
 
   scope :enabled, -> { where(is_enabled: true) }
   scope :needs_evaluation, lambda {
-    enabled.where("last_evaluated_at IS NULL OR last_evaluated_at < ?", EVALUTATION_EXPIRES.ago)
+    enabled.where("last_evaluated_at IS NULL OR last_evaluated_at < ?", EVALUATION_EXPIRES.ago)
   }
 
   private
