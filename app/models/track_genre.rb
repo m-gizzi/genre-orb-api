@@ -4,6 +4,8 @@ class TrackGenre < ApplicationRecord
   belongs_to :track, inverse_of: :track_genres
   belongs_to :genre, inverse_of: :track_genres
 
+  enum :source, { spotify: 0, user: 1 }, validate: true
+
   validates :track_id, uniqueness: { scope: :genre_id }
   validates :confidence,
             numericality: {

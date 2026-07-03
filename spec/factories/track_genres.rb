@@ -5,5 +5,10 @@ FactoryBot.define do
     track
     genre
     confidence { 1.0 }
+    source { :spotify }
+
+    trait :user_override do
+      source { :user }
+    end
   end
 end
