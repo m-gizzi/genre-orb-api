@@ -8,7 +8,7 @@ RSpec.describe "Auth::OmniauthCallbacks" do
 
   before do
     allow(ENV).to receive(:fetch).and_call_original
-    allow(ENV).to receive(:fetch).with("ALLOWED_OAUTH_ORIGINS").and_return("localhost:3000, example.com:8080")
+    allow(ENV).to receive(:fetch).with("ALLOWED_OAUTH_ORIGINS", "").and_return("localhost:3000, example.com:8080")
 
     OmniAuth.config.test_mode = true
     OmniAuth.config.mock_auth[:spotify] = OmniAuth::AuthHash.new(spotify_omniauth_hash)
@@ -122,7 +122,7 @@ RSpec.describe "Auth::OmniauthCallbacks" do
       let(:origin_default_port) { "http://localhost/callback" }
 
       before do
-        allow(ENV).to receive(:fetch).with("ALLOWED_OAUTH_ORIGINS").and_return("localhost, example.com:8080")
+        allow(ENV).to receive(:fetch).with("ALLOWED_OAUTH_ORIGINS", "").and_return("localhost, example.com:8080")
       end
 
       it "allows the origin matching without port" do

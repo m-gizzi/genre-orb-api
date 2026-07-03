@@ -31,7 +31,7 @@ class SpotifyAdapter
   def request(method, path, body: nil, params: nil, retry_unauthorized: true)
     ensure_valid_token!
 
-    response = connection.send(method) do |req|
+    response = build_connection.send(method) do |req|
       req.url path
       req.params = params if params
       req.body = body.to_json if body
@@ -43,10 +43,6 @@ class SpotifyAdapter
 
     refresh_token!
     request(method, path, body: body, params: params, retry_unauthorized: false)
-  end
-
-  def connection
-    @connection ||= build_connection
   end
 
   def build_connection
@@ -65,7 +61,6 @@ class SpotifyAdapter
   def refresh_token!
     data = fetch_refreshed_token
     update_service_connection(data)
-    @connection = nil
   end
 
   def fetch_refreshed_token

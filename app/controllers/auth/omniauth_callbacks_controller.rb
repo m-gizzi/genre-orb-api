@@ -64,7 +64,7 @@ module Auth
     end
 
     def allowed_origins
-      ENV.fetch("ALLOWED_OAUTH_ORIGINS").split(",").map(&:strip)
+      ENV.fetch("ALLOWED_OAUTH_ORIGINS", "").split(",").map(&:strip).reject(&:blank?)
     end
   end
 end
