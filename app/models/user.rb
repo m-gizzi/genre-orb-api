@@ -8,9 +8,16 @@ class User < ApplicationRecord
   has_many :service_connections, dependent: :destroy, inverse_of: :user
   has_one :spotify_connection, -> { spotify }, class_name: "ServiceConnection", dependent: :destroy, inverse_of: :user
 
+  has_many :playlists, dependent: :destroy, inverse_of: :user
+  has_many :smart_playlists, dependent: :destroy, inverse_of: :user
+
   enum :registration_source, { email: 0, spotify: 1 }, validate: true
 
   def spotify_connected?
     spotify_connection.present?
+  end
+
+  def liked_songs_playlist
+    playlists.liked_songs.first
   end
 end
