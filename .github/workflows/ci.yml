@@ -36,6 +36,11 @@ jobs:
     env:
       RAILS_ENV: test
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/genre_orb_api_test
+      CORS_ORIGINS: http://localhost:3000
+      ALLOWED_OAUTH_ORIGINS: localhost:3000
+      ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY: test-primary-key-for-ci-only-32chars
+      ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY: test-deterministic-key-ci-only32
+      ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT: test-key-derivation-salt-for-ci
 
     steps:
       - name: Checkout code

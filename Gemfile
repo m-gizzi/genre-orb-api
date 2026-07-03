@@ -5,8 +5,12 @@ source "https://rubygems.org"
 gem "alba"
 gem "bootsnap", require: false
 gem "devise"
+gem "faraday"
 gem "image_processing", "~> 1.2"
 gem "kamal", require: false
+gem "omniauth"
+gem "omniauth-rails_csrf_protection"
+gem "omniauth-spotify"
 gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"
 gem "rack-cors"

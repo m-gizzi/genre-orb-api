@@ -11,10 +11,12 @@ Rails.application.routes.draw do
              controllers: {
                sessions: "auth/sessions",
                registrations: "auth/registrations",
+               omniauth_callbacks: "auth/omniauth_callbacks",
              }
 
   namespace :auth do
     get "me", to: "users#me"
+    delete "spotify", to: "spotify#destroy"
   end
 
   namespace :api do
