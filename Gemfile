@@ -6,7 +6,7 @@ gem "alba"
 gem "bootsnap", require: false
 gem "devise"
 gem "faraday"
-gem "image_processing", "~> 1.2"
+gem "image_processing", "~> 2.0"
 gem "kamal", require: false
 gem "omniauth"
 gem "omniauth-rails_csrf_protection"
