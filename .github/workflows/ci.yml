@@ -86,7 +86,7 @@ jobs:
         run: bin/rubocop -f github
 
       - name: Run Reek
-        run: bundle exec reek --failure-exit-code 2
+        run: bundle exec reek . --failure-exit-code 2
 
       - name: Run Rails Best Practices
         run: bundle exec rails_best_practices
