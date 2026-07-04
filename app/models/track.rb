@@ -9,8 +9,8 @@ class Track < ApplicationRecord
   has_many :track_genres, dependent: :destroy, inverse_of: :track
   has_many :genres, through: :track_genres
 
-  has_many :playlist_tracks, dependent: :destroy, inverse_of: :track
-  has_many :playlists, through: :playlist_tracks
+  has_many :playlist_version_tracks, dependent: :destroy, inverse_of: :track
+  has_many :playlist_versions, through: :playlist_version_tracks
 
   validates :title, presence: true
   validates :spotify_id, uniqueness: true, allow_nil: true

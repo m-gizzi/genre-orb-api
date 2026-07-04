@@ -10,6 +10,7 @@ class User < ApplicationRecord
 
   has_many :playlists, dependent: :destroy, inverse_of: :user
   has_many :smart_playlists, dependent: :destroy, inverse_of: :user
+  has_many :sync_sessions, dependent: :destroy, inverse_of: :user
 
   enum :registration_source, { email: 0, spotify: 1 }, validate: true
 

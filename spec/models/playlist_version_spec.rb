@@ -25,27 +25,29 @@ RSpec.describe PlaylistVersion do
     end
   end
 
-  describe ".create_snapshot" do
-    let(:playlist) { create(:playlist, :with_tracks, tracks_count: 5) }
+  describe ".create_for_sync!" do
+    let(:playlist) { create(:playlist) }
 
-    it "creates a version with current track IDs" do
-      version = described_class.create_snapshot(playlist)
-      expect(version.track_ids.count).to eq(5)
-      expect(version.track_count).to eq(5)
+    it "creates a version with version_number 1 for new playlist" do
+      version = described_class.create_for_sync!(playlist)
+      expect(version.version_number).to eq(1)
+      expect(version.track_count).to eq(0)
     end
 
-    it "increments version number" do
-      first = described_class.create_snapshot(playlist)
-      expect(first.version_number).to eq(1)
-
-      second = described_class.create_snapshot(playlist)
-      expect(second.version_number).to eq(2)
+    it "increments version number for existing versions" do
+      create(:playlist_version, playlist: playlist, version_number: 1)
+      version = described_class.create_for_sync!(playlist)
+      expect(version.version_number).to eq(2)
     end
+  end
 
-    it "preserves track order" do
-      expected_order = playlist.playlist_tracks.order(:position).pluck(:track_id)
-      version = described_class.create_snapshot(playlist)
-      expect(version.track_ids).to eq(expected_order)
+  describe "#ordered_tracks" do
+    let(:version) { create(:playlist_version, :with_tracks, tracks_count: 3) }
+
+    it "returns tracks in position order" do
+      positions = version.ordered_tracks.joins(:playlist_version_tracks)
+                         .pluck("playlist_version_tracks.position")
+      expect(positions).to eq([0, 1, 2])
     end
   end
 end

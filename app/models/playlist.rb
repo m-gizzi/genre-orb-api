@@ -2,11 +2,10 @@
 
 class Playlist < ApplicationRecord
   belongs_to :user, inverse_of: :playlists
-
-  has_many :playlist_tracks, dependent: :destroy, inverse_of: :playlist
-  has_many :tracks, through: :playlist_tracks
+  belongs_to :current_version, class_name: "PlaylistVersion", optional: true
 
   has_many :playlist_versions, dependent: :destroy, inverse_of: :playlist
+  alias_method :versions, :playlist_versions
 
   has_many :smart_playlist_sources, dependent: :restrict_with_error, inverse_of: :playlist
   has_many :smart_playlists, through: :smart_playlist_sources
@@ -17,27 +16,34 @@ class Playlist < ApplicationRecord
           dependent: :nullify,
           inverse_of: :target_playlist
 
+  has_many :sync_session_playlists, dependent: :destroy, inverse_of: :playlist
+
   validates :name, presence: true
   validates :spotify_id, uniqueness: true, allow_nil: true
-  validates :track_count, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
-  validate :only_one_liked_songs_per_user, if: :is_liked_songs?
 
-  scope :liked_songs, -> { where(is_liked_songs: true) }
-  scope :regular, -> { where(is_liked_songs: false) }
+  scope :liked_songs, -> { where(type: "LikedSongsPlaylist") }
+  scope :regular, -> { where.not(type: "LikedSongsPlaylist").or(where(type: nil)) }
   scope :with_spotify, -> { where.not(spotify_id: nil) }
+  scope :sync_enabled, -> { where(sync_enabled: true) }
+  scope :available, -> { where(available_on_spotify: true) }
 
-  def ordered_tracks
-    tracks.joins(:playlist_tracks)
-          .where(playlist_tracks: { playlist_id: id })
-          .order("playlist_tracks.position")
+  def tracks
+    current_version&.tracks || Track.none
   end
 
-  private
+  def track_count
+    current_version&.track_count || 0
+  end
 
-  def only_one_liked_songs_per_user
-    existing = Playlist.where(user_id: user_id, is_liked_songs: true)
-    existing = existing.where.not(id: id) if persisted?
+  def ordered_tracks
+    current_version&.ordered_tracks || Track.none
+  end
 
-    errors.add(:is_liked_songs, "playlist already exists for this user") if existing.exists?
+  def liked_songs?
+    false
+  end
+
+  def spotify_page_size
+    100
   end
 end
