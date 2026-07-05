@@ -15,6 +15,10 @@ class LikedSongsPlaylist < Playlist
     nil
   end
 
+  def fetch_tracks_page(adapter, limit:, offset:)
+    adapter.liked_songs(limit: limit, offset: offset)
+  end
+
   private
 
   def only_one_per_user

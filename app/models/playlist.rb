@@ -46,4 +46,8 @@ class Playlist < ApplicationRecord
   def spotify_page_size
     100
   end
+
+  def fetch_tracks_page(adapter, limit:, offset:)
+    adapter.playlist_tracks(spotify_id, limit: limit, offset: offset)
+  end
 end
