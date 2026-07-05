@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class SyncJob < ApplicationJob
+class SpotifyJob < ApplicationJob
   queue_as :sync
 
   retry_on SpotifyAdapter::RateLimitError, wait: ->(executions, exception) {
@@ -22,7 +22,11 @@ class SyncJob < ApplicationJob
 
   private
 
-  def check_rate_limit(user_id)
-    SyncRateLimitState.wait_time_for_user(user_id)
+  def defer_if_rate_limited(user_id)
+    wait_time = SyncRateLimitState.wait_time_for_user(user_id)
+    return false if wait_time <= 0
+
+    self.class.set(wait: wait_time.seconds).perform_later(*arguments)
+    true
   end
 end
