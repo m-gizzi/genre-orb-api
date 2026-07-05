@@ -1,7 +1,7 @@
 # Sidekiq configuration
 # See: https://github.com/sidekiq/sidekiq/wiki/Advanced-Options
 
-:concurrency: 5
+:concurrency: 3
 
 :queues:
   - default
