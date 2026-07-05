@@ -7,14 +7,22 @@ class SpotifyAdapter
   class AuthenticationError < StandardError; end
   class TokenRefreshError < StandardError; end
   class ApiError < StandardError; end
-  class RateLimitError < ApiError; end
+
+  class RateLimitError < ApiError
+    attr_reader :retry_after
+
+    def initialize(message = nil, retry_after: 0)
+      @retry_after = retry_after.to_i
+      super(message || "Rate limited, retry after #{@retry_after}s")
+    end
+  end
 
   def initialize(service_connection)
     @service_connection = service_connection
   end
 
   def user_profile
-    request(:get, "/me")
+    request(:get, "me")
   end
 
   def verify_connection
@@ -22,6 +30,22 @@ class SpotifyAdapter
     true
   rescue AuthenticationError
     false
+  end
+
+  def playlists(limit: 50, offset: 0)
+    request(:get, "me/playlists", params: { limit: limit, offset: offset })
+  end
+
+  def playlist(playlist_id)
+    request(:get, "playlists/#{playlist_id}")
+  end
+
+  def playlist_tracks(playlist_id, limit: 100, offset: 0)
+    request(:get, "playlists/#{playlist_id}/tracks", params: { limit: limit, offset: offset })
+  end
+
+  def liked_songs(limit: 50, offset: 0)
+    request(:get, "me/tracks", params: { limit: limit, offset: offset })
   end
 
   private
@@ -104,7 +128,7 @@ class SpotifyAdapter
       raise AuthenticationError, "Invalid or expired access token"
     when 429
       retry_after = response.headers["Retry-After"]
-      raise RateLimitError, "Rate limited. Retry after: #{retry_after} seconds"
+      raise RateLimitError.new(retry_after: retry_after)
     else
       raise ApiError, "Spotify API error (#{status}): #{body}"
     end
