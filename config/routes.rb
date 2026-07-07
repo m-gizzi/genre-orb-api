@@ -36,6 +36,10 @@ Rails.application.routes.draw do
         post :sync
       end
       resources :playlists, only: %i[index update]
+      resource :artists, only: [] do
+        get :sync_status
+        post :sync
+      end
     end
   end
 

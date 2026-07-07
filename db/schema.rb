@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_04_000007) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_07_002502) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -37,13 +37,30 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_04_000007) do
     t.index ["title"], name: "index_albums_on_title"
   end
 
+  create_table "artist_metadata_sessions", force: :cascade do |t|
+    t.datetime "completed_at"
+    t.integer "completed_batches", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.string "error_message"
+    t.datetime "started_at"
+    t.integer "status", default: 0, null: false
+    t.integer "total_batches", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["status"], name: "index_artist_metadata_sessions_on_status"
+    t.index ["user_id", "status"], name: "index_artist_metadata_sessions_on_user_id_and_status"
+    t.index ["user_id"], name: "index_artist_metadata_sessions_on_user_id"
+  end
+
   create_table "artists", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "image_url"
     t.jsonb "metadata", default: {}
+    t.datetime "metadata_fetched_at"
     t.string "name", null: false
     t.string "spotify_id", null: false
     t.datetime "updated_at", null: false
+    t.index ["metadata_fetched_at"], name: "index_artists_on_metadata_fetched_at"
     t.index ["name"], name: "index_artists_on_name"
     t.index ["spotify_id"], name: "index_artists_on_spotify_id", unique: true
   end
@@ -83,17 +100,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_04_000007) do
     t.datetime "created_at", null: false
     t.bigint "current_version_id"
     t.boolean "is_public", default: false, null: false
+    t.string "last_seen_snapshot_id"
     t.datetime "last_synced_at"
+    t.string "last_synced_snapshot_id"
     t.string "name", null: false
-    t.string "snapshot_id"
     t.string "spotify_id"
     t.boolean "sync_enabled", default: false, null: false
-    t.integer "track_count", default: 0, null: false
     t.string "type"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["current_version_id"], name: "index_playlists_on_current_version_id"
-    t.index ["snapshot_id"], name: "index_playlists_on_snapshot_id"
+    t.index ["last_seen_snapshot_id"], name: "index_playlists_on_last_seen_snapshot_id"
+    t.index ["last_synced_snapshot_id"], name: "index_playlists_on_last_synced_snapshot_id"
     t.index ["spotify_id"], name: "index_playlists_on_spotify_id", unique: true, where: "(spotify_id IS NOT NULL)"
     t.index ["sync_enabled"], name: "index_playlists_on_sync_enabled"
     t.index ["type"], name: "index_playlists_on_type"
@@ -236,6 +254,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_04_000007) do
 
   add_foreign_key "album_artists", "albums"
   add_foreign_key "album_artists", "artists"
+  add_foreign_key "artist_metadata_sessions", "users"
   add_foreign_key "playlist_version_tracks", "playlist_versions"
   add_foreign_key "playlist_version_tracks", "tracks"
   add_foreign_key "playlist_versions", "playlists"

@@ -3,6 +3,7 @@
 class SpotifyAdapter
   BASE_URL = "https://api.spotify.com/v1"
   TOKEN_URL = "https://accounts.spotify.com/api/token"
+  ARTIST_BATCH_LIMIT = 50
 
   class AuthenticationError < StandardError; end
   class TokenRefreshError < StandardError; end
@@ -47,6 +48,13 @@ class SpotifyAdapter
 
   def liked_songs(limit: 50, offset: 0)
     request(:get, "me/tracks", params: { limit: limit, offset: offset })
+  end
+
+  def artists(spotify_ids)
+    raise ArgumentError, "Cannot fetch more than #{ARTIST_BATCH_LIMIT} artists at once" if spotify_ids.size > ARTIST_BATCH_LIMIT
+
+    ids = spotify_ids.join(",")
+    request(:get, "artists", params: { ids: ids })
   end
 
   private
