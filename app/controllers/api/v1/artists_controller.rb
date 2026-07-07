@@ -31,12 +31,16 @@ module Api
           return
         end
 
-        if Artist.where(metadata_fetched_at: nil).none?
-          render json: { error: "No artists need metadata sync" }, status: :unprocessable_content
-          return
+        sync_all = ActiveModel::Type::Boolean.new.cast(params[:sync_all])
+
+        unless sync_all
+          if Artist.where(metadata_fetched_at: nil).none?
+            render json: { error: "No artists need metadata sync" }, status: :unprocessable_content
+            return
+          end
         end
 
-        ArtistMetadataSyncJob.perform_later(current_user.id)
+        ArtistMetadataSyncJob.perform_later(current_user.id, sync_all: sync_all)
         render json: { status: "queued" }, status: :accepted
       end
 
