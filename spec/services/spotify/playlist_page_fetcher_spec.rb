@@ -4,18 +4,19 @@ require "rails_helper"
 
 RSpec.describe Spotify::PlaylistPageFetcher do
   let(:user) { create(:user) }
-  let!(:service_connection) { create(:service_connection, user: user) }
   let(:sync_session) { create(:sync_session, user: user) }
   let(:playlist) { create(:playlist, user: user, spotify_id: "playlist_123") }
   let(:version) { create(:playlist_version, playlist: playlist) }
   let(:playlist_session) do
-    create(:sync_session_playlist,
-           sync_session: sync_session,
-           playlist: playlist,
-           playlist_version: version,
-           status: :fetching_pages,
-           total_pages: 3,
-           completed_pages: 0)
+    create(
+      :sync_session_playlist,
+      sync_session: sync_session,
+      playlist: playlist,
+      playlist_version: version,
+      status: :fetching_pages,
+      total_pages: 3,
+      completed_pages: 0,
+    )
   end
 
   let(:adapter) { instance_double(SpotifyAdapter) }
@@ -40,18 +41,18 @@ RSpec.describe Spotify::PlaylistPageFetcher do
             "release_date" => "2023-05-15",
             "total_tracks" => 10,
             "images" => [{ "url" => "https://example.com/album.jpg" }],
-            "artists" => [{ "id" => "artist_1", "name" => "Artist One" }]
-          }
-        }
-      }
+            "artists" => [{ "id" => "artist_1", "name" => "Artist One" }],
+          },
+        },
+      },
     ]
   end
 
   let(:api_response) { { "items" => track_items } }
 
   before do
-    allow_any_instance_of(Playlist).to receive(:spotify_page_size).and_return(100)
-    allow_any_instance_of(Playlist).to receive(:fetch_tracks_page).and_return(api_response)
+    create(:service_connection, user: user)
+    allow(adapter).to receive(:playlist_tracks).and_return(api_response)
   end
 
   describe "#call" do
@@ -61,11 +62,8 @@ RSpec.describe Spotify::PlaylistPageFetcher do
     end
 
     it "fetches tracks page with correct offset" do
-      expect_any_instance_of(Playlist).to receive(:fetch_tracks_page)
-        .with(adapter, limit: 100, offset: 100)
-        .and_return(api_response)
-
       service.call
+      expect(adapter).to have_received(:playlist_tracks).with("playlist_123", limit: 100, offset: 100)
     end
 
     it "upserts tracks" do
@@ -84,23 +82,22 @@ RSpec.describe Spotify::PlaylistPageFetcher do
       let(:page) { 0 }
 
       it "fetches with zero offset" do
-        expect_any_instance_of(Playlist).to receive(:fetch_tracks_page)
-          .with(adapter, limit: 100, offset: 0)
-          .and_return(api_response)
-
         service.call
+        expect(adapter).to have_received(:playlist_tracks).with("playlist_123", limit: 100, offset: 0)
       end
     end
 
     context "when this is the final page" do
       let(:playlist_session) do
-        create(:sync_session_playlist,
-               sync_session: sync_session,
-               playlist: playlist,
-               playlist_version: version,
-               status: :fetching_pages,
-               total_pages: 2,
-               completed_pages: 1)
+        create(
+          :sync_session_playlist,
+          sync_session: sync_session,
+          playlist: playlist,
+          playlist_version: version,
+          status: :fetching_pages,
+          total_pages: 2,
+          completed_pages: 1,
+        )
       end
 
       it "returns sync_completed as true" do
@@ -116,13 +113,15 @@ RSpec.describe Spotify::PlaylistPageFetcher do
 
     context "when more pages remain" do
       let(:playlist_session) do
-        create(:sync_session_playlist,
-               sync_session: sync_session,
-               playlist: playlist,
-               playlist_version: version,
-               status: :fetching_pages,
-               total_pages: 5,
-               completed_pages: 1)
+        create(
+          :sync_session_playlist,
+          sync_session: sync_session,
+          playlist: playlist,
+          playlist_version: version,
+          status: :fetching_pages,
+          total_pages: 5,
+          completed_pages: 1,
+        )
       end
 
       it "returns sync_completed as false" do
@@ -170,12 +169,9 @@ RSpec.describe Spotify::PlaylistPageFetcher do
       end
 
       it "fetches tracks via liked songs adapter method" do
-        # LikedSongsPlaylist uses 50 as page size, so offset for page 1 is 50
-        expect(adapter).to receive(:liked_songs)
-          .with(limit: 50, offset: 50)
-          .and_return(api_response)
-
         service.call
+        # LikedSongsPlaylist uses 50 as page size, so offset for page 1 is 50
+        expect(adapter).to have_received(:liked_songs).with(limit: 50, offset: 50)
       end
     end
   end

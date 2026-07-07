@@ -14,7 +14,7 @@ class PlaylistSyncCompleter
       playlist.update!(
         current_version_id: version.id,
         last_synced_at: Time.current,
-        last_synced_snapshot_id: playlist.last_seen_snapshot_id
+        last_synced_snapshot_id: playlist.last_seen_snapshot_id,
       )
 
       finalize_playlist_session(:completed)
@@ -27,7 +27,7 @@ class PlaylistSyncCompleter
         status: :skipped,
         completed_at: Time.current,
         total_pages: 0,
-        completed_pages: 0
+        completed_pages: 0,
       )
 
       finalize_sync_session_if_done

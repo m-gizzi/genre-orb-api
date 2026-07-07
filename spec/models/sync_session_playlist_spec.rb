@@ -25,7 +25,7 @@ RSpec.describe SyncSessionPlaylist do
     end
 
     it "handles concurrent calls safely" do
-      threads = 3.times.map do
+      threads = Array.new(3) do
         Thread.new { ssp.page_completed! }
       end
       threads.each(&:join)

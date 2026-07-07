@@ -4,17 +4,18 @@ require "rails_helper"
 
 RSpec.describe Spotify::ArtistBatchProcessor do
   let(:user) { create(:user) }
-  let!(:service_connection) { create(:service_connection, user: user) }
   let(:session) do
-    create(:artist_metadata_session,
-           user: user,
-           status: :running,
-           total_batches: 3,
-           completed_batches: 0)
+    create(
+      :artist_metadata_session,
+      user: user,
+      status: :running,
+      total_batches: 3,
+      completed_batches: 0,
+    )
   end
   let(:artists) { create_list(:artist, 2) }
   let(:artist_ids) { artists.map(&:id) }
-  let(:adapter) { instance_double(SpotifyAdapter) }
+  let(:adapter) { instance_spy(SpotifyAdapter) }
   let(:service) { described_class.new(session, artist_ids: artist_ids, adapter: adapter) }
 
   let(:api_response) do
@@ -23,15 +24,16 @@ RSpec.describe Spotify::ArtistBatchProcessor do
         {
           "id" => artist.spotify_id,
           "name" => artist.name,
-          "genres" => ["pop", "rock"],
+          "genres" => %w[pop rock],
           "popularity" => 75,
-          "images" => [{ "url" => "https://example.com/artist.jpg" }]
+          "images" => [{ "url" => "https://example.com/artist.jpg" }],
         }
-      end
+      end,
     }
   end
 
   before do
+    create(:service_connection, user: user)
     allow(adapter).to receive(:artists).and_return(api_response)
   end
 
@@ -48,8 +50,8 @@ RSpec.describe Spotify::ArtistBatchProcessor do
 
     it "fetches artists from Spotify API" do
       spotify_ids = artists.map(&:spotify_id)
-      expect(adapter).to receive(:artists).with(spotify_ids).and_return(api_response)
       service.call
+      expect(adapter).to have_received(:artists).with(spotify_ids)
     end
 
     it "increments completed_batches on session" do
@@ -65,8 +67,8 @@ RSpec.describe Spotify::ArtistBatchProcessor do
       end
 
       it "does not call the Spotify API" do
-        expect(adapter).not_to receive(:artists)
         service.call
+        expect(adapter).not_to have_received(:artists)
       end
     end
 
@@ -79,8 +81,8 @@ RSpec.describe Spotify::ArtistBatchProcessor do
       end
 
       it "does not call the Spotify API" do
-        expect(adapter).not_to receive(:artists)
         service.call
+        expect(adapter).not_to have_received(:artists)
       end
     end
 
@@ -95,11 +97,13 @@ RSpec.describe Spotify::ArtistBatchProcessor do
 
     context "when this is the final batch" do
       let(:session) do
-        create(:artist_metadata_session,
-               user: user,
-               status: :running,
-               total_batches: 2,
-               completed_batches: 1)
+        create(
+          :artist_metadata_session,
+          user: user,
+          status: :running,
+          total_batches: 2,
+          completed_batches: 1,
+        )
       end
 
       it "returns session_completed as true" do
@@ -120,11 +124,13 @@ RSpec.describe Spotify::ArtistBatchProcessor do
 
     context "when more batches remain" do
       let(:session) do
-        create(:artist_metadata_session,
-               user: user,
-               status: :running,
-               total_batches: 5,
-               completed_batches: 1)
+        create(
+          :artist_metadata_session,
+          user: user,
+          status: :running,
+          total_batches: 5,
+          completed_batches: 1,
+        )
       end
 
       it "returns session_completed as false" do

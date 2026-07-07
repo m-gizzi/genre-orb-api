@@ -10,7 +10,7 @@ class SyncSessionPlaylist < ApplicationRecord
     fetching_pages: 1,
     completed: 2,
     failed: 3,
-    skipped: 4
+    skipped: 4,
   }
 
   scope :done, -> { where(status: %i[completed skipped]) }

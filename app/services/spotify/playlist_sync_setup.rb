@@ -12,63 +12,69 @@ module Spotify
 
     def call
       first_page_response, current_snapshot_id = fetch_first_page_with_snapshot
+      return skip_unchanged if @playlist.snapshot_unchanged?(current_snapshot_id)
 
-      if @playlist.snapshot_unchanged?(current_snapshot_id)
-        PlaylistSyncCompleter.new(@playlist_session).skip
-        return Result.new(success?: true, skipped?: true)
-      end
-
-      total_tracks = first_page_response["total"] || 0
-      first_page_items = first_page_response["items"] || []
-      page_size = @playlist.spotify_page_size
-
-      total_pages = (total_tracks.to_f / page_size).ceil
-      total_pages = [total_pages, 1].max
-
-      version = PlaylistVersion.create_for_sync!(@playlist)
-
-      ActiveRecord::Base.transaction do
-        update_playlist_session(version, total_pages, first_page_items)
-        process_first_page(first_page_items, version) if first_page_items.any?
-      end
-
-      remaining_pages = calculate_remaining_pages(total_pages, first_page_items)
-      complete_if_single_page(remaining_pages)
-
-      Result.new(
-        success?: true,
-        skipped?: false,
-        version: version,
-        remaining_pages: remaining_pages
-      )
+      process_sync(first_page_response)
     end
 
     private
 
-    def fetch_first_page_with_snapshot
-      if @playlist.liked_songs?
-        response = @adapter.liked_songs(limit: @playlist.spotify_page_size, offset: 0)
-        [response, nil]
-      else
-        playlist_response = @adapter.playlist(@playlist.spotify_id)
-        current_snapshot_id = playlist_response["snapshot_id"]
+    def skip_unchanged
+      PlaylistSyncCompleter.new(@playlist_session).skip
+      Result.new(success?: true, skipped?: true)
+    end
 
-        @playlist.update!(last_seen_snapshot_id: current_snapshot_id)
+    def process_sync(first_page_response)
+      first_page_items = first_page_response["items"] || []
+      total_pages = calculate_total_pages(first_page_response["total"] || 0)
+      version = PlaylistVersion.create_for_sync!(@playlist)
 
-        first_page = playlist_response["tracks"] || { "total" => 0, "items" => [] }
-        [first_page, current_snapshot_id]
+      persist_first_page(version, total_pages, first_page_items)
+      remaining_pages = calculate_remaining_pages(total_pages, first_page_items)
+      complete_if_single_page(remaining_pages)
+
+      Result.new(success?: true, skipped?: false, version: version, remaining_pages: remaining_pages)
+    end
+
+    def calculate_total_pages(total_tracks)
+      pages = (total_tracks.to_f / @playlist.spotify_page_size).ceil
+      [pages, 1].max
+    end
+
+    def persist_first_page(version, total_pages, first_page_items)
+      ActiveRecord::Base.transaction do
+        update_playlist_session(version, total_pages, first_page_items)
+        process_first_page(first_page_items, version) if first_page_items.any?
       end
+    end
+
+    def fetch_first_page_with_snapshot
+      return fetch_liked_songs if @playlist.liked_songs?
+
+      fetch_regular_playlist
+    end
+
+    def fetch_liked_songs
+      response = @adapter.liked_songs(limit: @playlist.spotify_page_size, offset: 0)
+      [response, nil]
+    end
+
+    def fetch_regular_playlist
+      playlist_response = @adapter.playlist(@playlist.spotify_id)
+      current_snapshot_id = playlist_response["snapshot_id"]
+      @playlist.update!(last_seen_snapshot_id: current_snapshot_id)
+      first_page = playlist_response["tracks"] || { "total" => 0, "items" => [] }
+      [first_page, current_snapshot_id]
     end
 
     def update_playlist_session(version, total_pages, first_page_items)
       initial_completed = first_page_items.any? ? 1 : 0
-
       @playlist_session.update!(
         status: :fetching_pages,
         playlist_version: version,
         total_pages: total_pages,
         completed_pages: initial_completed,
-        started_at: Time.current
+        started_at: Time.current,
       )
     end
 
@@ -79,7 +85,6 @@ module Spotify
 
     def calculate_remaining_pages(total_pages, first_page_items)
       start_page = first_page_items.any? ? 1 : 0
-
       return [] if total_pages == 1 && first_page_items.any?
 
       (start_page...total_pages).to_a

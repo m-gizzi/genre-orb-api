@@ -51,7 +51,10 @@ class SpotifyAdapter
   end
 
   def artists(spotify_ids)
-    raise ArgumentError, "Cannot fetch more than #{ARTIST_BATCH_LIMIT} artists at once" if spotify_ids.size > ARTIST_BATCH_LIMIT
+    if spotify_ids.size > ARTIST_BATCH_LIMIT
+      raise ArgumentError,
+            "Cannot fetch more than #{ARTIST_BATCH_LIMIT} artists at once"
+    end
 
     ids = spotify_ids.join(",")
     request(:get, "artists", params: { ids: ids })

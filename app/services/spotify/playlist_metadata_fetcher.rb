@@ -13,14 +13,7 @@ module Spotify
 
     def call
       spotify_playlists = fetch_all_playlists
-      liked_songs_accessible = liked_songs_accessible?
-
-      ActiveRecord::Base.transaction do
-        upsert_playlists(spotify_playlists)
-        upsert_liked_songs if liked_songs_accessible
-        mark_unavailable_playlists(spotify_playlists.map { |p| p["id"] })
-        @user.update!(playlists_metadata_fetched_at: Time.current)
-      end
+      sync_playlists(spotify_playlists)
 
       Result.new(success?: true, playlists: @user.playlists)
     rescue StandardError => e
@@ -29,6 +22,15 @@ module Spotify
     end
 
     private
+
+    def sync_playlists(spotify_playlists)
+      ActiveRecord::Base.transaction do
+        upsert_playlists(spotify_playlists)
+        upsert_liked_songs if liked_songs_accessible?
+        mark_unavailable_playlists(spotify_playlists.map { |p| p["id"] })
+        @user.update!(playlists_metadata_fetched_at: Time.current)
+      end
+    end
 
     def fetch_all_playlists
       playlists = []
@@ -54,24 +56,25 @@ module Spotify
     def upsert_playlists(spotify_playlists)
       return if spotify_playlists.empty?
 
-      records = spotify_playlists.map do |sp|
-        {
-          user_id: @user.id,
-          spotify_id: sp["id"],
-          name: sp["name"],
-          last_seen_snapshot_id: sp["snapshot_id"],
-          is_public: sp["public"] || false,
-          available_on_spotify: true,
-          created_at: Time.current,
-          updated_at: Time.current
-        }
-      end
-
+      records = spotify_playlists.map { |sp| build_playlist_record(sp) }
       Playlist.upsert_all(
         records,
         unique_by: :spotify_id,
-        update_only: %i[name last_seen_snapshot_id is_public available_on_spotify]
+        update_only: %i[name last_seen_snapshot_id is_public available_on_spotify],
       )
+    end
+
+    def build_playlist_record(spotify_playlist)
+      {
+        user_id: @user.id,
+        spotify_id: spotify_playlist["id"],
+        name: spotify_playlist["name"],
+        last_seen_snapshot_id: spotify_playlist["snapshot_id"],
+        is_public: spotify_playlist["public"] || false,
+        available_on_spotify: true,
+        created_at: Time.current,
+        updated_at: Time.current,
+      }
     end
 
     def upsert_liked_songs

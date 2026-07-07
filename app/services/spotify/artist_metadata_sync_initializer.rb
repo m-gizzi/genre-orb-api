@@ -13,37 +13,28 @@ module Spotify
 
     def call
       artist_ids = fetch_artist_ids
-
-      if artist_ids.empty?
-        return Result.new(success?: true, skipped_reason: "no artists to sync")
-      end
+      return Result.new(success?: true, skipped_reason: "no artists to sync") if artist_ids.empty?
 
       batches = artist_ids.each_slice(BATCH_SIZE).to_a
-      total_batches = batches.size
+      session = create_session(batches.size)
 
-      session = ArtistMetadataSession.create!(
-        user: @user,
-        status: :running,
-        total_batches: total_batches,
-        completed_batches: 0,
-        started_at: Time.current
-      )
-
-      Result.new(
-        success?: true,
-        session: session,
-        batches: batches
-      )
+      Result.new(success?: true, session: session, batches: batches)
     end
 
     private
 
     def fetch_artist_ids
-      if @sync_all
-        Artist.pluck(:id)
-      else
-        Artist.where(metadata_fetched_at: nil).pluck(:id)
-      end
+      @sync_all ? Artist.pluck(:id) : Artist.where(metadata_fetched_at: nil).pluck(:id)
+    end
+
+    def create_session(total_batches)
+      ArtistMetadataSession.create!(
+        user: @user,
+        status: :running,
+        total_batches: total_batches,
+        completed_batches: 0,
+        started_at: Time.current,
+      )
     end
   end
 end

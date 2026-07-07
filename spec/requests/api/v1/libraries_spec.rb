@@ -112,9 +112,9 @@ RSpec.describe "Api::V1::Libraries" do
         end
 
         it "enqueues FetchPlaylistsMetadataJob" do
-          expect {
+          expect do
             post "/api/v1/library/fetch_playlists"
-          }.to have_enqueued_job(FetchPlaylistsMetadataJob).with(user.id)
+          end.to have_enqueued_job(FetchPlaylistsMetadataJob).with(user.id)
         end
 
         it "returns queued status" do
@@ -176,9 +176,9 @@ RSpec.describe "Api::V1::Libraries" do
           end
 
           it "enqueues LibrarySyncJob" do
-            expect {
+            expect do
               post "/api/v1/library/sync"
-            }.to have_enqueued_job(LibrarySyncJob).with(user.id)
+            end.to have_enqueued_job(LibrarySyncJob).with(user.id)
           end
 
           it "returns queued status" do

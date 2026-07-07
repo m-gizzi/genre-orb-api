@@ -19,7 +19,7 @@ RSpec.describe Spotify::LibrarySyncInitializer do
     end
 
     context "with sync-enabled, available playlists" do
-      let!(:syncable_playlists) do
+      before do
         create_list(:playlist, 3, user: user, sync_enabled: true, available_on_spotify: true)
       end
 
@@ -78,7 +78,8 @@ RSpec.describe Spotify::LibrarySyncInitializer do
 
       it "only includes sync-enabled and available playlists" do
         result = service.call
-        expect(result.playlist_session_ids.size).to eq(1)
+        playlist_ids = SyncSessionPlaylist.where(id: result.playlist_session_ids).pluck(:playlist_id)
+        expect(playlist_ids).to eq([syncable_playlist.id])
       end
 
       it "excludes disabled playlists" do
@@ -95,7 +96,7 @@ RSpec.describe Spotify::LibrarySyncInitializer do
     end
 
     context "when user has playlists but none are syncable" do
-      let!(:disabled_playlist) do
+      before do
         create(:playlist, user: user, sync_enabled: false, available_on_spotify: true)
       end
 

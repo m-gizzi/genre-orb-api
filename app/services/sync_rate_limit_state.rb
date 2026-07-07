@@ -9,7 +9,7 @@ class SyncRateLimitState
     end
 
     def user_paused?(user_id)
-      with_redis { |redis| redis.call("EXISTS", user_key(user_id)) > 0 }
+      with_redis { |redis| redis.call("EXISTS", user_key(user_id)).positive? }
     end
 
     def user_resume_at(user_id)
@@ -26,8 +26,8 @@ class SyncRateLimitState
 
     private
 
-    def with_redis(&block)
-      redis_pool.with(&block)
+    def with_redis(&)
+      redis_pool.with(&)
     end
 
     def redis_pool

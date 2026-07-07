@@ -6,7 +6,7 @@ class SyncFailureHandler
       playlist_session.update!(
         status: :failed,
         error_message: error_message,
-        completed_at: Time.current
+        completed_at: Time.current,
       )
 
       check_session_completion(playlist_session.sync_session)
@@ -23,7 +23,7 @@ class SyncFailureHandler
     private
 
     def check_session_completion(sync_session)
-      return if sync_session.sync_session_playlists.where(status: %i[pending fetching_pages]).exists?
+      return if sync_session.sync_session_playlists.exists?(status: %i[pending fetching_pages])
 
       sync_session.update!(status: :failed, completed_at: Time.current)
     end

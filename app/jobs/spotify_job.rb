@@ -3,13 +3,13 @@
 class SpotifyJob < ApplicationJob
   queue_as :sync
 
-  retry_on SpotifyAdapter::RateLimitError, wait: ->(executions, exception) {
+  retry_on SpotifyAdapter::RateLimitError, wait: lambda { |_executions, exception|
     exception.retry_after.seconds
   }, attempts: 10
 
   retry_on SpotifyAdapter::ApiError, wait: :polynomially_longer, attempts: 5
 
-  retry_on ActiveRecord::Deadlocked, wait: ->(executions, _exception) {
+  retry_on ActiveRecord::Deadlocked, wait: lambda { |executions, _exception|
     (0.5 * (2**executions)) + rand(0.0..0.5)
   }, attempts: 5
 
@@ -22,11 +22,12 @@ class SpotifyJob < ApplicationJob
 
   private
 
-  def defer_if_rate_limited(user_id)
-    wait_time = SyncRateLimitState.wait_time_for_user(user_id)
-    return false if wait_time <= 0
+  def rate_limited?(user_id)
+    SyncRateLimitState.wait_time_for_user(user_id).positive?
+  end
 
+  def defer_for_rate_limit(user_id)
+    wait_time = SyncRateLimitState.wait_time_for_user(user_id)
     self.class.set(wait: wait_time.seconds).perform_later(*arguments)
-    true
   end
 end

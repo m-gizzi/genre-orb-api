@@ -4,17 +4,18 @@ require "rails_helper"
 
 RSpec.describe Spotify::PlaylistSyncSetup do
   let(:user) { create(:user) }
-  let!(:service_connection) { create(:service_connection, user: user) }
   let(:sync_session) { create(:sync_session, user: user) }
   let(:playlist) { create(:playlist, user: user, spotify_id: "playlist_123", last_synced_snapshot_id: "old_snapshot") }
   let(:playlist_session) do
-    create(:sync_session_playlist,
-           sync_session: sync_session,
-           playlist: playlist,
-           status: :pending)
+    create(
+      :sync_session_playlist,
+      sync_session: sync_session,
+      playlist: playlist,
+      status: :pending,
+    )
   end
 
-  let(:adapter) { instance_double(SpotifyAdapter) }
+  let(:adapter) { instance_spy(SpotifyAdapter) }
   let(:service) { described_class.new(playlist_session, adapter: adapter) }
 
   let(:track_items) do
@@ -35,10 +36,10 @@ RSpec.describe Spotify::PlaylistSyncSetup do
             "release_date" => "2023-05-15",
             "total_tracks" => 10,
             "images" => [{ "url" => "https://example.com/album.jpg" }],
-            "artists" => [{ "id" => "artist_1", "name" => "Artist One" }]
-          }
-        }
-      }
+            "artists" => [{ "id" => "artist_1", "name" => "Artist One" }],
+          },
+        },
+      },
     ]
   end
 
@@ -47,14 +48,14 @@ RSpec.describe Spotify::PlaylistSyncSetup do
       "snapshot_id" => "new_snapshot",
       "tracks" => {
         "total" => 150,
-        "items" => track_items
-      }
+        "items" => track_items,
+      },
     }
   end
 
   before do
+    create(:service_connection, user: user)
     allow(adapter).to receive(:playlist).and_return(playlist_response)
-    allow_any_instance_of(Playlist).to receive(:spotify_page_size).and_return(100)
   end
 
   describe "#call" do
@@ -112,7 +113,9 @@ RSpec.describe Spotify::PlaylistSyncSetup do
     end
 
     context "when snapshot is unchanged" do
-      let(:playlist) { create(:playlist, user: user, spotify_id: "playlist_123", last_synced_snapshot_id: "new_snapshot") }
+      let(:playlist) do
+        create(:playlist, user: user, spotify_id: "playlist_123", last_synced_snapshot_id: "new_snapshot")
+      end
 
       it "returns skipped as true" do
         result = service.call
@@ -135,8 +138,8 @@ RSpec.describe Spotify::PlaylistSyncSetup do
           "snapshot_id" => "new_snapshot",
           "tracks" => {
             "total" => 50,
-            "items" => track_items
-          }
+            "items" => track_items,
+          },
         }
       end
 
@@ -157,8 +160,8 @@ RSpec.describe Spotify::PlaylistSyncSetup do
           "snapshot_id" => "new_snapshot",
           "tracks" => {
             "total" => 350,
-            "items" => track_items
-          }
+            "items" => track_items,
+          },
         }
       end
 
@@ -179,8 +182,8 @@ RSpec.describe Spotify::PlaylistSyncSetup do
           "snapshot_id" => "new_snapshot",
           "tracks" => {
             "total" => 0,
-            "items" => []
-          }
+            "items" => [],
+          },
         }
       end
 
@@ -205,7 +208,7 @@ RSpec.describe Spotify::PlaylistSyncSetup do
       let(:liked_songs_response) do
         {
           "total" => 200,
-          "items" => track_items
+          "items" => track_items,
         }
       end
 
@@ -214,8 +217,8 @@ RSpec.describe Spotify::PlaylistSyncSetup do
       end
 
       it "fetches via liked_songs endpoint" do
-        expect(adapter).to receive(:liked_songs).with(limit: 50, offset: 0)
         service.call
+        expect(adapter).to have_received(:liked_songs).with(limit: 50, offset: 0)
       end
 
       it "always processes (no snapshot check)" do

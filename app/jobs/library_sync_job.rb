@@ -20,9 +20,21 @@ class LibrarySyncJob < ApplicationJob
       return
     end
 
-    jobs = result.playlist_session_ids.map { |id| PlaylistSyncSetupJob.new(id) }
-    ActiveJob.perform_all_later(jobs)
+    enqueue_playlist_setup_jobs(result.playlist_session_ids)
+    log_success(user_id, result)
+  end
 
-    Rails.logger.info("LibrarySyncJob: user=#{user_id} session=#{result.sync_session.id} playlists=#{result.playlist_session_ids.count}")
+  private
+
+  def enqueue_playlist_setup_jobs(playlist_session_ids)
+    jobs = playlist_session_ids.map { |id| PlaylistSyncSetupJob.new(id) }
+    ActiveJob.perform_all_later(jobs)
+  end
+
+  def log_success(user_id, result)
+    Rails.logger.info(
+      "LibrarySyncJob: user=#{user_id} session=#{result.sync_session.id} " \
+      "playlists=#{result.playlist_session_ids.count}",
+    )
   end
 end

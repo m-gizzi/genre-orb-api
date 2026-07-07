@@ -26,7 +26,7 @@ RSpec.describe "Api::V1::Playlists" do
         create(:playlist, available_on_spotify: true)
 
         get "/api/v1/playlists"
-        ids = response.parsed_body.map { |p| p["id"] }
+        ids = response.parsed_body.pluck("id")
 
         expect(ids).to contain_exactly(my_playlist.id)
       end
@@ -36,7 +36,7 @@ RSpec.describe "Api::V1::Playlists" do
         create(:playlist, user: user, available_on_spotify: false)
 
         get "/api/v1/playlists"
-        ids = response.parsed_body.map { |p| p["id"] }
+        ids = response.parsed_body.pluck("id")
 
         expect(ids).to contain_exactly(available.id)
       end
@@ -47,7 +47,7 @@ RSpec.describe "Api::V1::Playlists" do
         create(:playlist, user: user, name: "Middle", available_on_spotify: true)
 
         get "/api/v1/playlists"
-        names = response.parsed_body.map { |p| p["name"] }
+        names = response.parsed_body.pluck("name")
 
         expect(names).to eq(%w[Alpha Middle Zebra])
       end

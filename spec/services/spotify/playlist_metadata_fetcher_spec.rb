@@ -4,11 +4,11 @@ require "rails_helper"
 
 RSpec.describe Spotify::PlaylistMetadataFetcher do
   let(:user) { create(:user) }
-  let!(:service_connection) { create(:service_connection, user: user) }
   let(:adapter) { instance_double(SpotifyAdapter) }
   let(:service) { described_class.new(user) }
 
   before do
+    create(:service_connection, user: user)
     allow(SpotifyAdapter).to receive(:new).and_return(adapter)
   end
 
@@ -16,7 +16,7 @@ RSpec.describe Spotify::PlaylistMetadataFetcher do
     let(:spotify_playlists) do
       [
         { "id" => "playlist_1", "name" => "My Playlist", "snapshot_id" => "snap1", "public" => true },
-        { "id" => "playlist_2", "name" => "Another", "snapshot_id" => "snap2", "public" => false }
+        { "id" => "playlist_2", "name" => "Another", "snapshot_id" => "snap2", "public" => false },
       ]
     end
 

@@ -67,11 +67,19 @@ Style/TrailingCommaInArguments:
   EnforcedStyleForMultiline: consistent_comma
 
 Rails/SkipsModelValidations:
-  Exclude:
-    - "spec/**/*"
+  Enabled: false
+
+Metrics/ClassLength:
+  Enabled: false
 
 RSpec/MultipleExpectations:
-  Max: 3
+  Max: 5
+
+RSpec/MultipleMemoizedHelpers:
+  Enabled: false
+
+RSpec/ExampleLength:
+  Enabled: false
 
 RSpec/NestedGroups:
-  Max: 5
+  Max: 6

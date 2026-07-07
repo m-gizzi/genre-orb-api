@@ -4,8 +4,8 @@ require "rails_helper"
 
 RSpec.describe SyncRateLimitState do
   let(:user_id) { 123 }
-  let(:redis) { double("RedisClient") }
-  let(:pool) { double("RedisClient::Pool") }
+  let(:redis) { instance_spy(RedisClient) }
+  let(:pool) { instance_spy(RedisClient::Pooled) }
 
   before do
     allow(described_class).to receive(:redis_pool).and_return(pool)
@@ -14,17 +14,17 @@ RSpec.describe SyncRateLimitState do
 
   describe ".pause_user!" do
     it "sets key with expiration" do
-      expect(redis).to receive(:call)
-        .with("SETEX", "genre_orb:sync:rate_limit:user:#{user_id}", 60, anything)
-
       described_class.pause_user!(user_id, 60)
+
+      expect(redis).to have_received(:call)
+        .with("SETEX", "genre_orb:sync:rate_limit:user:#{user_id}", 60, anything)
     end
 
     it "converts seconds to integer" do
-      expect(redis).to receive(:call)
-        .with("SETEX", anything, 30, anything)
-
       described_class.pause_user!(user_id, 30.5)
+
+      expect(redis).to have_received(:call)
+        .with("SETEX", anything, 30, anything)
     end
   end
 

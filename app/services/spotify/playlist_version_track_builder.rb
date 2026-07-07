@@ -24,7 +24,7 @@ module Spotify
           position: offset + idx,
           added_at: item["added_at"],
           created_at: Time.current,
-          updated_at: Time.current
+          updated_at: Time.current,
         }
       end
     end

@@ -5,7 +5,7 @@ class Playlist < ApplicationRecord
   belongs_to :current_version, class_name: "PlaylistVersion", optional: true
 
   has_many :playlist_versions, dependent: :destroy, inverse_of: :playlist
-  alias_method :versions, :playlist_versions
+  alias versions playlist_versions
 
   has_many :smart_playlist_sources, dependent: :restrict_with_error, inverse_of: :playlist
   has_many :smart_playlists, through: :smart_playlist_sources

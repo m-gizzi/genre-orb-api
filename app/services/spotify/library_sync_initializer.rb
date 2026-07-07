@@ -11,9 +11,7 @@ module Spotify
     def call
       playlists = @user.playlists.sync_enabled.available
 
-      if playlists.empty?
-        return Result.new(success?: true, skipped_reason: "no playlists to sync")
-      end
+      return Result.new(success?: true, skipped_reason: "no playlists to sync") if playlists.empty?
 
       session = SyncSession.create!(user: @user, status: :running, started_at: Time.current)
 
@@ -24,7 +22,7 @@ module Spotify
       Result.new(
         success?: true,
         sync_session: session,
-        playlist_session_ids: playlist_sessions.map(&:id)
+        playlist_session_ids: playlist_sessions.map(&:id),
       )
     end
   end

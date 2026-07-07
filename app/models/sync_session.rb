@@ -11,7 +11,7 @@ class SyncSession < ApplicationRecord
     paused: 2,
     completed: 3,
     failed: 4,
-    cancelled: 5
+    cancelled: 5,
   }
 
   scope :active, -> { where(status: %i[pending running paused]) }

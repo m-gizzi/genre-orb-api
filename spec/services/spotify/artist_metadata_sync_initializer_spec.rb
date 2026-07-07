@@ -2,6 +2,7 @@
 
 require "rails_helper"
 
+# rubocop:disable FactoryBot/ExcessiveCreateList
 RSpec.describe Spotify::ArtistMetadataSyncInitializer do
   let(:user) { create(:user) }
   let(:service) { described_class.new(user, sync_all: sync_all) }
@@ -50,7 +51,7 @@ RSpec.describe Spotify::ArtistMetadataSyncInitializer do
 
       it "returns batches with only unfetched artist ids" do
         result = service.call
-        expect(result.batches.flatten).to contain_exactly(*unfetched_artists.map(&:id))
+        expect(result.batches.flatten).to match_array(unfetched_artists.map(&:id))
       end
 
       it "does not include already fetched artists" do
@@ -67,7 +68,7 @@ RSpec.describe Spotify::ArtistMetadataSyncInitializer do
       it "includes all artists regardless of metadata_fetched_at" do
         result = service.call
         all_ids = (unfetched_artists + fetched_artists).map(&:id)
-        expect(result.batches.flatten).to contain_exactly(*all_ids)
+        expect(result.batches.flatten).to match_array(all_ids)
       end
     end
 
@@ -107,3 +108,4 @@ RSpec.describe Spotify::ArtistMetadataSyncInitializer do
     end
   end
 end
+# rubocop:enable FactoryBot/ExcessiveCreateList

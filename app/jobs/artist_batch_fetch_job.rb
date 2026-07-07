@@ -9,12 +9,15 @@ class ArtistBatchFetchJob < SpotifyJob
     session.update!(
       status: :failed,
       error_message: "Batch fetch failed after retries: #{exception.message}",
-      completed_at: Time.current
+      completed_at: Time.current,
     )
   end
 
   def perform(session_id:, user_id:, artist_ids:)
-    return if defer_if_rate_limited(user_id)
+    if rate_limited?(user_id)
+      defer_for_rate_limit(user_id)
+      return
+    end
 
     session = ArtistMetadataSession.find(session_id)
     user = User.find(user_id)

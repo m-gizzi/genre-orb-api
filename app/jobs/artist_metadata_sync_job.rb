@@ -12,19 +12,23 @@ class ArtistMetadataSyncJob < ApplicationJob
       return
     end
 
+    enqueue_batch_jobs(result, user_id)
+    log_success(user_id, result, sync_all)
+  end
+
+  private
+
+  def enqueue_batch_jobs(result, user_id)
     jobs = result.batches.map do |batch_ids|
-      ArtistBatchFetchJob.new(
-        session_id: result.session.id,
-        user_id: user_id,
-        artist_ids: batch_ids
-      )
+      ArtistBatchFetchJob.new(session_id: result.session.id, user_id: user_id, artist_ids: batch_ids)
     end
-
     ActiveJob.perform_all_later(jobs)
+  end
 
+  def log_success(user_id, result, sync_all)
     Rails.logger.info(
       "ArtistMetadataSyncJob: user=#{user_id} session=#{result.session.id} " \
-      "artists=#{result.batches.flatten.size} batches=#{result.batches.size} sync_all=#{sync_all}"
+      "artists=#{result.batches.flatten.size} batches=#{result.batches.size} sync_all=#{sync_all}",
     )
   end
 end

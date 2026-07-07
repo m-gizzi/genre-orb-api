@@ -12,7 +12,7 @@ module Api
       end
 
       def update
-        playlist = current_user.playlists.find(params[:id])
+        playlist = current_user.playlists.find(params.expect(:id))
         playlist.update!(playlist_params)
 
         render json: PlaylistSerializer.new(playlist).serialize
@@ -21,7 +21,7 @@ module Api
       private
 
       def playlist_params
-        params.require(:playlist).permit(:sync_enabled)
+        params.expect(playlist: [:sync_enabled])
       end
     end
   end

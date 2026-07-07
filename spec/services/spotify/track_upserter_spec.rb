@@ -5,7 +5,9 @@ require "rails_helper"
 RSpec.describe Spotify::TrackUpserter do
   let(:service) { described_class.new }
 
+  # rubocop:disable Metrics/ParameterLists
   def build_spotify_track_item(track_id:, track_name:, artist_id:, artist_name:, album_id:, album_name:)
+    # rubocop:enable Metrics/ParameterLists
     {
       "track" => {
         "id" => track_id,
@@ -16,7 +18,7 @@ RSpec.describe Spotify::TrackUpserter do
         "preview_url" => "https://example.com/preview",
         "popularity" => 75,
         "artists" => [
-          { "id" => artist_id, "name" => artist_name }
+          { "id" => artist_id, "name" => artist_name },
         ],
         "album" => {
           "id" => album_id,
@@ -24,9 +26,9 @@ RSpec.describe Spotify::TrackUpserter do
           "release_date" => "2023-05-15",
           "total_tracks" => 10,
           "images" => [{ "url" => "https://example.com/album.jpg" }],
-          "artists" => [{ "id" => artist_id, "name" => artist_name }]
-        }
-      }
+          "artists" => [{ "id" => artist_id, "name" => artist_name }],
+        },
+      },
     }
   end
 
@@ -36,13 +38,13 @@ RSpec.describe Spotify::TrackUpserter do
         build_spotify_track_item(
           track_id: "track_1", track_name: "Song One",
           artist_id: "artist_1", artist_name: "Artist One",
-          album_id: "album_1", album_name: "Album One"
+          album_id: "album_1", album_name: "Album One",
         ),
         build_spotify_track_item(
           track_id: "track_2", track_name: "Song Two",
           artist_id: "artist_2", artist_name: "Artist Two",
-          album_id: "album_2", album_name: "Album Two"
-        )
+          album_id: "album_2", album_name: "Album Two",
+        ),
       ]
     end
 
@@ -122,7 +124,7 @@ RSpec.describe Spotify::TrackUpserter do
               "popularity" => 80,
               "artists" => [
                 { "id" => "artist_a", "name" => "Artist A" },
-                { "id" => "artist_b", "name" => "Artist B" }
+                { "id" => "artist_b", "name" => "Artist B" },
               ],
               "album" => {
                 "id" => "album_collab",
@@ -130,10 +132,10 @@ RSpec.describe Spotify::TrackUpserter do
                 "release_date" => "2024",
                 "total_tracks" => 1,
                 "images" => [],
-                "artists" => [{ "id" => "artist_a", "name" => "Artist A" }]
-              }
-            }
-          }
+                "artists" => [{ "id" => "artist_a", "name" => "Artist A" }],
+              },
+            },
+          },
         ]
       end
 
@@ -151,8 +153,8 @@ RSpec.describe Spotify::TrackUpserter do
           build_spotify_track_item(
             track_id: "valid_track", track_name: "Valid Song",
             artist_id: "artist_1", artist_name: "Artist",
-            album_id: "album_1", album_name: "Album"
-          )
+            album_id: "album_1", album_name: "Album",
+          ),
         ]
       end
 
@@ -162,7 +164,7 @@ RSpec.describe Spotify::TrackUpserter do
       end
     end
 
-    context "release date parsing" do
+    context "with year-only release date" do
       let(:track_items) do
         [
           {
@@ -181,10 +183,10 @@ RSpec.describe Spotify::TrackUpserter do
                 "release_date" => "1999",
                 "total_tracks" => 1,
                 "images" => [],
-                "artists" => [{ "id" => "a1", "name" => "Artist" }]
-              }
-            }
-          }
+                "artists" => [{ "id" => "a1", "name" => "Artist" }],
+              },
+            },
+          },
         ]
       end
 
