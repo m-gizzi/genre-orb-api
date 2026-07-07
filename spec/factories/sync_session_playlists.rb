@@ -29,5 +29,12 @@ FactoryBot.define do
       completed_at { Time.current }
       error_message { "Page fetch failed" }
     end
+
+    trait :skipped do
+      status { :skipped }
+      completed_at { Time.current }
+      total_pages { 0 }
+      completed_pages { 0 }
+    end
   end
 end

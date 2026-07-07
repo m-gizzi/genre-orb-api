@@ -19,12 +19,13 @@ class SyncSession < ApplicationRecord
 
   def progress
     total = sync_session_playlists.count
-    done = sync_session_playlists.completed.count
-    { total: total, completed: done, percent: total.positive? ? (done * 100 / total) : 0 }
+    done = sync_session_playlists.done.count
+    skipped = sync_session_playlists.skipped.count
+    { total: total, completed: done, skipped: skipped, percent: total.positive? ? (done * 100 / total) : 0 }
   end
 
   def all_playlists_done?
-    sync_session_playlists.where.not(status: :completed).none?
+    sync_session_playlists.count == sync_session_playlists.done.count
   end
 
   def active?

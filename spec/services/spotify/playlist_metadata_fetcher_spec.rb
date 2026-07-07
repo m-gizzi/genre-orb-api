@@ -43,7 +43,7 @@ RSpec.describe Spotify::PlaylistMetadataFetcher do
 
       playlist = Playlist.find_by(spotify_id: "playlist_1")
       expect(playlist.name).to eq("My Playlist")
-      expect(playlist.snapshot_id).to eq("snap1")
+      expect(playlist.last_seen_snapshot_id).to eq("snap1")
       expect(playlist.is_public).to be(true)
       expect(playlist.available_on_spotify).to be(true)
     end

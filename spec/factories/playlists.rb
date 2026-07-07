@@ -8,7 +8,7 @@ FactoryBot.define do
 
     trait :with_spotify do
       sequence(:spotify_id) { |n| "spotify_playlist_#{n}" }
-      sequence(:snapshot_id) { |_n| "snapshot_#{SecureRandom.hex(8)}" }
+      sequence(:last_seen_snapshot_id) { |_n| "snapshot_#{SecureRandom.hex(8)}" }
     end
 
     trait :public do

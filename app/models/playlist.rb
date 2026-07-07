@@ -43,6 +43,13 @@ class Playlist < ApplicationRecord
     false
   end
 
+  def snapshot_unchanged?(current_api_snapshot_id)
+    return false if liked_songs?
+    return false if last_synced_snapshot_id.nil?
+
+    last_synced_snapshot_id == current_api_snapshot_id
+  end
+
   def spotify_page_size
     100
   end

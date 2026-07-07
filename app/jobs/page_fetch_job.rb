@@ -32,7 +32,7 @@ class PageFetchJob < SpotifyJob
       tracks_by_spotify_id = Spotify::TrackUpserter.new.call(items)
       Spotify::PlaylistVersionTrackBuilder.new(version).call(items, tracks_by_spotify_id, offset: offset)
 
-      PlaylistSyncCompleter.new(playlist_session).call if playlist_session.page_completed!
+      PlaylistSyncCompleter.new(playlist_session).complete if playlist_session.page_completed!
     end
   end
 end

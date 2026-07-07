@@ -19,7 +19,14 @@ class PlaylistSyncSetupJob < SpotifyJob
     return if defer_if_rate_limited(user.id)
 
     adapter = SpotifyAdapter.new(user.spotify_connection)
-    first_page_response = fetch_first_page(adapter, playlist)
+
+    first_page_response, current_snapshot_id = fetch_first_page_with_snapshot(adapter, playlist)
+
+    if playlist.snapshot_unchanged?(current_snapshot_id)
+      PlaylistSyncCompleter.new(playlist_session).skip
+      Rails.logger.info("PlaylistSyncSetupJob: playlist=#{playlist.id} skipped - snapshot unchanged")
+      return
+    end
 
     total_tracks = first_page_response["total"] || 0
     first_page_items = first_page_response["items"] || []
@@ -31,11 +38,13 @@ class PlaylistSyncSetupJob < SpotifyJob
     version = PlaylistVersion.create_for_sync!(playlist)
 
     ActiveRecord::Base.transaction do
+      initial_completed = first_page_items.any? ? 1 : 0
+
       playlist_session.update!(
         status: :fetching_pages,
         playlist_version: version,
         total_pages: total_pages,
-        completed_pages: 0,
+        completed_pages: initial_completed,
         started_at: Time.current
       )
 
@@ -52,12 +61,18 @@ class PlaylistSyncSetupJob < SpotifyJob
 
   private
 
-  def fetch_first_page(adapter, playlist)
+  def fetch_first_page_with_snapshot(adapter, playlist)
     if playlist.liked_songs?
-      adapter.liked_songs(limit: playlist.spotify_page_size, offset: 0)
+      response = adapter.liked_songs(limit: playlist.spotify_page_size, offset: 0)
+      [response, nil]
     else
-      response = adapter.playlist(playlist.spotify_id)
-      response["tracks"] || { "total" => 0, "items" => [] }
+      playlist_response = adapter.playlist(playlist.spotify_id)
+      current_snapshot_id = playlist_response["snapshot_id"]
+
+      playlist.update!(last_seen_snapshot_id: current_snapshot_id)
+
+      first_page = playlist_response["tracks"] || { "total" => 0, "items" => [] }
+      [first_page, current_snapshot_id]
     end
   end
 
@@ -85,6 +100,6 @@ class PlaylistSyncSetupJob < SpotifyJob
   end
 
   def complete_single_page_playlist(playlist_session)
-    PlaylistSyncCompleter.new(playlist_session).call if playlist_session.page_completed!
+    PlaylistSyncCompleter.new(playlist_session).complete if playlist_session.page_completed!
   end
 end

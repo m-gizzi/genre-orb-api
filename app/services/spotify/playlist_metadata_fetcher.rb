@@ -59,7 +59,7 @@ module Spotify
           user_id: @user.id,
           spotify_id: sp["id"],
           name: sp["name"],
-          snapshot_id: sp["snapshot_id"],
+          last_seen_snapshot_id: sp["snapshot_id"],
           is_public: sp["public"] || false,
           available_on_spotify: true,
           created_at: Time.current,
@@ -70,7 +70,7 @@ module Spotify
       Playlist.upsert_all(
         records,
         unique_by: :spotify_id,
-        update_only: %i[name snapshot_id is_public available_on_spotify]
+        update_only: %i[name last_seen_snapshot_id is_public available_on_spotify]
       )
     end
 
