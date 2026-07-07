@@ -13,22 +13,16 @@ class LibrarySyncJob < ApplicationJob
 
   def perform(user_id)
     user = User.find(user_id)
-    playlists = user.playlists.sync_enabled.available
+    result = Spotify::LibrarySyncInitializer.new(user).call
 
-    if playlists.empty?
-      Rails.logger.info("LibrarySyncJob: user=#{user_id} no playlists to sync")
+    if result.skipped_reason
+      Rails.logger.info("LibrarySyncJob: user=#{user_id} #{result.skipped_reason}")
       return
     end
 
-    session = SyncSession.create!(user: user, status: :running, started_at: Time.current)
-
-    playlist_sessions = playlists.map do |playlist|
-      session.sync_session_playlists.create!(playlist: playlist, status: :pending)
-    end
-
-    jobs = playlist_sessions.map { |session| PlaylistSyncSetupJob.new(session.id) }
+    jobs = result.playlist_session_ids.map { |id| PlaylistSyncSetupJob.new(id) }
     ActiveJob.perform_all_later(jobs)
 
-    Rails.logger.info("LibrarySyncJob: user=#{user_id} session=#{session.id} playlists=#{playlists.count}")
+    Rails.logger.info("LibrarySyncJob: user=#{user_id} session=#{result.sync_session.id} playlists=#{result.playlist_session_ids.count}")
   end
 end

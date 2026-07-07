@@ -19,87 +19,33 @@ class PlaylistSyncSetupJob < SpotifyJob
     return if defer_if_rate_limited(user.id)
 
     adapter = SpotifyAdapter.new(user.spotify_connection)
+    result = Spotify::PlaylistSyncSetup.new(playlist_session, adapter: adapter).call
 
-    first_page_response, current_snapshot_id = fetch_first_page_with_snapshot(adapter, playlist)
-
-    if playlist.snapshot_unchanged?(current_snapshot_id)
-      PlaylistSyncCompleter.new(playlist_session).skip
+    if result.skipped?
       Rails.logger.info("PlaylistSyncSetupJob: playlist=#{playlist.id} skipped - snapshot unchanged")
       return
     end
 
-    total_tracks = first_page_response["total"] || 0
-    first_page_items = first_page_response["items"] || []
-    page_size = playlist.spotify_page_size
-
-    total_pages = (total_tracks.to_f / page_size).ceil
-    total_pages = [total_pages, 1].max
-
-    version = PlaylistVersion.create_for_sync!(playlist)
-
-    ActiveRecord::Base.transaction do
-      initial_completed = first_page_items.any? ? 1 : 0
-
-      playlist_session.update!(
-        status: :fetching_pages,
-        playlist_version: version,
-        total_pages: total_pages,
-        completed_pages: initial_completed,
-        started_at: Time.current
-      )
-
-      process_first_page(first_page_items, version) if first_page_items.any?
-    end
-
-    enqueue_remaining_pages(playlist_session, total_pages, first_page_items)
+    enqueue_remaining_pages(playlist_session, result.remaining_pages)
 
     Rails.logger.info(
-      "PlaylistSyncSetupJob: playlist=#{playlist.id} version=#{version.id} " \
-      "total_tracks=#{total_tracks} pages=#{total_pages}"
+      "PlaylistSyncSetupJob: playlist=#{playlist.id} version=#{result.version.id} " \
+      "pages=#{result.remaining_pages.size + 1}"
     )
   end
 
   private
 
-  def fetch_first_page_with_snapshot(adapter, playlist)
-    if playlist.liked_songs?
-      response = adapter.liked_songs(limit: playlist.spotify_page_size, offset: 0)
-      [response, nil]
-    else
-      playlist_response = adapter.playlist(playlist.spotify_id)
-      current_snapshot_id = playlist_response["snapshot_id"]
+  def enqueue_remaining_pages(playlist_session, remaining_pages)
+    return if remaining_pages.empty?
 
-      playlist.update!(last_seen_snapshot_id: current_snapshot_id)
-
-      first_page = playlist_response["tracks"] || { "total" => 0, "items" => [] }
-      [first_page, current_snapshot_id]
-    end
-  end
-
-  def process_first_page(items, version)
-    tracks_by_spotify_id = Spotify::TrackUpserter.new.call(items)
-    Spotify::PlaylistVersionTrackBuilder.new(version).call(items, tracks_by_spotify_id)
-  end
-
-  def enqueue_remaining_pages(playlist_session, total_pages, first_page_items)
-    start_page = first_page_items.any? ? 1 : 0
-
-    if total_pages == 1 && first_page_items.any?
-      complete_single_page_playlist(playlist_session)
-      return
-    end
-
-    jobs = (start_page...total_pages).map do |page_num|
+    jobs = remaining_pages.map do |page_num|
       PageFetchJob.new(
         sync_session_playlist_id: playlist_session.id,
         page: page_num
       )
     end
 
-    ActiveJob.perform_all_later(jobs) if jobs.any?
-  end
-
-  def complete_single_page_playlist(playlist_session)
-    PlaylistSyncCompleter.new(playlist_session).complete if playlist_session.page_completed!
+    ActiveJob.perform_all_later(jobs)
   end
 end

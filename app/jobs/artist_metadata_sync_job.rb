@@ -3,35 +3,18 @@
 class ArtistMetadataSyncJob < ApplicationJob
   queue_as :sync
 
-  BATCH_SIZE = SpotifyAdapter::ARTIST_BATCH_LIMIT
-
   def perform(user_id, sync_all: false)
     user = User.find(user_id)
+    result = Spotify::ArtistMetadataSyncInitializer.new(user, sync_all: sync_all).call
 
-    artist_ids = if sync_all
-      Artist.pluck(:id)
-    else
-      Artist.where(metadata_fetched_at: nil).pluck(:id)
-    end
-
-    if artist_ids.empty?
-      Rails.logger.info("ArtistMetadataSyncJob: user=#{user_id} no artists to sync (sync_all=#{sync_all})")
+    if result.skipped_reason
+      Rails.logger.info("ArtistMetadataSyncJob: user=#{user_id} #{result.skipped_reason} (sync_all=#{sync_all})")
       return
     end
 
-    total_batches = (artist_ids.size.to_f / BATCH_SIZE).ceil
-
-    session = ArtistMetadataSession.create!(
-      user: user,
-      status: :running,
-      total_batches: total_batches,
-      completed_batches: 0,
-      started_at: Time.current
-    )
-
-    jobs = artist_ids.each_slice(BATCH_SIZE).map do |batch_ids|
+    jobs = result.batches.map do |batch_ids|
       ArtistBatchFetchJob.new(
-        session_id: session.id,
+        session_id: result.session.id,
         user_id: user_id,
         artist_ids: batch_ids
       )
@@ -40,8 +23,8 @@ class ArtistMetadataSyncJob < ApplicationJob
     ActiveJob.perform_all_later(jobs)
 
     Rails.logger.info(
-      "ArtistMetadataSyncJob: user=#{user_id} session=#{session.id} " \
-      "artists=#{artist_ids.size} batches=#{total_batches} sync_all=#{sync_all}"
+      "ArtistMetadataSyncJob: user=#{user_id} session=#{result.session.id} " \
+      "artists=#{result.batches.flatten.size} batches=#{result.batches.size} sync_all=#{sync_all}"
     )
   end
 end

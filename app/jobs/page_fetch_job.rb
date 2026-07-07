@@ -18,21 +18,7 @@ class PageFetchJob < SpotifyJob
 
     return if defer_if_rate_limited(user.id)
 
-    playlist = playlist_session.playlist
-    version = playlist_session.playlist_version
     adapter = SpotifyAdapter.new(user.spotify_connection)
-
-    page_size = playlist.spotify_page_size
-    offset = page * page_size
-
-    response = playlist.fetch_tracks_page(adapter, limit: page_size, offset: offset)
-    items = response["items"] || []
-
-    ActiveRecord::Base.transaction do
-      tracks_by_spotify_id = Spotify::TrackUpserter.new.call(items)
-      Spotify::PlaylistVersionTrackBuilder.new(version).call(items, tracks_by_spotify_id, offset: offset)
-
-      PlaylistSyncCompleter.new(playlist_session).complete if playlist_session.page_completed!
-    end
+    Spotify::PlaylistPageFetcher.new(playlist_session, page: page, adapter: adapter).call
   end
 end

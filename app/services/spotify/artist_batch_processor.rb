@@ -1,0 +1,28 @@
+# frozen_string_literal: true
+
+module Spotify
+  class ArtistBatchProcessor
+    Result = Struct.new(:success?, :session_completed?, :skipped?, :error, keyword_init: true)
+
+    def initialize(session, artist_ids:, adapter:)
+      @session = session
+      @artist_ids = artist_ids
+      @adapter = adapter
+    end
+
+    def call
+      return Result.new(success?: true, skipped?: true) if @session.failed?
+
+      spotify_ids = Artist.where(id: @artist_ids).pluck(:spotify_id)
+      return Result.new(success?: true, skipped?: true) if spotify_ids.empty?
+
+      response = @adapter.artists(spotify_ids)
+      Spotify::ArtistMetadataUpserter.new(response).call
+
+      session_completed = @session.batch_completed!
+      @session.update!(status: :completed, completed_at: Time.current) if session_completed
+
+      Result.new(success?: true, session_completed?: session_completed, skipped?: false)
+    end
+  end
+end
