@@ -4,9 +4,9 @@ module Api
   module V1
     class LibrariesController < BaseController
       def status
-        session = current_user.sync_sessions.recent.first
+        @session = current_user.sync_sessions.recent.first
 
-        render json: build_status_response(session)
+        render json: build_status_response
       end
 
       def fetch_playlists
@@ -26,10 +26,10 @@ module Api
 
       private
 
-      def build_status_response(session)
+      def build_status_response
         {
-          has_active_sync: session&.active? || false,
-          current_session: session ? serialize_session(session) : nil,
+          has_active_sync: @session&.active? || false,
+          current_session: @session ? serialize_session : nil,
           playlists_metadata_fetched_at: current_user.playlists_metadata_fetched_at&.iso8601,
         }.merge(rate_limit_info)
       end
@@ -64,14 +64,14 @@ module Api
         render json: { error: message }, status: status
       end
 
-      def serialize_session(session)
+      def serialize_session
         {
-          id: session.id,
-          status: session.status,
-          progress: session.progress,
-          started_at: session.started_at&.iso8601,
-          completed_at: session.completed_at&.iso8601,
-          playlists: session.sync_session_playlists.includes(:playlist).map do |ssp|
+          id: @session.id,
+          status: @session.status,
+          progress: @session.progress,
+          started_at: @session.started_at&.iso8601,
+          completed_at: @session.completed_at&.iso8601,
+          playlists: @session.sync_session_playlists.includes(:playlist).map do |ssp|
             {
               playlist_id: ssp.playlist_id,
               playlist_name: ssp.playlist.name,

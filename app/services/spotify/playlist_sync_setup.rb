@@ -26,14 +26,14 @@ module Spotify
 
     def process_sync(first_page_response)
       first_page_items = first_page_response["items"] || []
-      total_pages = calculate_total_pages(first_page_response["total"] || 0)
-      version = PlaylistVersion.create_for_sync!(@playlist)
+      @total_pages = calculate_total_pages(first_page_response["total"] || 0)
+      @version = PlaylistVersion.create_for_sync!(@playlist)
 
-      persist_first_page(version, total_pages, first_page_items)
-      remaining_pages = calculate_remaining_pages(total_pages, first_page_items)
+      persist_first_page(first_page_items)
+      remaining_pages = calculate_remaining_pages(first_page_items)
       complete_if_single_page(remaining_pages)
 
-      Result.new(success?: true, skipped?: false, version: version, remaining_pages: remaining_pages)
+      Result.new(success?: true, skipped?: false, version: @version, remaining_pages: remaining_pages)
     end
 
     def calculate_total_pages(total_tracks)
@@ -41,10 +41,10 @@ module Spotify
       [pages, 1].max
     end
 
-    def persist_first_page(version, total_pages, first_page_items)
+    def persist_first_page(first_page_items)
       ActiveRecord::Base.transaction do
-        update_playlist_session(version, total_pages, first_page_items)
-        process_first_page(first_page_items, version) if first_page_items.any?
+        update_playlist_session(first_page_items)
+        process_first_page_items(first_page_items) if first_page_items.any?
       end
     end
 
@@ -67,27 +67,28 @@ module Spotify
       [first_page, current_snapshot_id]
     end
 
-    def update_playlist_session(version, total_pages, first_page_items)
+    def update_playlist_session(first_page_items)
       initial_completed = first_page_items.any? ? 1 : 0
       @playlist_session.update!(
         status: :fetching_pages,
-        playlist_version: version,
-        total_pages: total_pages,
+        playlist_version: @version,
+        total_pages: @total_pages,
         completed_pages: initial_completed,
         started_at: Time.current,
       )
     end
 
-    def process_first_page(items, version)
-      tracks_by_spotify_id = Spotify::TrackUpserter.new.call(items)
-      Spotify::PlaylistVersionTrackBuilder.new(version).call(items, tracks_by_spotify_id)
+    def process_first_page_items(first_page_items)
+      tracks_by_spotify_id = Spotify::TrackUpserter.new.call(first_page_items)
+      Spotify::PlaylistVersionTrackBuilder.new(@version).call(first_page_items, tracks_by_spotify_id)
     end
 
-    def calculate_remaining_pages(total_pages, first_page_items)
-      start_page = first_page_items.any? ? 1 : 0
-      return [] if total_pages == 1 && first_page_items.any?
+    def calculate_remaining_pages(first_page_items)
+      has_items = first_page_items.any?
+      start_page = has_items ? 1 : 0
+      return [] if @total_pages == 1 && has_items
 
-      (start_page...total_pages).to_a
+      (start_page...@total_pages).to_a
     end
 
     def complete_if_single_page(remaining_pages)

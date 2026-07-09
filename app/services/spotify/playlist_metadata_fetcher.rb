@@ -27,7 +27,7 @@ module Spotify
       ActiveRecord::Base.transaction do
         upsert_playlists(spotify_playlists)
         upsert_liked_songs if liked_songs_accessible?
-        mark_unavailable_playlists(spotify_playlists.map { |p| p["id"] })
+        mark_unavailable_playlists(spotify_playlists.map { |playlist| playlist["id"] })
         @user.update!(playlists_metadata_fetched_at: Time.current)
       end
     end

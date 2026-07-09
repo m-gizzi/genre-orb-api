@@ -15,6 +15,10 @@ detectors:
   MissingSafeMethod:
     enabled: false
 
+  UncommunicativeModuleName:
+    accept:
+      - V1
+
   UncommunicativeVariableName:
     accept:
       - e
@@ -25,10 +29,16 @@ detectors:
       - Auth::SessionsController#user_data
       - Auth::OmniauthCallbacksController#allowed_origins
       - Auth::OmniauthCallbacksController#build_callback_url
+      - SpotifyJob#rate_limited?
+      - Spotify::ArtistMetadataUpserter#build_metadata
+      - Spotify::TrackUpserter#build_artist_record
+      - Spotify::TrackUpserter#build_track_attributes
+      - Spotify::TrackUpserter#extract_release_year
 
   ControlParameter:
     exclude:
       - Auth::SessionsController#respond_to_on_destroy
+      - SpotifyAdapter::RateLimitError#initialize
 
   FeatureEnvy:
     enabled: false
@@ -37,6 +47,7 @@ detectors:
     exclude:
       - ServiceConnection#token_expired?
       - ServiceConnection#token_expiring_soon?
+      - Playlist#snapshot_unchanged?
 
   TooManyStatements:
     enabled: false
@@ -49,3 +60,22 @@ detectors:
 
   LongParameterList:
     enabled: false
+
+  BooleanParameter:
+    exclude:
+      - ArtistMetadataSyncJob#perform
+      - Spotify::ArtistMetadataSyncInitializer#initialize
+
+  TooManyMethods:
+    max_methods: 20
+
+  TooManyInstanceVariables:
+    max_instance_variables: 5
+
+  NestedIterators:
+    exclude:
+      - Spotify::ArtistMetadataUpserter#collect_track_genres
+
+  DataClump:
+    exclude:
+      - SpotifyAdapter

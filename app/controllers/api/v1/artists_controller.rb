@@ -4,9 +4,9 @@ module Api
   module V1
     class ArtistsController < BaseController
       def sync_status
-        session = current_user.artist_metadata_sessions.recent.first
+        @session = current_user.artist_metadata_sessions.recent.first
 
-        render json: build_sync_status_response(session)
+        render json: build_sync_status_response
       end
 
       def sync
@@ -19,10 +19,10 @@ module Api
 
       private
 
-      def build_sync_status_response(session)
+      def build_sync_status_response
         {
-          has_active_sync: session&.active? || false,
-          current_session: session ? serialize_session(session) : nil,
+          has_active_sync: @session&.active? || false,
+          current_session: @session ? serialize_session : nil,
           artists_total: artist_counts[:total],
           artists_synced: artist_counts[:synced],
         }.merge(rate_limit_info)
@@ -69,13 +69,13 @@ module Api
         render json: { error: message }, status: status
       end
 
-      def serialize_session(session)
+      def serialize_session
         {
-          id: session.id,
-          status: session.status,
-          progress: session.progress,
-          started_at: session.started_at&.iso8601,
-          completed_at: session.completed_at&.iso8601,
+          id: @session.id,
+          status: @session.status,
+          progress: @session.progress,
+          started_at: @session.started_at&.iso8601,
+          completed_at: @session.completed_at&.iso8601,
         }
       end
     end

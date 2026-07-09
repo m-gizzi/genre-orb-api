@@ -29,7 +29,7 @@ module Spotify
     def build_artist_updates
       @artists_data
         .filter_map { |sp_artist| build_artist_update(sp_artist) }
-        .sort_by { |a| a[:spotify_id] }
+        .sort_by { |update| update[:spotify_id] }
     end
 
     def build_artist_update(sp_artist)
@@ -54,71 +54,69 @@ module Spotify
     end
 
     def propagate_genres_to_tracks
-      spotify_ids = @artists_data.filter_map { |a| a&.dig("id") }
+      spotify_ids = @artists_data.filter_map { |artist_data| artist_data&.dig("id") }
       return if spotify_ids.empty?
 
       artists = Artist.where(spotify_id: spotify_ids).includes(:tracks)
-      genre_data = collect_genre_data(artists)
-      return if genre_data[:genre_names].empty?
+      collect_genre_data(artists)
+      return if @genre_names.empty?
 
-      upsert_genres(genre_data[:genre_names])
-      upsert_track_genres(genre_data[:track_genre_pairs], genre_data[:genre_names])
+      upsert_genres
+      upsert_track_genres
     end
 
     def collect_genre_data(artists)
-      genre_names = Set.new
-      track_genre_pairs = []
+      @genre_names = Set.new
+      @track_genre_pairs = []
 
       artists.each do |artist|
-        collect_artist_genres(artist, genre_names, track_genre_pairs)
+        collect_artist_genres(artist)
       end
-
-      { genre_names: genre_names, track_genre_pairs: track_genre_pairs }
     end
 
-    def collect_artist_genres(artist, genre_names, track_genre_pairs)
+    def collect_artist_genres(artist)
       genres = artist.metadata&.dig("genres") || []
       return if genres.empty?
 
-      genres.each { |g| genre_names.add(Genre.normalize_name(g)) }
-      collect_track_genres(artist.tracks, genres, track_genre_pairs)
+      genres.each { |genre| @genre_names.add(Genre.normalize_name(genre)) }
+      collect_track_genres(artist.tracks, genres)
     end
 
-    def collect_track_genres(tracks, genres, track_genre_pairs)
+    def collect_track_genres(tracks, genres)
       tracks.each do |track|
         genres.each do |genre_name|
           normalized = Genre.normalize_name(genre_name)
-          track_genre_pairs << { track_id: track.id, genre_name: normalized } if normalized
+          @track_genre_pairs << { track_id: track.id, genre_name: normalized } if normalized
         end
       end
     end
 
-    def upsert_genres(genre_names)
-      genre_records = genre_names.compact.map do |name|
+    def upsert_genres
+      genre_records = @genre_names.compact.map do |name|
         { name: name, created_at: Time.current, updated_at: Time.current }
       end
 
       Genre.upsert_all(genre_records, unique_by: :name) if genre_records.any?
     end
 
-    def upsert_track_genres(track_genre_pairs, genre_names)
-      return if track_genre_pairs.empty?
+    def upsert_track_genres
+      return if @track_genre_pairs.empty?
 
-      genres_by_name = Genre.where(name: genre_names.to_a).index_by(&:name)
-      track_genre_records = build_track_genre_records(track_genre_pairs, genres_by_name)
+      @genres_by_name = Genre.where(name: @genre_names.to_a).index_by(&:name)
+      track_genre_records = build_track_genre_records
       return if track_genre_records.empty?
 
       TrackGenre.upsert_all(track_genre_records, unique_by: %i[track_id genre_id])
     end
 
-    def build_track_genre_records(track_genre_pairs, genres_by_name)
-      track_genre_pairs
-        .filter_map { |pair| build_track_genre_record(pair, genres_by_name) }
-        .uniq { |r| [r[:track_id], r[:genre_id]] }
+    def build_track_genre_records
+      @track_genre_pairs
+        .filter_map { |pair| build_track_genre_record(pair) }
+        .uniq { |record| [record[:track_id], record[:genre_id]] }
     end
 
-    def build_track_genre_record(pair, genres_by_name)
-      genre = genres_by_name[pair[:genre_name]]
+    def build_track_genre_record(pair)
+      genre = @genres_by_name[pair[:genre_name]]
       return nil unless genre
 
       {

@@ -16,7 +16,7 @@ class LikedSongsPlaylist < Playlist
   end
 
   def fetch_tracks_page(adapter, limit:, offset:)
-    adapter.liked_songs(limit: limit, offset: offset)
+    adapter.liked_songs(limit: limit.clamp(1, spotify_page_size), offset: offset)
   end
 
   private
