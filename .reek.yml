@@ -39,6 +39,7 @@ detectors:
       - Spotify::ArtistMetadataUpserter#build_track_genre_record
       - Spotify::ArtistMetadataUpserter#collect_track_genres
       - Spotify::ArtistMetadataUpserter#insert_genres
+      - Spotify::LibrarySyncInitializer#enqueue_playlist_setup_jobs
       - Spotify::PlaylistSyncSetup#calculate_remaining_pages
       - Spotify::PlaylistSyncSetup#process_first_page_items
       - Spotify::TrackUpserter#build_album_artist_records
