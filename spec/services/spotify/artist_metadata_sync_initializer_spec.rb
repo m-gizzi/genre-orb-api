@@ -10,6 +10,7 @@ RSpec.describe Spotify::ArtistMetadataSyncInitializer do
   let(:library_track) do
     playlist = create(:playlist, user: user)
     version = create(:playlist_version, playlist: playlist)
+    playlist.update!(current_version: version)
     track = create(:track)
     create(:playlist_version_track, playlist_version: version, track: track)
     track

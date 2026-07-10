@@ -26,6 +26,7 @@ class User < ApplicationRecord
   def library_artists
     Artist.joins(tracks: { playlist_versions: :playlist })
           .where(playlists: { user_id: id })
+          .where("playlist_versions.id = playlists.current_version_id")
           .distinct
   end
 end

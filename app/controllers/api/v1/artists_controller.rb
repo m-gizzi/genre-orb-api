@@ -62,7 +62,7 @@ module Api
       end
 
       def sync_all_param
-        @sync_all_param ||= ActiveModel::Type::Boolean.new.cast(params[:sync_all])
+        @sync_all_param ||= ActiveModel::Type::Boolean.new.cast(params[:sync_all]) || false
       end
 
       def render_error(message, status)
