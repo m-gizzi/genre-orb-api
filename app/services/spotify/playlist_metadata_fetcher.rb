@@ -26,9 +26,11 @@ module Spotify
     private
 
     def sync_playlists(spotify_playlists)
+      liked_accessible = liked_songs_accessible?
+
       ActiveRecord::Base.transaction do
         upsert_playlists(spotify_playlists)
-        upsert_liked_songs if liked_songs_accessible?
+        upsert_liked_songs if liked_accessible
         mark_unavailable_playlists(spotify_playlists.map { |playlist| playlist["id"] })
         user.update!(playlists_metadata_fetched_at: Time.current)
       end

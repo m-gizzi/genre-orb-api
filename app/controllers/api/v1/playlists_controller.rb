@@ -5,6 +5,7 @@ module Api
     class PlaylistsController < BaseController
       def index
         playlists = current_user.playlists
+                                .includes(:current_version)
                                 .where(available_on_spotify: true)
                                 .order(:name)
 
