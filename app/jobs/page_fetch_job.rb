@@ -2,13 +2,13 @@
 
 class PageFetchJob < SpotifyJob
   sidekiq_retries_exhausted do |job, exception|
-    args = job["args"].first
-    playlist_session = SyncSessionPlaylist.find_by(id: args["sync_session_playlist_id"])
+    args = perform_arguments(job).first || {}
+    playlist_session = SyncSessionPlaylist.find_by(id: args[:sync_session_playlist_id])
     next unless playlist_session
 
     SyncFailureHandler.fail_playlist_session(
       playlist_session,
-      error_message: "Page #{args["page"]} failed after retries: #{exception.message}",
+      error_message: "Page #{args[:page]} failed after retries: #{exception.message}",
     )
   end
 

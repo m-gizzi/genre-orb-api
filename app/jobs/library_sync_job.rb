@@ -2,9 +2,10 @@
 
 class LibrarySyncJob < ApplicationJob
   queue_as :sync
+  sidekiq_options retry: 3
 
   sidekiq_retries_exhausted do |job, exception|
-    user_id = job["args"].first
+    user_id = perform_arguments(job).first
     session = SyncSession.where(user_id: user_id).active.order(created_at: :desc).first
     next unless session
 

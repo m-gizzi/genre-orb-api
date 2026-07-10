@@ -35,4 +35,37 @@ RSpec.describe PageFetchJob do
       expect(Spotify::PlaylistPageFetcher).not_to have_received(:new)
     end
   end
+
+  describe "sidekiq_retries_exhausted" do
+    let(:exception) { StandardError.new("boom") }
+    let(:msg) do
+      job = described_class.new(sync_session_playlist_id: playlist_session.id, page: 3)
+      { "args" => [job.serialize], "wrapped" => described_class.name }
+    end
+
+    def run_handler
+      described_class.sidekiq_retries_exhausted_block.call(msg, exception)
+    end
+
+    it "marks the playlist session as failed" do
+      run_handler
+      expect(playlist_session.reload.status).to eq("failed")
+    end
+
+    it "records the failing page and error message" do
+      run_handler
+      expect(playlist_session.reload.error_message).to include("Page 3", "boom")
+    end
+
+    context "when the playlist session no longer exists" do
+      let(:msg) do
+        job = described_class.new(sync_session_playlist_id: 999_999, page: 3)
+        { "args" => [job.serialize], "wrapped" => described_class.name }
+      end
+
+      it "does not raise" do
+        expect { run_handler }.not_to raise_error
+      end
+    end
+  end
 end

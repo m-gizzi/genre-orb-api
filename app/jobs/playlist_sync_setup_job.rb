@@ -2,7 +2,8 @@
 
 class PlaylistSyncSetupJob < SpotifyJob
   sidekiq_retries_exhausted do |job, exception|
-    playlist_session = SyncSessionPlaylist.find_by(id: job["args"].first)
+    sync_session_playlist_id = perform_arguments(job).first
+    playlist_session = SyncSessionPlaylist.find_by(id: sync_session_playlist_id)
     next unless playlist_session
 
     SyncFailureHandler.fail_playlist_session(

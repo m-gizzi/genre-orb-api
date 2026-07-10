@@ -2,9 +2,9 @@
 
 class ArtistBatchFetchJob < SpotifyJob
   sidekiq_retries_exhausted do |job, exception|
-    args = job["args"].first
-    session = ArtistMetadataSession.find_by(id: args["session_id"])
-    return unless session
+    args = perform_arguments(job).first || {}
+    session = ArtistMetadataSession.find_by(id: args[:session_id])
+    next unless session
 
     session.update!(
       status: :failed,

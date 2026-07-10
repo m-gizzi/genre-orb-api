@@ -6,4 +6,9 @@ class ApplicationJob < ActiveJob::Base
 
   # Most jobs are safe to ignore if the underlying records are no longer available
   # discard_on ActiveJob::DeserializationError
+
+  def self.perform_arguments(sidekiq_job)
+    serialized = sidekiq_job.dig("args", 0, "arguments") || []
+    ActiveJob::Arguments.deserialize(serialized)
+  end
 end
