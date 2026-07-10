@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_10_012100) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_10_013000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -49,6 +49,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_10_012100) do
     t.bigint "user_id", null: false
     t.index ["status"], name: "index_artist_metadata_sessions_on_status"
     t.index ["user_id", "status"], name: "index_artist_metadata_sessions_on_user_id_and_status"
+    t.index ["user_id"], name: "idx_unique_active_artist_metadata_session_per_user", unique: true, where: "(status = ANY (ARRAY[0, 1]))"
     t.index ["user_id"], name: "index_artist_metadata_sessions_on_user_id"
   end
 
@@ -195,6 +196,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_10_012100) do
     t.bigint "user_id", null: false
     t.index ["status"], name: "index_sync_sessions_on_status"
     t.index ["user_id", "status"], name: "idx_sync_sessions_user_status"
+    t.index ["user_id"], name: "idx_unique_active_sync_session_per_user", unique: true, where: "(status = ANY (ARRAY[0, 1]))"
     t.index ["user_id"], name: "index_sync_sessions_on_user_id"
   end
 

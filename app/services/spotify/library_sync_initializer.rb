@@ -15,12 +15,8 @@ module Spotify
 
       return Result.new(skipped_reason: "no playlists to sync") if playlists.empty?
 
-      session = SyncSession.create!(
-        user: user,
-        status: :running,
-        started_at: Time.current,
-        total_playlists: playlists.count,
-      )
+      session = create_session(playlists.count)
+      return Result.new(skipped_reason: "sync already in progress") unless session
 
       playlist_sessions = playlists.map do |playlist|
         session.sync_session_playlists.create!(playlist: playlist, status: :pending)
@@ -30,6 +26,19 @@ module Spotify
         sync_session: session,
         playlist_session_ids: playlist_sessions.map(&:id),
       )
+    end
+
+    private
+
+    def create_session(total_playlists)
+      SyncSession.create!(
+        user: user,
+        status: :running,
+        started_at: Time.current,
+        total_playlists: total_playlists,
+      )
+    rescue ActiveRecord::RecordNotUnique
+      nil
     end
   end
 end

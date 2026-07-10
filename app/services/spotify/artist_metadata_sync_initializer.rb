@@ -19,6 +19,7 @@ module Spotify
 
       batches = artist_ids.each_slice(BATCH_SIZE).to_a
       session = create_session(batches.size)
+      return Result.new(skipped_reason: "sync already in progress") unless session
 
       Result.new(session: session, batches: batches)
     end
@@ -38,6 +39,8 @@ module Spotify
         completed_batches: 0,
         started_at: Time.current,
       )
+    rescue ActiveRecord::RecordNotUnique
+      nil
     end
   end
 end
