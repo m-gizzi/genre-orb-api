@@ -2,6 +2,8 @@
 
 module Spotify
   class PlaylistVersionTrackBuilder
+    attr_reader :version
+
     def initialize(version)
       @version = version
     end
@@ -25,7 +27,7 @@ module Spotify
         next unless track
 
         {
-          playlist_version_id: @version.id,
+          playlist_version_id: version.id,
           track_id: track.id,
           position: offset + idx,
           added_at: item["added_at"],

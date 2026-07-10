@@ -6,6 +6,8 @@ module Spotify
 
     Result = Struct.new(:session, :batches, :skipped_reason, keyword_init: true)
 
+    attr_reader :user, :sync_all
+
     def initialize(user, sync_all: false)
       @user = user
       @sync_all = sync_all
@@ -24,12 +26,12 @@ module Spotify
     private
 
     def fetch_artist_ids
-      @sync_all ? Artist.pluck(:id) : Artist.where(metadata_fetched_at: nil).pluck(:id)
+      sync_all ? Artist.pluck(:id) : Artist.where(metadata_fetched_at: nil).pluck(:id)
     end
 
     def create_session(total_batches)
       ArtistMetadataSession.create!(
-        user: @user,
+        user: user,
         status: :running,
         total_batches: total_batches,
         completed_batches: 0,

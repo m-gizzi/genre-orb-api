@@ -4,17 +4,19 @@ module Spotify
   class LibrarySyncInitializer
     Result = Struct.new(:sync_session, :playlist_session_ids, :skipped_reason, keyword_init: true)
 
+    attr_reader :user
+
     def initialize(user)
       @user = user
     end
 
     def call
-      playlists = @user.playlists.sync_enabled.available
+      playlists = user.playlists.sync_enabled.available
 
       return Result.new(skipped_reason: "no playlists to sync") if playlists.empty?
 
       session = SyncSession.create!(
-        user: @user,
+        user: user,
         status: :running,
         started_at: Time.current,
         total_playlists: playlists.count,
