@@ -175,15 +175,29 @@ RSpec.describe "Api::V1::Libraries" do
             expect(response).to have_http_status(:accepted)
           end
 
-          it "enqueues LibrarySyncJob" do
+          it "creates the sync session synchronously" do
             expect do
               post "/api/v1/library/sync"
-            end.to have_enqueued_job(LibrarySyncJob).with(user.id)
+            end.to change(user.sync_sessions, :count).by(1)
+          end
+
+          it "enqueues a playlist setup job" do
+            expect do
+              post "/api/v1/library/sync"
+            end.to have_enqueued_job(PlaylistSyncSetupJob)
           end
 
           it "returns queued status" do
             post "/api/v1/library/sync"
             expect(response.parsed_body["status"]).to eq("queued")
+          end
+
+          it "returns the created session in the response body" do
+            post "/api/v1/library/sync"
+            session = response.parsed_body["session"]
+
+            expect(session["id"]).to be_present
+            expect(session["status"]).to eq("running")
           end
 
           context "when sync is already in progress" do

@@ -3,6 +3,12 @@
 module Api
   module V1
     class ArtistsController < BaseController
+      SYNC_OUTCOME_RESPONSES = {
+        spotify_not_connected: { key: "api.errors.spotify_not_connected", status: :unprocessable_content },
+        already_in_progress: { key: "api.artists.sync_in_progress", status: :conflict },
+        no_artists: { key: "api.artists.no_artists_need_sync", status: :unprocessable_content },
+      }.freeze
+
       def sync_status
         @session = current_user.artist_metadata_sessions.recent.first
 
@@ -10,11 +16,11 @@ module Api
       end
 
       def sync
-        error = validate_sync_request
-        return render_error(error[:message], error[:status]) if error
+        result = Spotify::ArtistMetadataSyncInitializer.new(current_user, sync_all: sync_all_param).call
+        return render_sync_outcome(result.outcome) unless result.started?
 
-        ArtistMetadataSyncJob.perform_later(current_user.id, sync_all: sync_all_param)
-        render json: { status: "queued" }, status: :accepted
+        @session = result.session
+        render json: { status: "queued", session: serialize_session }, status: :accepted
       end
 
       private
@@ -43,26 +49,13 @@ module Api
         }
       end
 
-      def validate_sync_request
-        unless current_user.spotify_connected?
-          return { message: "Spotify not connected", status: :unprocessable_content }
-        end
-        return { message: "Artist metadata sync already in progress", status: :conflict } if sync_in_progress?
-        return { message: "No artists need metadata sync", status: :unprocessable_content } if no_artists_need_sync?
-
-        nil
-      end
-
-      def sync_in_progress?
-        current_user.artist_metadata_sessions.active.exists?
-      end
-
-      def no_artists_need_sync?
-        !sync_all_param && current_user.library_artists.where(metadata_fetched_at: nil).none?
-      end
-
       def sync_all_param
         @sync_all_param ||= ActiveModel::Type::Boolean.new.cast(params[:sync_all]) || false
+      end
+
+      def render_sync_outcome(outcome)
+        response = SYNC_OUTCOME_RESPONSES.fetch(outcome)
+        render_error(I18n.t(response[:key]), response[:status])
       end
 
       def render_error(message, status)

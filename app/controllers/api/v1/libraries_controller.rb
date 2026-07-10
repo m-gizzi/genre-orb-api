@@ -3,6 +3,12 @@
 module Api
   module V1
     class LibrariesController < BaseController
+      SYNC_OUTCOME_RESPONSES = {
+        spotify_not_connected: { key: "api.errors.spotify_not_connected", status: :unprocessable_content },
+        already_in_progress: { key: "api.library.sync_in_progress", status: :conflict },
+        no_playlists: { key: "api.library.no_playlists_selected", status: :unprocessable_content },
+      }.freeze
+
       def status
         @session = current_user.sync_sessions
                                .includes(sync_session_playlists: :playlist)
@@ -20,11 +26,11 @@ module Api
       end
 
       def sync
-        error = validate_sync_request
-        return render_error(error[:message], error[:status]) if error
+        result = Spotify::LibrarySyncInitializer.new(current_user).call
+        return render_sync_outcome(result.outcome) unless result.started?
 
-        LibrarySyncJob.perform_later(current_user.id)
-        render json: { status: "queued" }, status: :accepted
+        @session = result.sync_session
+        render json: { status: "queued", session: serialize_session }, status: :accepted
       end
 
       private
@@ -45,22 +51,13 @@ module Api
         }
       end
 
-      def validate_sync_request
-        unless current_user.spotify_connected?
-          return { message: "Spotify not connected", status: :unprocessable_content }
-        end
-        return { message: "Sync already in progress", status: :conflict } if current_user.sync_sessions.active.exists?
-        return { message: "No playlists selected for sync", status: :unprocessable_content } if no_playlists_selected?
-
-        nil
-      end
-
-      def no_playlists_selected?
-        current_user.playlists.sync_enabled.none?
+      def render_sync_outcome(outcome)
+        response = SYNC_OUTCOME_RESPONSES.fetch(outcome)
+        render_error(I18n.t(response[:key]), response[:status])
       end
 
       def render_spotify_error
-        render json: { error: "Spotify not connected" }, status: :unprocessable_content
+        render json: { error: I18n.t("api.errors.spotify_not_connected") }, status: :unprocessable_content
       end
 
       def render_error(message, status)

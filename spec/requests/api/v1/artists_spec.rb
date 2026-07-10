@@ -127,15 +127,29 @@ RSpec.describe "Api::V1::Artists" do
             expect(response).to have_http_status(:accepted)
           end
 
-          it "enqueues ArtistMetadataSyncJob with sync_all false" do
+          it "creates the artist metadata session synchronously" do
             expect do
               post "/api/v1/artists/sync"
-            end.to have_enqueued_job(ArtistMetadataSyncJob).with(user.id, sync_all: false)
+            end.to change(user.artist_metadata_sessions, :count).by(1)
+          end
+
+          it "enqueues an artist batch fetch job" do
+            expect do
+              post "/api/v1/artists/sync"
+            end.to have_enqueued_job(ArtistBatchFetchJob)
           end
 
           it "returns queued status" do
             post "/api/v1/artists/sync"
             expect(response.parsed_body["status"]).to eq("queued")
+          end
+
+          it "returns the created session in the response body" do
+            post "/api/v1/artists/sync"
+            session = response.parsed_body["session"]
+
+            expect(session["id"]).to be_present
+            expect(session["status"]).to eq("running")
           end
 
           context "when a sync is already in progress" do
@@ -161,10 +175,10 @@ RSpec.describe "Api::V1::Artists" do
             expect(response).to have_http_status(:accepted)
           end
 
-          it "enqueues ArtistMetadataSyncJob with sync_all true" do
+          it "creates the artist metadata session synchronously" do
             expect do
               post "/api/v1/artists/sync", params: { sync_all: true }
-            end.to have_enqueued_job(ArtistMetadataSyncJob).with(user.id, sync_all: true)
+            end.to change(user.artist_metadata_sessions, :count).by(1)
           end
         end
       end
