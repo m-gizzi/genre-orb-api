@@ -10,15 +10,21 @@ class PlaylistSyncFinalizer
       version = @playlist_session.playlist_version
       playlist = @playlist_session.playlist
 
-      version.update!(track_count: version.playlist_version_tracks.count)
+      version.update!(
+        track_count: version.playlist_version_tracks.count,
+        status: :complete,
+      )
       playlist.update!(
         current_version_id: version.id,
         last_synced_at: Time.current,
         last_synced_snapshot_id: playlist.last_seen_snapshot_id,
       )
 
-      finalize_playlist_session(:completed)
+      @playlist_session.update!(status: :completed, completed_at: Time.current)
     end
+
+    @playlist_session.sync_session.increment_completed!
+    finalize
   end
 
   def mark_as_skipped!
@@ -29,19 +35,15 @@ class PlaylistSyncFinalizer
         total_pages: 0,
         completed_pages: 0,
       )
-
-      finalize_sync_session_if_done
     end
+
+    @playlist_session.sync_session.increment_skipped!
+    finalize
   end
 
   private
 
-  def finalize_playlist_session(status)
-    @playlist_session.update!(status: status, completed_at: Time.current)
-    finalize_sync_session_if_done
-  end
-
-  def finalize_sync_session_if_done
+  def finalize
     sync_session = @playlist_session.sync_session
     sync_session.update!(status: :completed, completed_at: Time.current) if sync_session.all_playlists_done?
   end

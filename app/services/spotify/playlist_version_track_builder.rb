@@ -8,7 +8,13 @@ module Spotify
 
     def call(spotify_items, tracks_by_spotify_id, offset: 0)
       records = build_records(spotify_items, tracks_by_spotify_id, offset)
-      PlaylistVersionTrack.insert_all(records) if records.any?
+      return if records.empty?
+
+      PlaylistVersionTrack.upsert_all(
+        records,
+        unique_by: %i[playlist_version_id track_id],
+        update_only: %i[position added_at],
+      )
     end
 
     private

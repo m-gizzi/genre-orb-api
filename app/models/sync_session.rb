@@ -18,14 +18,29 @@ class SyncSession < ApplicationRecord
   scope :recent, -> { order(created_at: :desc) }
 
   def progress
-    total = sync_session_playlists.count
-    done = sync_session_playlists.done.count
-    skipped = sync_session_playlists.skipped.count
-    { total: total, completed: done, skipped: skipped, percent: total.positive? ? (done * 100 / total) : 0 }
+    done = completed_playlists + skipped_playlists
+    {
+      total: total_playlists,
+      completed: done,
+      skipped: skipped_playlists,
+      percent: total_playlists.positive? ? (done * 100 / total_playlists) : 0,
+    }
   end
 
   def all_playlists_done?
-    sync_session_playlists.count == sync_session_playlists.done.count
+    total_playlists.positive? && (completed_playlists + skipped_playlists) >= total_playlists
+  end
+
+  def increment_completed!
+    with_lock do
+      increment!(:completed_playlists)
+    end
+  end
+
+  def increment_skipped!
+    with_lock do
+      increment!(:skipped_playlists)
+    end
   end
 
   def active?

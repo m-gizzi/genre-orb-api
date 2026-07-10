@@ -4,7 +4,7 @@ module Spotify
   class ArtistMetadataSyncInitializer
     BATCH_SIZE = SpotifyAdapter::ARTIST_BATCH_LIMIT
 
-    Result = Struct.new(:success?, :session, :batches, :skipped_reason, keyword_init: true)
+    Result = Struct.new(:session, :batches, :skipped_reason, keyword_init: true)
 
     def initialize(user, sync_all: false)
       @user = user
@@ -13,12 +13,12 @@ module Spotify
 
     def call
       artist_ids = fetch_artist_ids
-      return Result.new(success?: true, skipped_reason: "no artists to sync") if artist_ids.empty?
+      return Result.new(skipped_reason: "no artists to sync") if artist_ids.empty?
 
       batches = artist_ids.each_slice(BATCH_SIZE).to_a
       session = create_session(batches.size)
 
-      Result.new(success?: true, session: session, batches: batches)
+      Result.new(session: session, batches: batches)
     end
 
     private

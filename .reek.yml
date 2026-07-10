@@ -8,6 +8,11 @@ exclude_paths:
   - spec
   - vendor
 
+directories:
+  app/jobs:
+    UtilityFunction:
+      enabled: false
+
 detectors:
   IrresponsibleModule:
     enabled: false
@@ -79,3 +84,7 @@ detectors:
   DataClump:
     exclude:
       - SpotifyAdapter
+
+  RepeatedConditional:
+    exclude:
+      - Spotify::PlaylistSyncStrategy

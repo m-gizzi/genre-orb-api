@@ -59,11 +59,6 @@ RSpec.describe Spotify::PlaylistSyncSetup do
   end
 
   describe "#call" do
-    it "returns success result" do
-      result = service.call
-      expect(result.success?).to be(true)
-    end
-
     it "returns skipped as false" do
       result = service.call
       expect(result.skipped?).to be(false)

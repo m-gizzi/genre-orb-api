@@ -2,7 +2,7 @@
 
 module Spotify
   class PlaylistSyncSetup
-    Result = Struct.new(:success?, :skipped?, :version, :remaining_pages, :error, keyword_init: true)
+    Result = Struct.new(:skipped?, :version, :remaining_pages, keyword_init: true)
 
     def initialize(playlist_session, adapter:)
       @playlist_session = playlist_session
@@ -22,7 +22,7 @@ module Spotify
 
     def skip_unchanged
       PlaylistSyncFinalizer.new(@playlist_session).mark_as_skipped!
-      Result.new(success?: true, skipped?: true)
+      Result.new(skipped?: true)
     end
 
     def process_sync(first_page_response)
@@ -34,7 +34,7 @@ module Spotify
       remaining_pages = calculate_remaining_pages(first_page_items)
       complete_if_single_page(remaining_pages)
 
-      Result.new(success?: true, skipped?: false, version: @version, remaining_pages: remaining_pages)
+      Result.new(skipped?: false, version: @version, remaining_pages: remaining_pages)
     end
 
     def calculate_total_pages(total_tracks)

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_07_001435) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_10_011105) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -88,11 +88,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_07_001435) do
   create_table "playlist_versions", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "playlist_id", null: false
+    t.integer "status", default: 0, null: false
     t.integer "track_count", default: 0, null: false
     t.datetime "updated_at", null: false
     t.integer "version_number", null: false
     t.index ["playlist_id", "version_number"], name: "index_playlist_versions_on_playlist_id_and_version_number", unique: true
     t.index ["playlist_id"], name: "index_playlist_versions_on_playlist_id"
+    t.index ["status"], name: "index_playlist_versions_on_status"
   end
 
   create_table "playlists", force: :cascade do |t|
@@ -182,12 +184,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_07_001435) do
 
   create_table "sync_sessions", force: :cascade do |t|
     t.datetime "completed_at"
+    t.integer "completed_playlists", default: 0, null: false
     t.datetime "created_at", null: false
     t.string "error_message"
     t.string "pause_reason"
     t.datetime "resume_at"
+    t.integer "skipped_playlists", default: 0, null: false
     t.datetime "started_at"
     t.integer "status", default: 0, null: false
+    t.integer "total_playlists", default: 0, null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["status"], name: "index_sync_sessions_on_status"

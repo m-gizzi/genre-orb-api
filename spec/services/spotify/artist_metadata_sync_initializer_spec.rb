@@ -24,11 +24,6 @@ RSpec.describe Spotify::ArtistMetadataSyncInitializer do
       let!(:unfetched_artists) { create_list(:artist, 3, metadata_fetched_at: nil) }
       let!(:fetched_artist) { create(:artist, metadata_fetched_at: 1.day.ago) }
 
-      it "returns success result" do
-        result = service.call
-        expect(result.success?).to be(true)
-      end
-
       it "creates an artist metadata session" do
         expect { service.call }.to change(ArtistMetadataSession, :count).by(1)
       end

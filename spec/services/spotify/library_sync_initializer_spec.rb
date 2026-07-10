@@ -23,11 +23,6 @@ RSpec.describe Spotify::LibrarySyncInitializer do
         create_list(:playlist, 3, user: user, sync_enabled: true, available_on_spotify: true)
       end
 
-      it "returns success result" do
-        result = service.call
-        expect(result.success?).to be(true)
-      end
-
       it "creates a sync session" do
         expect { service.call }.to change(SyncSession, :count).by(1)
       end

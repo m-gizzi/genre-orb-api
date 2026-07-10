@@ -56,11 +56,6 @@ RSpec.describe Spotify::PlaylistPageFetcher do
   end
 
   describe "#call" do
-    it "returns success result" do
-      result = service.call
-      expect(result.success?).to be(true)
-    end
-
     it "fetches tracks page with correct offset" do
       service.call
       expect(adapter).to have_received(:playlist_tracks).with("playlist_123", limit: 100, offset: 100)
@@ -138,11 +133,6 @@ RSpec.describe Spotify::PlaylistPageFetcher do
     context "with empty items response" do
       let(:api_response) { { "items" => [] } }
 
-      it "returns success" do
-        result = service.call
-        expect(result.success?).to be(true)
-      end
-
       it "does not create tracks" do
         expect { service.call }.not_to change(Track, :count)
       end
@@ -156,8 +146,7 @@ RSpec.describe Spotify::PlaylistPageFetcher do
       let(:api_response) { {} }
 
       it "handles nil items gracefully" do
-        result = service.call
-        expect(result.success?).to be(true)
+        expect { service.call }.not_to raise_error
       end
     end
 

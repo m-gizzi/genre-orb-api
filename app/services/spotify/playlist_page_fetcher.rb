@@ -2,7 +2,7 @@
 
 module Spotify
   class PlaylistPageFetcher
-    Result = Struct.new(:success?, :sync_completed?, :error, keyword_init: true)
+    Result = Struct.new(:sync_completed?, keyword_init: true)
 
     def initialize(playlist_session, page:, adapter:)
       @playlist_session = playlist_session
@@ -32,7 +32,7 @@ module Spotify
         end
       end
 
-      Result.new(success?: true, sync_completed?: sync_completed)
+      Result.new(sync_completed?: sync_completed)
     end
   end
 end

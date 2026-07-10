@@ -4,7 +4,10 @@ module Api
   module V1
     class LibrariesController < BaseController
       def status
-        @session = current_user.sync_sessions.recent.first
+        @session = current_user.sync_sessions
+                               .includes(sync_session_playlists: :playlist)
+                               .recent
+                               .first
 
         render json: build_status_response
       end
@@ -71,7 +74,7 @@ module Api
           progress: @session.progress,
           started_at: @session.started_at&.iso8601,
           completed_at: @session.completed_at&.iso8601,
-          playlists: @session.sync_session_playlists.includes(:playlist).map do |ssp|
+          playlists: @session.sync_session_playlists.map do |ssp|
             {
               playlist_id: ssp.playlist_id,
               playlist_name: ssp.playlist.name,
