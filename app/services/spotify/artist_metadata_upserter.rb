@@ -63,7 +63,7 @@ module Spotify
       genre_names, track_genre_pairs = collect_genre_data(artists)
       return if genre_names.empty?
 
-      upsert_genres(genre_names)
+      insert_genres(genre_names)
       upsert_track_genres(genre_names, track_genre_pairs)
     end
 
@@ -95,12 +95,12 @@ module Spotify
       end
     end
 
-    def upsert_genres(genre_names)
+    def insert_genres(genre_names)
       genre_records = genre_names.compact.map do |name|
         { name: name, created_at: Time.current, updated_at: Time.current }
       end
 
-      Genre.upsert_all(genre_records, unique_by: :name) if genre_records.any?
+      Genre.insert_all(genre_records, unique_by: :name) if genre_records.any?
     end
 
     def upsert_track_genres(genre_names, track_genre_pairs)
@@ -110,13 +110,13 @@ module Spotify
       track_genre_records = build_track_genre_records(track_genre_pairs, genres_by_name)
       return if track_genre_records.empty?
 
-      TrackGenre.upsert_all(track_genre_records, unique_by: %i[track_id genre_id])
+      TrackGenre.upsert_all(track_genre_records, unique_by: %i[track_id genre_id source])
     end
 
     def build_track_genre_records(track_genre_pairs, genres_by_name)
       track_genre_pairs
         .filter_map { |pair| build_track_genre_record(pair, genres_by_name) }
-        .uniq { |record| [record[:track_id], record[:genre_id]] }
+        .uniq { |record| [record[:track_id], record[:genre_id], record[:source]] }
     end
 
     def build_track_genre_record(pair, genres_by_name)

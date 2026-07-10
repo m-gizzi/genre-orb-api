@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_10_011200) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_10_012100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -187,8 +187,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_10_011200) do
     t.integer "completed_playlists", default: 0, null: false
     t.datetime "created_at", null: false
     t.string "error_message"
-    t.string "pause_reason"
-    t.datetime "resume_at"
     t.integer "skipped_playlists", default: 0, null: false
     t.datetime "started_at"
     t.integer "status", default: 0, null: false
@@ -220,7 +218,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_10_011200) do
     t.index ["confidence"], name: "index_track_genres_on_confidence"
     t.index ["genre_id"], name: "index_track_genres_on_genre_id"
     t.index ["source"], name: "index_track_genres_on_source"
-    t.index ["track_id", "genre_id"], name: "index_track_genres_on_track_id_and_genre_id", unique: true
+    t.index ["track_id", "genre_id", "source"], name: "index_track_genres_on_track_id_genre_id_source", unique: true
     t.index ["track_id"], name: "index_track_genres_on_track_id"
   end
 

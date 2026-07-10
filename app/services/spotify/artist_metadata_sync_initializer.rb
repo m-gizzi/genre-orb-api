@@ -26,7 +26,8 @@ module Spotify
     private
 
     def fetch_artist_ids
-      sync_all ? Artist.pluck(:id) : Artist.where(metadata_fetched_at: nil).pluck(:id)
+      scope = sync_all ? user.library_artists : user.library_artists.where(metadata_fetched_at: nil)
+      scope.pluck(:id)
     end
 
     def create_session(total_batches)

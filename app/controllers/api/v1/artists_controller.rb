@@ -38,8 +38,8 @@ module Api
 
       def artist_counts
         @artist_counts ||= {
-          total: Artist.joins(:tracks).distinct.count,
-          synced: Artist.joins(:tracks).where.not(metadata_fetched_at: nil).distinct.count,
+          total: current_user.library_artists.count,
+          synced: current_user.library_artists.where.not(metadata_fetched_at: nil).count,
         }
       end
 
@@ -58,7 +58,7 @@ module Api
       end
 
       def no_artists_need_sync?
-        !sync_all_param && Artist.where(metadata_fetched_at: nil).none?
+        !sync_all_param && current_user.library_artists.where(metadata_fetched_at: nil).none?
       end
 
       def sync_all_param

@@ -22,4 +22,10 @@ class User < ApplicationRecord
   def liked_songs_playlist
     playlists.liked_songs.first
   end
+
+  def library_artists
+    Artist.joins(tracks: { playlist_versions: :playlist })
+          .where(playlists: { user_id: id })
+          .distinct
+  end
 end

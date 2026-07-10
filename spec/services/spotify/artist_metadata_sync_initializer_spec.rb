@@ -2,11 +2,24 @@
 
 require "rails_helper"
 
-# rubocop:disable FactoryBot/ExcessiveCreateList
 RSpec.describe Spotify::ArtistMetadataSyncInitializer do
   let(:user) { create(:user) }
   let(:service) { described_class.new(user, sync_all: sync_all) }
   let(:sync_all) { false }
+
+  let(:library_track) do
+    playlist = create(:playlist, user: user)
+    version = create(:playlist_version, playlist: playlist)
+    track = create(:track)
+    create(:playlist_version_track, playlist_version: version, track: track)
+    track
+  end
+
+  def add_library_artist(**attrs)
+    artist = create(:artist, **attrs)
+    create(:track_artist, track: library_track, artist: artist)
+    artist
+  end
 
   describe "#call" do
     context "with no artists to sync" do
@@ -20,9 +33,23 @@ RSpec.describe Spotify::ArtistMetadataSyncInitializer do
       end
     end
 
+    context "when unfetched artists belong to another user's library" do
+      before do
+        version = create(:playlist_version, playlist: create(:playlist, user: create(:user)))
+        track = create(:track)
+        create(:playlist_version_track, playlist_version: version, track: track)
+        create(:track_artist, track: track, artist: create(:artist, metadata_fetched_at: nil))
+      end
+
+      it "returns skipped result" do
+        result = service.call
+        expect(result.skipped_reason).to eq("no artists to sync")
+      end
+    end
+
     context "with artists that need metadata" do
-      let!(:unfetched_artists) { create_list(:artist, 3, metadata_fetched_at: nil) }
-      let!(:fetched_artist) { create(:artist, metadata_fetched_at: 1.day.ago) }
+      let!(:unfetched_artists) { Array.new(3) { add_library_artist(metadata_fetched_at: nil) } }
+      let!(:fetched_artist) { add_library_artist(metadata_fetched_at: 1.day.ago) }
 
       it "creates an artist metadata session" do
         expect { service.call }.to change(ArtistMetadataSession, :count).by(1)
@@ -57,8 +84,8 @@ RSpec.describe Spotify::ArtistMetadataSyncInitializer do
 
     context "with sync_all: true" do
       let(:sync_all) { true }
-      let!(:unfetched_artists) { create_list(:artist, 2, metadata_fetched_at: nil) }
-      let!(:fetched_artists) { create_list(:artist, 2, metadata_fetched_at: 1.day.ago) }
+      let!(:unfetched_artists) { Array.new(2) { add_library_artist(metadata_fetched_at: nil) } }
+      let!(:fetched_artists) { Array.new(2) { add_library_artist(metadata_fetched_at: 1.day.ago) } }
 
       it "includes all artists regardless of metadata_fetched_at" do
         result = service.call
@@ -69,8 +96,8 @@ RSpec.describe Spotify::ArtistMetadataSyncInitializer do
 
     context "with more artists than batch size" do
       before do
-        # Create 120 artists (more than 50 batch limit)
-        create_list(:artist, 120, metadata_fetched_at: nil)
+        # More than the 50-artist batch limit.
+        120.times { add_library_artist(metadata_fetched_at: nil) }
       end
 
       it "splits into multiple batches" do
@@ -93,7 +120,7 @@ RSpec.describe Spotify::ArtistMetadataSyncInitializer do
 
     context "with exactly batch size artists" do
       before do
-        create_list(:artist, 50, metadata_fetched_at: nil)
+        50.times { add_library_artist(metadata_fetched_at: nil) }
       end
 
       it "creates single batch" do
@@ -103,4 +130,3 @@ RSpec.describe Spotify::ArtistMetadataSyncInitializer do
     end
   end
 end
-# rubocop:enable FactoryBot/ExcessiveCreateList

@@ -6,7 +6,7 @@ class TrackGenre < ApplicationRecord
 
   enum :source, { spotify: 0, user: 1 }, validate: true
 
-  validates :track_id, uniqueness: { scope: :genre_id }
+  validates :track_id, uniqueness: { scope: %i[genre_id source] }
   validates :confidence,
             numericality: {
               greater_than_or_equal_to: 0.0,
