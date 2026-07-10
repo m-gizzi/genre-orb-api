@@ -57,11 +57,12 @@ RSpec.describe Spotify::PlaylistSyncStrategy do
       let(:strategy) { described_class.new(playlist) }
 
       it "calls playlist_tracks on the adapter" do
-        expect(adapter).to receive(:playlist_tracks)
-          .with(playlist.spotify_id, limit: 100, offset: 0)
-          .and_return({ "items" => [] })
+        allow(adapter).to receive(:playlist_tracks).and_return({ "items" => [] })
 
         strategy.fetch_tracks_page(adapter, limit: 100, offset: 0)
+
+        expect(adapter).to have_received(:playlist_tracks)
+          .with(playlist.spotify_id, limit: 100, offset: 0)
       end
     end
 
@@ -70,27 +71,27 @@ RSpec.describe Spotify::PlaylistSyncStrategy do
       let(:strategy) { described_class.new(playlist) }
 
       it "calls liked_songs on the adapter" do
-        expect(adapter).to receive(:liked_songs)
-          .with(limit: 50, offset: 0)
-          .and_return({ "items" => [] })
+        allow(adapter).to receive(:liked_songs).and_return({ "items" => [] })
 
         strategy.fetch_tracks_page(adapter, limit: 50, offset: 0)
+
+        expect(adapter).to have_received(:liked_songs).with(limit: 50, offset: 0)
       end
 
       it "clamps the limit to page_size" do
-        expect(adapter).to receive(:liked_songs)
-          .with(limit: 50, offset: 0)
-          .and_return({ "items" => [] })
+        allow(adapter).to receive(:liked_songs).and_return({ "items" => [] })
 
         strategy.fetch_tracks_page(adapter, limit: 100, offset: 0)
+
+        expect(adapter).to have_received(:liked_songs).with(limit: 50, offset: 0)
       end
 
       it "clamps the limit to at least 1" do
-        expect(adapter).to receive(:liked_songs)
-          .with(limit: 1, offset: 0)
-          .and_return({ "items" => [] })
+        allow(adapter).to receive(:liked_songs).and_return({ "items" => [] })
 
         strategy.fetch_tracks_page(adapter, limit: 0, offset: 0)
+
+        expect(adapter).to have_received(:liked_songs).with(limit: 1, offset: 0)
       end
     end
   end

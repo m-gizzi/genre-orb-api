@@ -88,10 +88,10 @@ module Spotify
 
     def mark_unavailable_playlists(spotify_ids)
       user.playlists
-           .regular
-           .available
-           .where.not(spotify_id: spotify_ids)
-           .update_all(available_on_spotify: false, updated_at: Time.current)
+          .regular
+          .available
+          .where.not(spotify_id: spotify_ids)
+          .update_all(available_on_spotify: false, updated_at: Time.current)
     end
   end
 end

@@ -13,19 +13,13 @@ module Spotify
     end
 
     def call
-      page_size = strategy.page_size
-      offset = page * page_size
-
-      response = strategy.fetch_tracks_page(adapter, limit: page_size, offset: offset)
-      items = response["items"] || []
+      items = fetch_page_items
 
       sync_completed = false
-
       ActiveRecord::Base.transaction do
-        tracks_by_spotify_id = Spotify::TrackUpserter.new.call(items)
-        Spotify::PlaylistVersionTrackBuilder.new(version).call(items, tracks_by_spotify_id, offset: offset)
-
-        if playlist_session.page_completed!
+        process_items(items)
+        session_completed = playlist_session.page_completed!
+        if session_completed
           PlaylistSyncFinalizer.new(playlist_session).complete!
           sync_completed = true
         end
@@ -35,6 +29,19 @@ module Spotify
     end
 
     private
+
+    def fetch_page_items
+      page_size = strategy.page_size
+      offset = page * page_size
+      response = strategy.fetch_tracks_page(adapter, limit: page_size, offset: offset)
+      response["items"] || []
+    end
+
+    def process_items(items)
+      tracks_by_spotify_id = Spotify::TrackUpserter.new.call(items)
+      offset = page * strategy.page_size
+      Spotify::PlaylistVersionTrackBuilder.new(version).call(items, tracks_by_spotify_id, offset: offset)
+    end
 
     def playlist
       playlist_session.playlist

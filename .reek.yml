@@ -36,7 +36,14 @@ detectors:
       - Auth::OmniauthCallbacksController#build_callback_url
       - SpotifyJob#rate_limited?
       - Spotify::ArtistMetadataUpserter#build_metadata
+      - Spotify::ArtistMetadataUpserter#build_track_genre_record
+      - Spotify::ArtistMetadataUpserter#collect_track_genres
+      - Spotify::ArtistMetadataUpserter#upsert_genres
+      - Spotify::PlaylistSyncSetup#calculate_remaining_pages
+      - Spotify::PlaylistSyncSetup#process_first_page_items
+      - Spotify::TrackUpserter#build_album_artist_records
       - Spotify::TrackUpserter#build_artist_record
+      - Spotify::TrackUpserter#build_track_artist_records
       - Spotify::TrackUpserter#build_track_attributes
       - Spotify::TrackUpserter#extract_release_year
 
@@ -84,6 +91,8 @@ detectors:
   DataClump:
     exclude:
       - SpotifyAdapter
+      - Spotify::PlaylistSyncSetup
+      - Spotify::TrackUpserter
 
   RepeatedConditional:
     exclude:
