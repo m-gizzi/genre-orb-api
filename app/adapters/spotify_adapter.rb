@@ -73,22 +73,14 @@ class SpotifyAdapter
   end
 
   def execute_request(method, path, body: nil, params: nil)
-    response = build_connection.send(method) do |req|
+    response = self.class.connection.send(method) do |req|
       req.url path
+      req.headers["Authorization"] = "Bearer #{service_connection.access_token}"
       req.params = params if params
       req.body = body.to_json if body
     end
 
     handle_response(response)
-  end
-
-  def build_connection
-    Faraday.new(url: BASE_URL) do |conn|
-      conn.request :json
-      conn.response :json, content_type: /\bjson$/
-      conn.adapter Faraday.default_adapter
-      conn.headers["Authorization"] = "Bearer #{service_connection.access_token}"
-    end
   end
 
   def ensure_valid_token!
@@ -147,6 +139,14 @@ class SpotifyAdapter
   end
 
   class << self
+    def connection
+      @connection ||= Faraday.new(url: BASE_URL) do |conn|
+        conn.request :json
+        conn.response :json, content_type: /\bjson$/
+        conn.adapter :net_http_persistent, pool_size: 10
+      end
+    end
+
     def spotify_client_id
       Rails.application.credentials.dig(:spotify, :client_id)
     end
