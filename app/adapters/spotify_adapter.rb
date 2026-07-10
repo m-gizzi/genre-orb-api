@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "faraday/net_http_persistent"
+
 class SpotifyAdapter
   BASE_URL = "https://api.spotify.com/v1"
   TOKEN_URL = "https://accounts.spotify.com/api/token"
