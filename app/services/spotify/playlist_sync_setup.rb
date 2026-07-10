@@ -35,7 +35,11 @@ module Spotify
 
     def process_sync(first_page_response)
       first_page_items = first_page_response["items"] || []
-      total_pages = calculate_total_pages(first_page_response["total"] || 0)
+      total_tracks = first_page_response["total"] || 0
+
+      return complete_empty_playlist if total_tracks.zero?
+
+      total_pages = calculate_total_pages(total_tracks)
       version = PlaylistVersion.create_for_sync!(playlist)
 
       persist_first_page(first_page_items, version: version, total_pages: total_pages)
@@ -43,6 +47,19 @@ module Spotify
       complete_if_single_page(remaining_pages)
 
       Result.new(skipped?: false, version: version, remaining_pages: remaining_pages)
+    end
+
+    def complete_empty_playlist
+      version = PlaylistVersion.create_for_sync!(playlist)
+      playlist_session.update!(
+        status: :completed,
+        playlist_version: version,
+        total_pages: 0,
+        completed_pages: 0,
+        started_at: Time.current,
+        completed_at: Time.current,
+      )
+      Result.new(skipped?: false, version: version, remaining_pages: [])
     end
 
     def calculate_total_pages(total_tracks)

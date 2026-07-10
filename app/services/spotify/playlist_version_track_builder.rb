@@ -14,8 +14,7 @@ module Spotify
 
       PlaylistVersionTrack.upsert_all(
         records,
-        unique_by: %i[playlist_version_id track_id],
-        update_only: %i[position added_at],
+        unique_by: %i[playlist_version_id position],
       )
     end
 

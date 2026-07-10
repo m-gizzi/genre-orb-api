@@ -171,7 +171,7 @@ RSpec.describe Spotify::PlaylistSyncSetup do
       end
     end
 
-    context "when first page is empty" do
+    context "when playlist is empty" do
       let(:playlist_response) do
         {
           "snapshot_id" => "new_snapshot",
@@ -187,14 +187,19 @@ RSpec.describe Spotify::PlaylistSyncSetup do
         expect(playlist_session.reload.completed_pages).to eq(0)
       end
 
-      it "returns page 0 in remaining pages" do
+      it "returns empty remaining_pages" do
         result = service.call
-        expect(result.remaining_pages).to eq([0])
+        expect(result.remaining_pages).to eq([])
       end
 
-      it "sets total_pages to 1" do
+      it "sets total_pages to 0" do
         service.call
-        expect(playlist_session.reload.total_pages).to eq(1)
+        expect(playlist_session.reload.total_pages).to eq(0)
+      end
+
+      it "marks playlist session as completed" do
+        service.call
+        expect(playlist_session.reload.status).to eq("completed")
       end
     end
 

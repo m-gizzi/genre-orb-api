@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_10_011105) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_10_011200) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -79,8 +79,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_10_011105) do
     t.integer "position", null: false
     t.bigint "track_id", null: false
     t.datetime "updated_at", null: false
-    t.index ["playlist_version_id", "position"], name: "idx_playlist_version_tracks_position"
-    t.index ["playlist_version_id", "track_id"], name: "idx_playlist_version_tracks_unique", unique: true
+    t.index ["playlist_version_id", "position"], name: "idx_playlist_version_tracks_position", unique: true
+    t.index ["playlist_version_id", "track_id"], name: "idx_playlist_version_tracks_lookup"
     t.index ["playlist_version_id"], name: "index_playlist_version_tracks_on_playlist_version_id"
     t.index ["track_id"], name: "index_playlist_version_tracks_on_track_id"
   end
