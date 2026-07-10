@@ -147,6 +147,12 @@ RSpec.describe Spotify::PlaylistSyncSetup do
         service.call
         expect(playlist_session.reload.status).to eq("completed")
       end
+
+      it "does not double-count the single page" do
+        service.call
+        playlist_session.reload
+        expect(playlist_session.completed_pages).to eq(playlist_session.total_pages)
+      end
     end
 
     context "when playlist has many pages" do

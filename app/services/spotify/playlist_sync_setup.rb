@@ -118,7 +118,7 @@ module Spotify
     end
 
     def complete_if_single_page(remaining_pages)
-      return unless remaining_pages.empty? && playlist_session.page_completed!
+      return unless remaining_pages.empty?
 
       PlaylistSyncFinalizer.new(playlist_session).complete!
     end
