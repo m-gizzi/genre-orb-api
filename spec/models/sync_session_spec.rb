@@ -96,11 +96,6 @@ RSpec.describe SyncSession do
       expect(session.active?).to be(true)
     end
 
-    it "returns true for paused sessions" do
-      session = build(:sync_session, status: :paused)
-      expect(session.active?).to be(true)
-    end
-
     it "returns false for completed sessions" do
       session = build(:sync_session, :completed)
       expect(session.active?).to be(false)
@@ -108,11 +103,6 @@ RSpec.describe SyncSession do
 
     it "returns false for failed sessions" do
       session = build(:sync_session, :failed)
-      expect(session.active?).to be(false)
-    end
-
-    it "returns false for cancelled sessions" do
-      session = build(:sync_session, status: :cancelled)
       expect(session.active?).to be(false)
     end
   end

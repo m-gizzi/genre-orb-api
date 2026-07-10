@@ -23,7 +23,6 @@ class Playlist < ApplicationRecord
 
   scope :liked_songs, -> { where(type: "LikedSongsPlaylist") }
   scope :regular, -> { where.not(type: "LikedSongsPlaylist").or(where(type: nil)) }
-  scope :with_spotify, -> { where.not(spotify_id: nil) }
   scope :sync_enabled, -> { where(sync_enabled: true) }
   scope :available, -> { where(available_on_spotify: true) }
 
@@ -33,10 +32,6 @@ class Playlist < ApplicationRecord
 
   def track_count
     current_version&.track_count || 0
-  end
-
-  def ordered_tracks
-    current_version&.ordered_tracks || Track.none
   end
 
   def liked_songs?

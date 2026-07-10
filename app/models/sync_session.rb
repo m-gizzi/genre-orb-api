@@ -8,13 +8,11 @@ class SyncSession < ApplicationRecord
   enum :status, {
     pending: 0,
     running: 1,
-    paused: 2,
-    completed: 3,
-    failed: 4,
-    cancelled: 5,
+    completed: 2,
+    failed: 3,
   }
 
-  scope :active, -> { where(status: %i[pending running paused]) }
+  scope :active, -> { where(status: %i[pending running]) }
   scope :recent, -> { order(created_at: :desc) }
 
   def progress
@@ -44,6 +42,6 @@ class SyncSession < ApplicationRecord
   end
 
   def active?
-    pending? || running? || paused?
+    pending? || running?
   end
 end
