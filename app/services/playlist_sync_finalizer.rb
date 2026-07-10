@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-class PlaylistSyncCompleter
+class PlaylistSyncFinalizer
   def initialize(playlist_session)
     @playlist_session = playlist_session
   end
 
-  def complete
+  def complete!
     ActiveRecord::Base.transaction do
       version = @playlist_session.playlist_version
       playlist = @playlist_session.playlist
@@ -21,7 +21,7 @@ class PlaylistSyncCompleter
     end
   end
 
-  def skip
+  def mark_as_skipped!
     ActiveRecord::Base.transaction do
       @playlist_session.update!(
         status: :skipped,

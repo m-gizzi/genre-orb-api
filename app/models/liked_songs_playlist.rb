@@ -3,20 +3,12 @@
 class LikedSongsPlaylist < Playlist
   validate :only_one_per_user
 
-  def spotify_page_size
-    50
-  end
-
   def liked_songs?
     true
   end
 
   def spotify_id
     nil
-  end
-
-  def fetch_tracks_page(adapter, limit:, offset:)
-    adapter.liked_songs(limit: limit.clamp(1, spotify_page_size), offset: offset)
   end
 
   private

@@ -47,7 +47,7 @@ detectors:
     exclude:
       - ServiceConnection#token_expired?
       - ServiceConnection#token_expiring_soon?
-      - Playlist#snapshot_unchanged?
+      - Spotify::PlaylistSyncStrategy#snapshot_unchanged?
 
   TooManyStatements:
     enabled: false

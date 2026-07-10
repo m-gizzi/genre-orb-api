@@ -8,11 +8,12 @@ module Spotify
       @playlist_session = playlist_session
       @playlist = playlist_session.playlist
       @adapter = adapter
+      @strategy = PlaylistSyncStrategy.new(@playlist)
     end
 
     def call
       first_page_response, current_snapshot_id = fetch_first_page_with_snapshot
-      return skip_unchanged if @playlist.snapshot_unchanged?(current_snapshot_id)
+      return skip_unchanged if @strategy.snapshot_unchanged?(current_snapshot_id)
 
       process_sync(first_page_response)
     end
@@ -20,7 +21,7 @@ module Spotify
     private
 
     def skip_unchanged
-      PlaylistSyncCompleter.new(@playlist_session).skip
+      PlaylistSyncFinalizer.new(@playlist_session).mark_as_skipped!
       Result.new(success?: true, skipped?: true)
     end
 
@@ -37,7 +38,7 @@ module Spotify
     end
 
     def calculate_total_pages(total_tracks)
-      pages = (total_tracks.to_f / @playlist.spotify_page_size).ceil
+      pages = (total_tracks.to_f / @strategy.page_size).ceil
       [pages, 1].max
     end
 
@@ -55,7 +56,7 @@ module Spotify
     end
 
     def fetch_liked_songs
-      response = @adapter.liked_songs(limit: @playlist.spotify_page_size, offset: 0)
+      response = @adapter.liked_songs(limit: @strategy.page_size, offset: 0)
       [response, nil]
     end
 
@@ -94,7 +95,7 @@ module Spotify
     def complete_if_single_page(remaining_pages)
       return unless remaining_pages.empty? && @playlist_session.page_completed!
 
-      PlaylistSyncCompleter.new(@playlist_session).complete
+      PlaylistSyncFinalizer.new(@playlist_session).complete!
     end
   end
 end

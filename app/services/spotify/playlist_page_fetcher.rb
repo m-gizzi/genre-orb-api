@@ -10,13 +10,14 @@ module Spotify
       @version = playlist_session.playlist_version
       @page = page
       @adapter = adapter
+      @strategy = PlaylistSyncStrategy.new(@playlist)
     end
 
     def call
-      page_size = @playlist.spotify_page_size
+      page_size = @strategy.page_size
       offset = @page * page_size
 
-      response = @playlist.fetch_tracks_page(@adapter, limit: page_size, offset: offset)
+      response = @strategy.fetch_tracks_page(@adapter, limit: page_size, offset: offset)
       items = response["items"] || []
 
       sync_completed = false
@@ -26,7 +27,7 @@ module Spotify
         Spotify::PlaylistVersionTrackBuilder.new(@version).call(items, tracks_by_spotify_id, offset: offset)
 
         if @playlist_session.page_completed!
-          PlaylistSyncCompleter.new(@playlist_session).complete
+          PlaylistSyncFinalizer.new(@playlist_session).complete!
           sync_completed = true
         end
       end
