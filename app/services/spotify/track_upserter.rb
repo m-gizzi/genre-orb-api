@@ -11,11 +11,30 @@ module Spotify
 
       create_track_artist_joins(spotify_track_items, tracks_by_spotify_id, artists_by_spotify_id)
       create_album_artist_joins(spotify_track_items, albums_by_spotify_id, artists_by_spotify_id)
+      propagate_known_artist_genres(spotify_track_items, tracks_by_spotify_id, artists_by_spotify_id)
 
       tracks_by_spotify_id
     end
 
     private
+
+    def propagate_known_artist_genres(items, tracks_by_spotify_id, artists_by_spotify_id)
+      pairs = items.flat_map do |item|
+        track = tracks_by_spotify_id[item.dig("track", "id")]
+        next [] unless track
+
+        genre_pairs_for_track(track, item, artists_by_spotify_id)
+      end
+      Spotify::TrackGenrePropagator.new.call(pairs)
+    end
+
+    def genre_pairs_for_track(track, item, artists_by_spotify_id)
+      (item.dig("track", "artists") || []).flat_map do |sp_artist|
+        artist = artists_by_spotify_id[sp_artist["id"]]
+        genres = artist&.metadata&.dig("genres") || []
+        genres.map { |genre_name| { track_id: track.id, genre_name: genre_name } }
+      end
+    end
 
     def extract_and_upsert_artists(items)
       artist_data = build_artist_data(items)

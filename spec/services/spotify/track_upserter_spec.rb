@@ -197,4 +197,35 @@ RSpec.describe Spotify::TrackUpserter do
       end
     end
   end
+
+  describe "genre propagation from known artists" do
+    let(:track_items) do
+      [
+        build_spotify_track_item(
+          track_id: "track_1", track_name: "Song One",
+          artist_id: "artist_1", artist_name: "Artist One",
+          album_id: "album_1", album_name: "Album One",
+        ),
+      ]
+    end
+
+    context "when the artist already has genre metadata" do
+      before do
+        create(:artist, spotify_id: "artist_1", metadata: { "genres" => ["death metal", "black metal"] })
+      end
+
+      it "copies the artist's genres onto the newly-synced track" do
+        service.call(track_items)
+
+        track = Track.find_by(spotify_id: "track_1")
+        expect(track.genres.pluck(:name)).to contain_exactly("death metal", "black metal")
+      end
+    end
+
+    context "when the artist is brand new (no metadata yet)" do
+      it "writes no genres (deferred to the artist metadata sync)" do
+        expect { service.call(track_items) }.not_to change(TrackGenre, :count)
+      end
+    end
+  end
 end
