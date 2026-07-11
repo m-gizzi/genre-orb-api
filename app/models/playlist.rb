@@ -4,6 +4,10 @@ class Playlist < ApplicationRecord
   belongs_to :user, inverse_of: :playlists
   belongs_to :current_version, class_name: "PlaylistVersion", optional: true
 
+  before_destroy :clear_current_version
+
+  has_many :sync_session_playlists, dependent: :destroy, inverse_of: :playlist
+
   has_many :playlist_versions, dependent: :destroy, inverse_of: :playlist
   alias versions playlist_versions
 
@@ -16,10 +20,8 @@ class Playlist < ApplicationRecord
           dependent: :nullify,
           inverse_of: :target_playlist
 
-  has_many :sync_session_playlists, dependent: :destroy, inverse_of: :playlist
-
   validates :name, presence: true
-  validates :spotify_id, uniqueness: true, allow_nil: true
+  validates :spotify_id, uniqueness: { scope: :user_id }, allow_nil: true
 
   scope :liked_songs, -> { where(type: "LikedSongsPlaylist") }
   scope :regular, -> { where.not(type: "LikedSongsPlaylist").or(where(type: nil)) }
@@ -36,5 +38,11 @@ class Playlist < ApplicationRecord
 
   def liked_songs?
     false
+  end
+
+  private
+
+  def clear_current_version
+    update_columns(current_version_id: nil) if current_version_id
   end
 end
