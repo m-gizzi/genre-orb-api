@@ -10,9 +10,10 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_11_000003) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_11_000005) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+  enable_extension "pg_trgm"
 
   create_table "album_artists", force: :cascade do |t|
     t.bigint "album_id", null: false
@@ -35,6 +36,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_11_000003) do
     t.index ["release_year"], name: "index_albums_on_release_year"
     t.index ["spotify_id"], name: "index_albums_on_spotify_id", unique: true
     t.index ["title"], name: "index_albums_on_title"
+    t.index ["title"], name: "index_albums_on_title_trgm", opclass: :gin_trgm_ops, using: :gin
   end
 
   create_table "artist_metadata_sessions", force: :cascade do |t|
@@ -63,6 +65,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_11_000003) do
     t.datetime "updated_at", null: false
     t.index ["metadata_fetched_at"], name: "index_artists_on_metadata_fetched_at"
     t.index ["name"], name: "index_artists_on_name"
+    t.index ["name"], name: "index_artists_on_name_trgm", opclass: :gin_trgm_ops, using: :gin
     t.index ["spotify_id"], name: "index_artists_on_spotify_id", unique: true
   end
 
@@ -239,10 +242,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_11_000003) do
     t.integer "track_number"
     t.datetime "updated_at", null: false
     t.index ["album_id"], name: "index_tracks_on_album_id"
+    t.index ["duration_ms"], name: "index_tracks_on_duration_ms"
     t.index ["explicit"], name: "index_tracks_on_explicit"
     t.index ["popularity"], name: "index_tracks_on_popularity"
     t.index ["spotify_id"], name: "index_tracks_on_spotify_id", unique: true
     t.index ["title"], name: "index_tracks_on_title"
+    t.index ["title"], name: "index_tracks_on_title_trgm", opclass: :gin_trgm_ops, using: :gin
   end
 
   create_table "users", force: :cascade do |t|
