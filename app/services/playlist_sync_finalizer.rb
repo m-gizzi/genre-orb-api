@@ -14,25 +14,27 @@ class PlaylistSyncFinalizer
       playlist_session.update!(status: :completed, completed_at: Time.current)
     end
 
-    playlist_session.sync_session.increment_completed!
-    finalize
+    sync_session.increment_completed!
+    sync_session.reconcile!
   end
 
   def mark_as_skipped!
-    ActiveRecord::Base.transaction do
-      playlist_session.update!(
-        status: :skipped,
-        completed_at: Time.current,
-        total_pages: 0,
-        completed_pages: 0,
-      )
-    end
+    playlist_session.update!(
+      status: :skipped,
+      completed_at: Time.current,
+      total_pages: 0,
+      completed_pages: 0,
+    )
 
-    playlist_session.sync_session.increment_skipped!
-    finalize
+    sync_session.increment_skipped!
+    sync_session.reconcile!
   end
 
   private
+
+  def sync_session
+    playlist_session.sync_session
+  end
 
   def complete_version!
     version = playlist_session.playlist_version
@@ -46,10 +48,5 @@ class PlaylistSyncFinalizer
       last_synced_at: Time.current,
       last_synced_snapshot_id: playlist.last_seen_snapshot_id,
     )
-  end
-
-  def finalize
-    sync_session = playlist_session.sync_session
-    sync_session.update!(status: :completed, completed_at: Time.current) if sync_session.all_playlists_done?
   end
 end

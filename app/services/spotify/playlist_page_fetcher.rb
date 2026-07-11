@@ -15,17 +15,14 @@ module Spotify
     def call
       items = fetch_page_items
 
-      sync_completed = false
+      final_page = false
       ActiveRecord::Base.transaction do
         process_items(items)
-        session_completed = playlist_session.page_completed!
-        if session_completed
-          PlaylistSyncFinalizer.new(playlist_session).complete!
-          sync_completed = true
-        end
+        final_page = playlist_session.page_completed!
       end
 
-      Result.new(sync_completed?: sync_completed)
+      PlaylistSyncFinalizer.new(playlist_session).complete! if final_page
+      Result.new(sync_completed?: final_page)
     end
 
     private
