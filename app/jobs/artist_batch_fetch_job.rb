@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class ArtistBatchFetchJob < SpotifyJob
+  queue_as :metadata
+
   sidekiq_retries_exhausted do |job, exception|
     args = perform_arguments(job).first || {}
     session = ArtistMetadataSession.find_by(id: args[:session_id])

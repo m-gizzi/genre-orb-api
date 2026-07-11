@@ -124,6 +124,28 @@ RSpec.describe Spotify::PlaylistMetadataFetcher do
         expect(result.success?).to be(false)
         expect(result.error).to eq("API error")
       end
+
+      it "records the error on the user so it can be surfaced" do
+        service.call
+        expect(user.reload.playlists_metadata_error).to eq("API error")
+      end
+    end
+
+    context "when rate limited" do
+      before do
+        allow(adapter).to receive(:playlists)
+          .and_raise(SpotifyAdapter::RateLimitError.new(retry_after: 30, user_id: user.id))
+      end
+
+      it "re-raises so the job can pause and re-enqueue" do
+        expect { service.call }.to raise_error(SpotifyAdapter::RateLimitError)
+      end
+    end
+
+    it "clears a previous error after a successful fetch" do
+      user.update!(playlists_metadata_error: "stale error")
+      service.call
+      expect(user.reload.playlists_metadata_error).to be_nil
     end
   end
 end

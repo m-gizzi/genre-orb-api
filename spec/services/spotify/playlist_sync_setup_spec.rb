@@ -177,6 +177,35 @@ RSpec.describe Spotify::PlaylistSyncSetup do
       end
     end
 
+    context "when retried after a version already exists (idempotency)" do
+      let!(:existing_version) do
+        create(:playlist_version, playlist: playlist, status: :building).tap do |version|
+          playlist_session.update!(status: :fetching_pages, playlist_version: version, total_pages: 2)
+        end
+      end
+
+      it "reuses the in-flight version instead of creating a duplicate" do
+        expect { service.call }.not_to change(PlaylistVersion, :count)
+      end
+
+      it "returns the reused version" do
+        result = service.call
+        expect(result.version).to eq(existing_version)
+      end
+    end
+
+    context "when retried after the playlist already completed (idempotency)" do
+      before { playlist_session.update!(status: :completed) }
+
+      it "skips without creating a new version" do
+        expect { service.call }.not_to change(PlaylistVersion, :count)
+      end
+
+      it "returns a skipped result" do
+        expect(service.call.skipped?).to be(true)
+      end
+    end
+
     context "when playlist is empty" do
       let(:playlist_response) do
         {
@@ -206,6 +235,11 @@ RSpec.describe Spotify::PlaylistSyncSetup do
       it "marks playlist session as completed" do
         service.call
         expect(playlist_session.reload.status).to eq("completed")
+      end
+
+      it "reconciles the parent session so it does not stay stuck running" do
+        service.call
+        expect(sync_session.reload.status).to eq("completed")
       end
     end
 

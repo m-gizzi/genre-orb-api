@@ -12,6 +12,9 @@ module Spotify
     end
 
     def call
+      return Result.new(skipped?: true) if playlist_session.completed? || playlist_session.failed? ||
+                                           playlist_session.skipped?
+
       first_page_response, current_snapshot_id = fetch_first_page_with_snapshot
       return skip_unchanged if strategy.snapshot_unchanged?(current_snapshot_id)
 
@@ -40,7 +43,7 @@ module Spotify
       return complete_empty_playlist if total_tracks.zero?
 
       total_pages = calculate_total_pages(total_tracks)
-      version = PlaylistVersion.create_for_sync!(playlist)
+      version = playlist_session.playlist_version || PlaylistVersion.create_for_sync!(playlist)
 
       persist_first_page(first_page_items, version: version, total_pages: total_pages)
       remaining_pages = calculate_remaining_pages(first_page_items, total_pages: total_pages)
@@ -50,15 +53,14 @@ module Spotify
     end
 
     def complete_empty_playlist
-      version = PlaylistVersion.create_for_sync!(playlist)
+      version = playlist_session.playlist_version || PlaylistVersion.create_for_sync!(playlist)
       playlist_session.update!(
-        status: :completed,
         playlist_version: version,
         total_pages: 0,
         completed_pages: 0,
         started_at: Time.current,
-        completed_at: Time.current,
       )
+      PlaylistSyncFinalizer.new(playlist_session).complete!
       Result.new(skipped?: false, version: version, remaining_pages: [])
     end
 

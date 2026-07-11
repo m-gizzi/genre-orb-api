@@ -18,8 +18,11 @@ module Spotify
       sync_playlists(spotify_playlists)
 
       Result.new(success?: true, playlists: user.playlists)
+    rescue SpotifyAdapter::RateLimitError
+      raise
     rescue StandardError => e
       Rails.logger.error("PlaylistMetadataFetcher error for user #{user.id}: #{e.message}")
+      user.update!(playlists_metadata_error: e.message)
       Result.new(success?: false, error: e.message)
     end
 
@@ -32,7 +35,7 @@ module Spotify
         upsert_playlists(spotify_playlists)
         upsert_liked_songs if liked_accessible
         mark_unavailable_playlists(spotify_playlists.map { |playlist| playlist["id"] })
-        user.update!(playlists_metadata_fetched_at: Time.current)
+        user.update!(playlists_metadata_fetched_at: Time.current, playlists_metadata_error: nil)
       end
     end
 
@@ -53,7 +56,9 @@ module Spotify
 
     def liked_songs_accessible?
       adapter.liked_songs(limit: 1).present?
-    rescue StandardError
+    rescue SpotifyAdapter::RateLimitError
+      raise
+    rescue SpotifyAdapter::ApiError
       false
     end
 
@@ -63,7 +68,7 @@ module Spotify
       records = spotify_playlists.map { |sp| build_playlist_record(sp) }
       Playlist.upsert_all(
         records,
-        unique_by: :spotify_id,
+        unique_by: %i[user_id spotify_id],
         update_only: %i[name last_seen_snapshot_id is_public available_on_spotify],
       )
     end

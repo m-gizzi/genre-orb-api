@@ -67,6 +67,7 @@ module Api
           id: @session.id,
           status: @session.status,
           progress: @session.progress,
+          error_message: @session.error_message,
           started_at: @session.started_at&.iso8601,
           completed_at: @session.completed_at&.iso8601,
         }

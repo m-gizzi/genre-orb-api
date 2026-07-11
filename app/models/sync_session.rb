@@ -42,7 +42,7 @@ class SyncSession < ApplicationRecord
   def reconcile!
     with_lock do
       return unless active?
-      return if sync_session_playlists.where(status: %i[pending fetching_pages]).exists?
+      return if sync_session_playlists.exists?(status: %i[pending fetching_pages])
 
       update!(status: terminal_status, completed_at: Time.current)
     end
@@ -55,8 +55,8 @@ class SyncSession < ApplicationRecord
   private
 
   def terminal_status
-    any_failed = sync_session_playlists.where(status: :failed).exists?
-    any_succeeded = sync_session_playlists.where(status: %i[completed skipped]).exists?
+    any_failed = sync_session_playlists.exists?(status: :failed)
+    any_succeeded = sync_session_playlists.exists?(status: %i[completed skipped])
 
     if any_failed && any_succeeded
       :completed_with_errors

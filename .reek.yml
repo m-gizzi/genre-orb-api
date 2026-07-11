@@ -30,6 +30,7 @@ detectors:
 
   UtilityFunction:
     exclude:
+      - Api::V1::LibrariesController#serialize_session_playlist
       - Auth::RegistrationsController#user_data
       - Auth::SessionsController#user_data
       - Auth::OmniauthCallbacksController#allowed_origins

@@ -40,6 +40,7 @@ module Api
           has_active_sync: @session&.active? || false,
           current_session: @session ? serialize_session : nil,
           playlists_metadata_fetched_at: current_user.playlists_metadata_fetched_at&.iso8601,
+          playlists_metadata_error: current_user.playlists_metadata_error,
         }.merge(rate_limit_info)
       end
 
@@ -69,16 +70,20 @@ module Api
           id: @session.id,
           status: @session.status,
           progress: @session.progress,
+          error_message: @session.error_message,
           started_at: @session.started_at&.iso8601,
           completed_at: @session.completed_at&.iso8601,
-          playlists: @session.sync_session_playlists.map do |ssp|
-            {
-              playlist_id: ssp.playlist_id,
-              playlist_name: ssp.playlist.name,
-              status: ssp.status,
-              page_progress: ssp.page_progress,
-            }
-          end,
+          playlists: @session.sync_session_playlists.map { |ssp| serialize_session_playlist(ssp) },
+        }
+      end
+
+      def serialize_session_playlist(ssp)
+        {
+          playlist_id: ssp.playlist_id,
+          playlist_name: ssp.playlist.name,
+          status: ssp.status,
+          page_progress: ssp.page_progress,
+          error_message: ssp.error_message,
         }
       end
     end

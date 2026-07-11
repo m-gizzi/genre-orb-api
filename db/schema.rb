@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_10_013000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_11_000003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -115,9 +115,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_10_013000) do
     t.index ["current_version_id"], name: "index_playlists_on_current_version_id"
     t.index ["last_seen_snapshot_id"], name: "index_playlists_on_last_seen_snapshot_id"
     t.index ["last_synced_snapshot_id"], name: "index_playlists_on_last_synced_snapshot_id"
-    t.index ["spotify_id"], name: "index_playlists_on_spotify_id", unique: true, where: "(spotify_id IS NOT NULL)"
     t.index ["sync_enabled"], name: "index_playlists_on_sync_enabled"
     t.index ["type"], name: "index_playlists_on_type"
+    t.index ["user_id", "spotify_id"], name: "idx_playlists_user_spotify_unique", unique: true, where: "(spotify_id IS NOT NULL)"
+    t.index ["user_id"], name: "idx_playlists_liked_songs_per_user", unique: true, where: "((type)::text = 'LikedSongsPlaylist'::text)"
     t.index ["user_id"], name: "index_playlists_on_user_id"
   end
 
@@ -188,6 +189,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_10_013000) do
     t.integer "completed_playlists", default: 0, null: false
     t.datetime "created_at", null: false
     t.string "error_message"
+    t.integer "failed_playlists", default: 0, null: false
     t.integer "skipped_playlists", default: 0, null: false
     t.datetime "started_at"
     t.integer "status", default: 0, null: false
@@ -247,6 +249,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_10_013000) do
     t.datetime "created_at", null: false
     t.string "email", default: "", null: false
     t.string "encrypted_password", default: "", null: false
+    t.string "playlists_metadata_error"
     t.datetime "playlists_metadata_fetched_at"
     t.integer "registration_source", default: 0, null: false
     t.datetime "remember_created_at"
