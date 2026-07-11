@@ -12,6 +12,7 @@ gem "kamal", require: false
 gem "omniauth"
 gem "omniauth-rails_csrf_protection"
 gem "omniauth-spotify"
+gem "pagy", "~> 9.4"
 gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"
 gem "rack-cors"
