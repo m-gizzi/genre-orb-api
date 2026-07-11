@@ -1,20 +1,36 @@
 # frozen_string_literal: true
 
+require "faraday/net_http_persistent"
+
 class SpotifyAdapter
   BASE_URL = "https://api.spotify.com/v1"
   TOKEN_URL = "https://accounts.spotify.com/api/token"
+  ARTIST_BATCH_LIMIT = 50
 
   class AuthenticationError < StandardError; end
   class TokenRefreshError < StandardError; end
   class ApiError < StandardError; end
-  class RateLimitError < ApiError; end
+
+  class RateLimitError < ApiError
+    # Spotify should always send a Retry-After header on a 429, but if it is
+    # missing (or zero) we still need a positive pause so Redis SETEX is valid.
+    MIN_RETRY_AFTER = 1
+
+    attr_reader :retry_after, :user_id
+
+    def initialize(message = nil, retry_after: nil, user_id: nil)
+      @retry_after = [retry_after.to_i, MIN_RETRY_AFTER].max
+      @user_id = user_id
+      super(message || "Rate limited, retry after #{@retry_after}s")
+    end
+  end
 
   def initialize(service_connection)
     @service_connection = service_connection
   end
 
   def user_profile
-    request(:get, "/me")
+    request(:get, "me")
   end
 
   def verify_connection
@@ -22,6 +38,32 @@ class SpotifyAdapter
     true
   rescue AuthenticationError
     false
+  end
+
+  def playlists(limit: 50, offset: 0)
+    request(:get, "me/playlists", params: { limit: limit, offset: offset })
+  end
+
+  def playlist(playlist_id)
+    request(:get, "playlists/#{playlist_id}")
+  end
+
+  def playlist_tracks(playlist_id, limit: 100, offset: 0)
+    request(:get, "playlists/#{playlist_id}/tracks", params: { limit: limit, offset: offset })
+  end
+
+  def liked_songs(limit: 50, offset: 0)
+    request(:get, "me/tracks", params: { limit: limit, offset: offset })
+  end
+
+  def artists(spotify_ids)
+    if spotify_ids.size > ARTIST_BATCH_LIMIT
+      raise ArgumentError,
+            "Cannot fetch more than #{ARTIST_BATCH_LIMIT} artists at once"
+    end
+
+    ids = spotify_ids.join(",")
+    request(:get, "artists", params: { ids: ids })
   end
 
   private
@@ -37,22 +79,14 @@ class SpotifyAdapter
   end
 
   def execute_request(method, path, body: nil, params: nil)
-    response = build_connection.send(method) do |req|
+    response = self.class.connection.send(method) do |req|
       req.url path
+      req.headers["Authorization"] = "Bearer #{service_connection.access_token}"
       req.params = params if params
       req.body = body.to_json if body
     end
 
     handle_response(response)
-  end
-
-  def build_connection
-    Faraday.new(url: BASE_URL) do |conn|
-      conn.request :json
-      conn.response :json, content_type: /\bjson$/
-      conn.adapter Faraday.default_adapter
-      conn.headers["Authorization"] = "Bearer #{service_connection.access_token}"
-    end
   end
 
   def ensure_valid_token!
@@ -104,13 +138,21 @@ class SpotifyAdapter
       raise AuthenticationError, "Invalid or expired access token"
     when 429
       retry_after = response.headers["Retry-After"]
-      raise RateLimitError, "Rate limited. Retry after: #{retry_after} seconds"
+      raise RateLimitError.new(retry_after: retry_after, user_id: service_connection.user_id)
     else
       raise ApiError, "Spotify API error (#{status}): #{body}"
     end
   end
 
   class << self
+    def connection
+      @connection ||= Faraday.new(url: BASE_URL) do |conn|
+        conn.request :json
+        conn.response :json, content_type: /\bjson$/
+        conn.adapter :net_http_persistent, pool_size: 10
+      end
+    end
+
     def spotify_client_id
       Rails.application.credentials.dig(:spotify, :client_id)
     end

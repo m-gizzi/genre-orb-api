@@ -8,11 +8,15 @@ class Genre < ApplicationRecord
 
   before_validation :normalize_name
 
+  def self.normalize_name(name)
+    return nil if name.blank?
+
+    name.downcase.strip.gsub(/\s+/, " ")
+  end
+
   private
 
   def normalize_name
-    return if name.blank?
-
-    self.name = name.downcase.strip.gsub(/\s+/, " ")
+    self.name = self.class.normalize_name(name)
   end
 end

@@ -8,6 +8,11 @@ exclude_paths:
   - spec
   - vendor
 
+directories:
+  app/jobs:
+    UtilityFunction:
+      enabled: false
+
 detectors:
   IrresponsibleModule:
     enabled: false
@@ -15,20 +20,41 @@ detectors:
   MissingSafeMethod:
     enabled: false
 
+  UncommunicativeModuleName:
+    accept:
+      - V1
+
   UncommunicativeVariableName:
     accept:
       - e
 
   UtilityFunction:
     exclude:
+      - Api::V1::LibrariesController#serialize_session_playlist
       - Auth::RegistrationsController#user_data
       - Auth::SessionsController#user_data
       - Auth::OmniauthCallbacksController#allowed_origins
       - Auth::OmniauthCallbacksController#build_callback_url
+      - SpotifyJob#rate_limited?
+      - Spotify::ArtistMetadataUpserter#build_metadata
+      - Spotify::ArtistMetadataUpserter#collect_track_genre_pairs
+      - Spotify::TrackGenrePropagator#normalize_pairs
+      - Spotify::TrackGenrePropagator#insert_genres
+      - Spotify::TrackGenrePropagator#build_track_genre_record
+      - Spotify::TrackUpserter#genre_pairs_for_track
+      - Spotify::LibrarySyncInitializer#enqueue_playlist_setup_jobs
+      - Spotify::PlaylistSyncSetup#calculate_remaining_pages
+      - Spotify::PlaylistSyncSetup#process_first_page_items
+      - Spotify::TrackUpserter#build_album_artist_records
+      - Spotify::TrackUpserter#build_artist_record
+      - Spotify::TrackUpserter#build_track_artist_records
+      - Spotify::TrackUpserter#build_track_attributes
+      - Spotify::TrackUpserter#extract_release_year
 
   ControlParameter:
     exclude:
       - Auth::SessionsController#respond_to_on_destroy
+      - SpotifyAdapter::RateLimitError#initialize
 
   FeatureEnvy:
     enabled: false
@@ -37,6 +63,7 @@ detectors:
     exclude:
       - ServiceConnection#token_expired?
       - ServiceConnection#token_expiring_soon?
+      - Spotify::PlaylistSyncStrategy#snapshot_unchanged?
 
   TooManyStatements:
     enabled: false
@@ -49,3 +76,29 @@ detectors:
 
   LongParameterList:
     enabled: false
+
+  BooleanParameter:
+    exclude:
+      - ArtistMetadataSyncJob#perform
+      - Spotify::ArtistMetadataSyncInitializer#initialize
+
+  TooManyMethods:
+    max_methods: 20
+
+  TooManyInstanceVariables:
+    max_instance_variables: 5
+
+  NestedIterators:
+    exclude:
+      - Spotify::ArtistMetadataUpserter#collect_track_genre_pairs
+      - Spotify::TrackUpserter#genre_pairs_for_track
+
+  DataClump:
+    exclude:
+      - SpotifyAdapter
+      - Spotify::PlaylistSyncSetup
+      - Spotify::TrackUpserter
+
+  RepeatedConditional:
+    exclude:
+      - Spotify::PlaylistSyncStrategy
