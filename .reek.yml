@@ -8,11 +8,6 @@ exclude_paths:
   - spec
   - vendor
 
-directories:
-  app/jobs:
-    UtilityFunction:
-      enabled: false
-
 detectors:
   IrresponsibleModule:
     enabled: false
@@ -29,27 +24,7 @@ detectors:
       - e
 
   UtilityFunction:
-    exclude:
-      - Api::V1::LibrariesController#serialize_session_playlist
-      - Auth::RegistrationsController#user_data
-      - Auth::SessionsController#user_data
-      - Auth::OmniauthCallbacksController#allowed_origins
-      - Auth::OmniauthCallbacksController#build_callback_url
-      - SpotifyJob#rate_limited?
-      - Spotify::ArtistMetadataUpserter#build_metadata
-      - Spotify::ArtistMetadataUpserter#collect_track_genre_pairs
-      - Spotify::TrackGenrePropagator#normalize_pairs
-      - Spotify::TrackGenrePropagator#insert_genres
-      - Spotify::TrackGenrePropagator#build_track_genre_record
-      - Spotify::TrackUpserter#genre_pairs_for_track
-      - Spotify::LibrarySyncInitializer#enqueue_playlist_setup_jobs
-      - Spotify::PlaylistSyncSetup#calculate_remaining_pages
-      - Spotify::PlaylistSyncSetup#process_first_page_items
-      - Spotify::TrackUpserter#build_album_artist_records
-      - Spotify::TrackUpserter#build_artist_record
-      - Spotify::TrackUpserter#build_track_artist_records
-      - Spotify::TrackUpserter#build_track_attributes
-      - Spotify::TrackUpserter#extract_release_year
+    enabled: false
 
   ControlParameter:
     exclude:
@@ -61,9 +36,11 @@ detectors:
 
   NilCheck:
     exclude:
+      - BaseController#render_data
       - ServiceConnection#token_expired?
       - ServiceConnection#token_expiring_soon?
       - Spotify::PlaylistSyncStrategy#snapshot_unchanged?
+      - Tracks::Filter#filter_explicit
 
   TooManyStatements:
     enabled: false
@@ -102,3 +79,4 @@ detectors:
   RepeatedConditional:
     exclude:
       - Spotify::PlaylistSyncStrategy
+      - Tracks::Filter

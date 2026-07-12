@@ -9,10 +9,23 @@ module Api
         no_artists: { key: "api.artists.no_artists_need_sync", status: :unprocessable_content },
       }.freeze
 
+      def index
+        scope = current_user.library_artists.order("artists.name")
+        scope = scope.where("artists.name ILIKE ?", like_contains(params[:search])) if params[:search].present?
+
+        pagy, artists = paginate(scope)
+        render_data(ArtistSerializer.new(artists).serializable_hash, meta: pagy_meta(pagy))
+      end
+
+      def show
+        artist = current_user.library_artists.find(params.expect(:id))
+        albums = current_user.library_albums.where(id: artist.album_ids)
+        render_data(ArtistDetailSerializer.new(artist, params: { albums: albums }).serializable_hash)
+      end
+
       def sync_status
         @session = current_user.artist_metadata_sessions.recent.first
-
-        render json: build_sync_status_response
+        render_data(build_sync_status_response)
       end
 
       def sync
@@ -20,7 +33,7 @@ module Api
         return render_sync_outcome(result.outcome) unless result.started?
 
         @session = result.session
-        render json: { status: "queued", session: serialize_session }, status: :accepted
+        render_data({ status: "queued", session: serialize_session }, status: :accepted)
       end
 
       private
@@ -55,11 +68,7 @@ module Api
 
       def render_sync_outcome(outcome)
         response = SYNC_OUTCOME_RESPONSES.fetch(outcome)
-        render_error(I18n.t(response[:key]), response[:status])
-      end
-
-      def render_error(message, status)
-        render json: { error: message }, status: status
+        render_error(I18n.t(response[:key]), status: response[:status])
       end
 
       def serialize_session

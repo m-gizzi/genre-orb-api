@@ -10,6 +10,9 @@ en:
   api:
     errors:
       spotify_not_connected: "Spotify not connected"
+      unauthenticated: "You need to sign in or sign up before continuing"
+      not_found: "Resource not found"
+      bad_request: "Invalid request"
     library:
       sync_in_progress: "Sync already in progress"
       no_playlists_selected: "No playlists selected for sync"
