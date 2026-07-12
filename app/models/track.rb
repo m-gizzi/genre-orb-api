@@ -12,6 +12,8 @@ class Track < ApplicationRecord
   has_many :playlist_version_tracks, dependent: :destroy, inverse_of: :track
   has_many :playlist_versions, through: :playlist_version_tracks
 
+  scope :with_catalog_associations, -> { includes(:album, :artists, track_genres: :genre) }
+
   validates :title, presence: true
   validates :spotify_id, uniqueness: true, allow_nil: true
   validates :duration_ms,
