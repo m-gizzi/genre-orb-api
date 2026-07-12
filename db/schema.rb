@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_11_000005) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_11_000006) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -74,6 +74,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_11_000005) do
     t.string "name", null: false
     t.datetime "updated_at", null: false
     t.index ["name"], name: "index_genres_on_name", unique: true
+    t.index ["name"], name: "index_genres_on_name_trgm", opclass: :gin_trgm_ops, using: :gin
   end
 
   create_table "playlist_version_tracks", force: :cascade do |t|

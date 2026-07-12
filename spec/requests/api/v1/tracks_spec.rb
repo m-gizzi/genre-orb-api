@@ -111,6 +111,17 @@ RSpec.describe "Api::V1::Tracks" do
 
         expect(response.parsed_body["data"].pluck("id")).to eq([high.id, low.id])
       end
+
+      it "sorts by album release year and still reports an accurate count" do
+        newer = add_track(create(:track, title: "Newer", album: create(:album, release_year: 2021)))
+        older = add_track(create(:track, title: "Older", album: create(:album, release_year: 1999)))
+
+        get "/api/v1/tracks", params: { sort: "year", order: "desc" }
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body["data"].pluck("id")).to eq([newer.id, older.id])
+        expect(response.parsed_body["meta"]["total"]).to eq(2)
+      end
     end
   end
 

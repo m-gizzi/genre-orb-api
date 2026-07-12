@@ -22,20 +22,23 @@ RSpec.describe TrackSerializer do
     )
     expect(result["album"]).to include("id" => album.id, "title" => "Reign in Blood", "release_year" => 1986)
     expect(result["artists"]).to contain_exactly(include("id" => artist.id, "name" => "Slayer"))
+    track_genre = track.track_genres.first
     expect(result["genres"]).to contain_exactly(
-      { "id" => genre.id, "name" => "thrash metal", "source" => "spotify" },
+      { "id" => track_genre.id, "genre_id" => genre.id, "name" => "thrash metal", "source" => "spotify" },
     )
   end
 
-  it "lists the same genre once per source" do
+  it "lists the same genre once per source with distinct entry ids" do
     genre = create(:genre, name: "metal")
     track = create(:track)
     create(:track_genre, track: track, genre: genre, source: :spotify)
     create(:track_genre, track: track, genre: genre, source: :user)
 
     loaded = Track.with_catalog_associations.find(track.id)
-    sources = described_class.new(loaded).serializable_hash["genres"].pluck("source")
+    genres = described_class.new(loaded).serializable_hash["genres"]
 
-    expect(sources).to contain_exactly("spotify", "user")
+    expect(genres.pluck("source")).to contain_exactly("spotify", "user")
+    expect(genres.pluck("genre_id")).to eq([genre.id, genre.id])
+    expect(genres.pluck("id").uniq.size).to eq(2)
   end
 end

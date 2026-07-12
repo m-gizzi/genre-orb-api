@@ -3,9 +3,9 @@
 class TrackGenreSerializer
   include Alba::Resource
 
-  attribute :id, &:genre_id
+  attributes :id, :genre_id, :source
+
   attribute :name do |track_genre|
     track_genre.genre.name
   end
-  attributes :source
 end

@@ -115,6 +115,21 @@ RSpec.describe Tracks::Filter do
       expect(titles(sort: "duration", order: "asc")).to eq(%w[Alpha Beta Alphabet])
     end
 
+    it "sorts by release year ascending, breaking ties by id" do
+      expect(titles(sort: "year", order: "asc")).to eq(%w[Alpha Beta Alphabet])
+    end
+
+    it "sorts by release year descending" do
+      expect(titles(sort: "year", order: "desc")).to eq(%w[Beta Alphabet Alpha])
+    end
+
+    it "orders tracks whose album has no release year last, regardless of direction" do
+      build_track("Undated", genre: metal, artist_name: "Unknown", album: create(:album, release_year: nil))
+
+      expect(titles(sort: "year", order: "asc").last).to eq("Undated")
+      expect(titles(sort: "year", order: "desc").last).to eq("Undated")
+    end
+
     it "ignores an unknown sort key and falls back to title" do
       expect(titles(sort: "bogus")).to eq(%w[Alpha Alphabet Beta])
     end
