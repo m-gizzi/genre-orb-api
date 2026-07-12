@@ -18,9 +18,10 @@ module Api
       end
 
       def show
-        raise ActiveRecord::RecordNotFound unless current_user.library_artists.exists?(params[:id])
+        id = params.expect(:id)
+        raise ActiveRecord::RecordNotFound unless current_user.library_artists.exists?(id)
 
-        artist = Artist.find(params[:id])
+        artist = Artist.find(id)
         albums = current_user.library_albums.where(id: artist.album_ids)
         render_data(ArtistDetailSerializer.new(artist, params: { albums: albums }).serializable_hash)
       end

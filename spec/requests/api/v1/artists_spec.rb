@@ -59,8 +59,11 @@ RSpec.describe "Api::V1::Artists" do
     before { sign_in user }
 
     it "returns the artist with its library albums" do
-      artist = create(:artist, name: "Slayer",
-                               metadata: { "genres" => ["thrash"], "followers" => 100, "popularity" => 70 })
+      artist = create(
+        :artist,
+        name: "Slayer",
+        metadata: { "genres" => ["thrash"], "followers" => 100, "popularity" => 70 },
+      )
       album = create(:album, title: "Reign in Blood")
       create(:album_artist, album: album, artist: artist)
 

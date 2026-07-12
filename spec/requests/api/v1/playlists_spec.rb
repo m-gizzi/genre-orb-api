@@ -91,7 +91,10 @@ RSpec.describe "Api::V1::Playlists" do
       expect(response).to have_http_status(:ok)
       expect(data["id"]).to eq(playlist.id)
       expect(data["track_count"]).to eq(3)
-      expect(data["current_version"]).to include("track_count" => 3, "version_number" => playlist.current_version.version_number)
+      expect(data["current_version"]).to include(
+        "track_count" => 3,
+        "version_number" => playlist.current_version.version_number,
+      )
     end
 
     it "returns 404 for another user's playlist" do

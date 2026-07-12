@@ -14,12 +14,12 @@ module Api
       end
 
       def show
-        playlist = current_user.playlists.includes(:current_version).find(params[:id])
+        playlist = current_user.playlists.includes(:current_version).find(params.expect(:id))
         render_data(PlaylistDetailSerializer.new(playlist).serializable_hash)
       end
 
       def tracks
-        playlist = current_user.playlists.find(params[:id])
+        playlist = current_user.playlists.find(params.expect(:id))
         pagy, version_tracks = paginate(playlist_version_tracks(playlist))
         tracks = version_tracks.map(&:track)
         render_data(TrackSerializer.new(tracks).serializable_hash, meta: pagy_meta(pagy))

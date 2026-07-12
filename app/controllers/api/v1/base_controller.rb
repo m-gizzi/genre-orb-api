@@ -51,8 +51,11 @@ module Api
       end
 
       def render_record_invalid(exception)
-        render_error(exception.record.errors.full_messages,
-                     status: :unprocessable_content, code: "validation_error")
+        render_error(
+          exception.record.errors.full_messages,
+          status: :unprocessable_content,
+          code: "validation_error",
+        )
       end
     end
   end

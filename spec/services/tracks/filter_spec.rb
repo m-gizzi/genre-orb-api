@@ -12,25 +12,24 @@ RSpec.describe Tracks::Filter do
   let(:metal) { create(:genre, name: "metal") }
   let(:jazz) { create(:genre, name: "jazz") }
 
-  let(:album_2019) { create(:album, release_year: 2019) }
-  let(:album_2021) { create(:album, release_year: 2021) }
+  let(:old_album) { create(:album, release_year: 2019) }
+  let(:recent_album) { create(:album, release_year: 2021) }
 
   let(:alpha) do
-    build_track("Alpha", album: album_2019, duration_ms: 100_000, popularity: 50, explicit: false,
-                         genre: metal, artist_name: "Anthrax")
+    build_track("Alpha", genre: metal, artist_name: "Anthrax",
+                         album: old_album, duration_ms: 100_000, popularity: 50, explicit: false,)
   end
   let(:beta) do
-    build_track("Beta", album: album_2021, duration_ms: 200_000, popularity: 90, explicit: true,
-                        genre: jazz, artist_name: "Miles Davis")
+    build_track("Beta", genre: jazz, artist_name: "Miles Davis",
+                        album: recent_album, duration_ms: 200_000, popularity: 90, explicit: true,)
   end
   let(:alphabet) do
-    build_track("Alphabet", album: album_2021, duration_ms: 300_000, popularity: 10, explicit: false,
-                            genre: metal, artist_name: "Metallica")
+    build_track("Alphabet", genre: metal, artist_name: "Metallica",
+                            album: recent_album, duration_ms: 300_000, popularity: 10, explicit: false,)
   end
 
-  def build_track(title, album:, duration_ms:, popularity:, explicit:, genre:, artist_name:)
-    track = create(:track, title: title, album: album, duration_ms: duration_ms,
-                           popularity: popularity, explicit: explicit)
+  def build_track(title, genre:, artist_name:, **track_attrs)
+    track = create(:track, title: title, **track_attrs)
     create(:track_genre, track: track, genre: genre)
     create(:track_artist, track: track, artist: create(:artist, name: artist_name))
     create(:playlist_version_track, playlist_version: version, track: track)
@@ -72,7 +71,7 @@ RSpec.describe Tracks::Filter do
 
   describe "album filter" do
     it "filters by album_id" do
-      expect(titles(album_id: album_2019.id)).to contain_exactly("Alpha")
+      expect(titles(album_id: old_album.id)).to contain_exactly("Alpha")
     end
   end
 

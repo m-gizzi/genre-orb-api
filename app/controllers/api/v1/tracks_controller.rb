@@ -10,9 +10,10 @@ module Api
       end
 
       def show
-        raise ActiveRecord::RecordNotFound unless current_user.library_tracks.exists?(params[:id])
+        id = params.expect(:id)
+        raise ActiveRecord::RecordNotFound unless current_user.library_tracks.exists?(id)
 
-        track = Track.with_catalog_associations.find(params[:id])
+        track = Track.with_catalog_associations.find(id)
         render_data(TrackSerializer.new(track).serializable_hash)
       end
     end
