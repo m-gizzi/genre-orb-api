@@ -40,11 +40,18 @@ Rails.application.routes.draw do
         post :fetch_playlists
         post :sync
       end
-      resources :playlists, only: %i[index update]
-      resource :artists, only: [] do
-        get :sync_status
-        post :sync
+      resources :playlists, only: %i[index show update] do
+        get :tracks, on: :member
       end
+      resources :artists, only: %i[index show] do
+        collection do
+          get :sync_status
+          post :sync
+        end
+      end
+      resources :albums, only: %i[index show]
+      resources :genres, only: %i[index]
+      resources :tracks, only: %i[index show]
     end
   end
 

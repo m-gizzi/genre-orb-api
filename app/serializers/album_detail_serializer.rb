@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
 class AlbumDetailSerializer < AlbumSerializer
-  association :tracks, resource: TrackSerializer
+  attribute :tracks do |_album|
+    TrackSerializer.new(params[:tracks] || []).serializable_hash
+  end
 end

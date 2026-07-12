@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
 class ArtistDetailSerializer < ArtistSerializer
-  association :albums, resource: AlbumSummarySerializer
+  attribute :albums do |_artist|
+    AlbumSummarySerializer.new(params[:albums] || []).serializable_hash
+  end
 end

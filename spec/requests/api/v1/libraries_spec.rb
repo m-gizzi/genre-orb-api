@@ -23,24 +23,24 @@ RSpec.describe "Api::V1::Libraries" do
 
       it "returns has_active_sync false when no sessions" do
         get "/api/v1/library/status"
-        expect(response.parsed_body["has_active_sync"]).to be(false)
+        expect(response.parsed_body.dig("data", "has_active_sync")).to be(false)
       end
 
       it "returns has_active_sync true when session is active" do
         create(:sync_session, :running, user: user)
 
         get "/api/v1/library/status"
-        expect(response.parsed_body["has_active_sync"]).to be(true)
+        expect(response.parsed_body.dig("data", "has_active_sync")).to be(true)
       end
 
       it "returns current_session details" do
         session = create(:sync_session, :running, user: user)
 
         get "/api/v1/library/status"
-        body = response.parsed_body
+        current = response.parsed_body.dig("data", "current_session")
 
-        expect(body["current_session"]["id"]).to eq(session.id)
-        expect(body["current_session"]["status"]).to eq("running")
+        expect(current["id"]).to eq(session.id)
+        expect(current["status"]).to eq("running")
       end
 
       it "includes playlist progress in current_session" do
@@ -49,7 +49,7 @@ RSpec.describe "Api::V1::Libraries" do
         create(:sync_session_playlist, :fetching, sync_session: session, playlist: playlist)
 
         get "/api/v1/library/status"
-        playlists = response.parsed_body.dig("current_session", "playlists")
+        playlists = response.parsed_body.dig("data", "current_session", "playlists")
 
         expect(playlists.length).to eq(1)
         expect(playlists.first["playlist_name"]).to eq(playlist.name)
@@ -63,17 +63,17 @@ RSpec.describe "Api::V1::Libraries" do
           .and_return(Time.current + 60)
 
         get "/api/v1/library/status"
-        body = response.parsed_body
+        data = response.parsed_body["data"]
 
-        expect(body["rate_limited"]).to be(true)
-        expect(body["rate_limit_resume_at"]).to be_present
+        expect(data["rate_limited"]).to be(true)
+        expect(data["rate_limit_resume_at"]).to be_present
       end
 
       it "returns playlists_metadata_fetched_at" do
         user.update!(playlists_metadata_fetched_at: 1.hour.ago)
 
         get "/api/v1/library/status"
-        expect(response.parsed_body["playlists_metadata_fetched_at"]).to be_present
+        expect(response.parsed_body.dig("data", "playlists_metadata_fetched_at")).to be_present
       end
     end
   end
@@ -97,7 +97,7 @@ RSpec.describe "Api::V1::Libraries" do
 
         it "returns error message" do
           post "/api/v1/library/fetch_playlists"
-          expect(response.parsed_body["error"]).to eq("Spotify not connected")
+          expect(response.parsed_body["errors"].first["message"]).to eq("Spotify not connected")
         end
       end
 
@@ -119,7 +119,7 @@ RSpec.describe "Api::V1::Libraries" do
 
         it "returns queued status" do
           post "/api/v1/library/fetch_playlists"
-          expect(response.parsed_body["status"]).to eq("queued")
+          expect(response.parsed_body.dig("data", "status")).to eq("queued")
         end
       end
     end
@@ -144,7 +144,7 @@ RSpec.describe "Api::V1::Libraries" do
 
         it "returns error message" do
           post "/api/v1/library/sync"
-          expect(response.parsed_body["error"]).to eq("Spotify not connected")
+          expect(response.parsed_body["errors"].first["message"]).to eq("Spotify not connected")
         end
       end
 
@@ -161,7 +161,7 @@ RSpec.describe "Api::V1::Libraries" do
 
           it "returns error message" do
             post "/api/v1/library/sync"
-            expect(response.parsed_body["error"]).to eq("No playlists selected for sync")
+            expect(response.parsed_body["errors"].first["message"]).to eq("No playlists selected for sync")
           end
         end
 
@@ -189,12 +189,12 @@ RSpec.describe "Api::V1::Libraries" do
 
           it "returns queued status" do
             post "/api/v1/library/sync"
-            expect(response.parsed_body["status"]).to eq("queued")
+            expect(response.parsed_body.dig("data", "status")).to eq("queued")
           end
 
           it "returns the created session in the response body" do
             post "/api/v1/library/sync"
-            session = response.parsed_body["session"]
+            session = response.parsed_body.dig("data", "session")
 
             expect(session["id"]).to be_present
             expect(session["status"]).to eq("running")
@@ -212,7 +212,7 @@ RSpec.describe "Api::V1::Libraries" do
 
             it "returns error message" do
               post "/api/v1/library/sync"
-              expect(response.parsed_body["error"]).to eq("Sync already in progress")
+              expect(response.parsed_body["errors"].first["message"]).to eq("Sync already in progress")
             end
           end
         end
