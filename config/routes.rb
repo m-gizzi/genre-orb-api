@@ -50,7 +50,7 @@ Rails.application.routes.draw do
         end
       end
       resources :albums, only: %i[index show]
-      resources :genres, only: %i[index]
+      resources :genres, only: %i[index show]
       resources :tracks, only: %i[index show]
     end
   end

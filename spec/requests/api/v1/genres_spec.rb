@@ -50,4 +50,24 @@ RSpec.describe "Api::V1::Genres" do
       end
     end
   end
+
+  describe "GET /api/v1/genres/:id" do
+    before { sign_in user }
+
+    it "returns a genre in the user's library" do
+      metal = create(:genre, name: "metal")
+      add_track_with_genre(metal)
+
+      get "/api/v1/genres/#{metal.id}"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["data"]).to include("id" => metal.id, "name" => "metal")
+    end
+
+    it "returns 404 for a genre outside the user's library" do
+      get "/api/v1/genres/#{create(:genre, name: "unowned").id}"
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
 end
