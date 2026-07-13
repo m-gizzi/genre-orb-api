@@ -10,8 +10,7 @@ module Api
       }.freeze
 
       def index
-        scope = current_user.library_artists.order("artists.name")
-        scope = scope.where("artists.name ILIKE ?", like_contains(params[:search])) if params[:search].present?
+        scope = Artists::Filter.new(current_user, params).call
 
         pagy, artists = paginate(scope)
         render_data(ArtistSerializer.new(artists).serializable_hash, meta: pagy_meta(pagy))

@@ -4,8 +4,7 @@ module Api
   module V1
     class AlbumsController < BaseController
       def index
-        scope = current_user.library_albums.includes(:artists).order("albums.title")
-        scope = scope.where("albums.title ILIKE ?", like_contains(params[:search])) if params[:search].present?
+        scope = Albums::Filter.new(current_user, params).call
 
         pagy, albums = paginate(scope)
         render_data(AlbumSerializer.new(albums).serializable_hash, meta: pagy_meta(pagy))

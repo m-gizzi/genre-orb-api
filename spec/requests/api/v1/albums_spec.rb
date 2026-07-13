@@ -52,6 +52,30 @@ RSpec.describe "Api::V1::Albums" do
 
         expect(response.parsed_body["data"].pluck("id")).to contain_exactly(reign.id)
       end
+
+      it "filters by genre id" do
+        metal = create(:genre, name: "metal")
+        reign = create(:album, title: "Reign in Blood")
+        create(:track_genre, track: add_track(create(:track, album: reign)), genre: metal)
+        watermark = create(:album, title: "Watermark")
+        create(:track_genre, track: add_track(create(:track, album: watermark)), genre: create(:genre, name: "new age"))
+
+        get "/api/v1/albums", params: { genre: metal.id }
+
+        expect(response.parsed_body["data"].pluck("id")).to contain_exactly(reign.id)
+      end
+
+      it "filters by genre name" do
+        metal = create(:genre, name: "metal")
+        reign = create(:album, title: "Reign in Blood")
+        create(:track_genre, track: add_track(create(:track, album: reign)), genre: metal)
+        watermark = create(:album, title: "Watermark")
+        create(:track_genre, track: add_track(create(:track, album: watermark)), genre: create(:genre, name: "new age"))
+
+        get "/api/v1/albums", params: { genre: "metal" }
+
+        expect(response.parsed_body["data"].pluck("id")).to contain_exactly(reign.id)
+      end
     end
   end
 

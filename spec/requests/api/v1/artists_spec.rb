@@ -16,6 +16,18 @@ RSpec.describe "Api::V1::Artists" do
     artist
   end
 
+  def create_library_artist_with_genre(genre:, **attrs)
+    playlist = create(:playlist, user: user)
+    version = create(:playlist_version, playlist: playlist)
+    playlist.update!(current_version: version)
+    track = create(:track)
+    create(:playlist_version_track, playlist_version: version, track: track)
+    create(:track_genre, track: track, genre: genre)
+    artist = create(:artist, **attrs)
+    create(:track_artist, track: track, artist: artist)
+    artist
+  end
+
   describe "GET /api/v1/artists" do
     context "when not authenticated" do
       it "returns 401 unauthorized" do
@@ -51,6 +63,26 @@ RSpec.describe "Api::V1::Artists" do
         get "/api/v1/artists", params: { search: "slay" }
 
         expect(response.parsed_body["data"].pluck("id")).to contain_exactly(slayer.id)
+      end
+
+      it "filters by genre id" do
+        metal = create(:genre, name: "metal")
+        in_genre = create_library_artist_with_genre(name: "Slayer", genre: metal)
+        create_library_artist_with_genre(name: "Enya", genre: create(:genre, name: "new age"))
+
+        get "/api/v1/artists", params: { genre: metal.id }
+
+        expect(response.parsed_body["data"].pluck("id")).to contain_exactly(in_genre.id)
+      end
+
+      it "filters by genre name" do
+        metal = create(:genre, name: "metal")
+        in_genre = create_library_artist_with_genre(name: "Slayer", genre: metal)
+        create_library_artist_with_genre(name: "Enya", genre: create(:genre, name: "new age"))
+
+        get "/api/v1/artists", params: { genre: "metal" }
+
+        expect(response.parsed_body["data"].pluck("id")).to contain_exactly(in_genre.id)
       end
     end
   end
