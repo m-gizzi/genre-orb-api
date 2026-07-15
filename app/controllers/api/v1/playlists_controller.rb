@@ -4,10 +4,7 @@ module Api
   module V1
     class PlaylistsController < BaseController
       def index
-        scope = current_user.playlists
-                            .includes(:current_version)
-                            .where(available_on_spotify: true)
-                            .order(:name)
+        scope = Playlists::Filter.new(current_user, params).call
 
         pagy, playlists = paginate(scope)
         render_data(PlaylistSerializer.new(playlists).serializable_hash, meta: pagy_meta(pagy))

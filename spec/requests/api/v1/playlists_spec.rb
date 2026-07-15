@@ -50,6 +50,39 @@ RSpec.describe "Api::V1::Playlists" do
         expect(response.parsed_body["data"].pluck("name")).to eq(%w[Alpha Middle Zebra])
       end
 
+      it "sorts by name descending" do
+        create(:playlist, user: user, name: "Alpha", available_on_spotify: true)
+        create(:playlist, user: user, name: "Zebra", available_on_spotify: true)
+
+        get "/api/v1/playlists", params: { sort: "name", order: "desc" }
+
+        expect(response.parsed_body["data"].pluck("name")).to eq(%w[Zebra Alpha])
+      end
+
+      it "sorts by last_synced_at descending (nulls last)" do
+        recent = create(:playlist, user: user, name: "Recent", available_on_spotify: true,
+                                   last_synced_at: 1.hour.ago,)
+        old = create(:playlist, user: user, name: "Old", available_on_spotify: true,
+                                last_synced_at: 3.days.ago,)
+        never = create(:playlist, user: user, name: "Never", available_on_spotify: true,
+                                  last_synced_at: nil,)
+
+        get "/api/v1/playlists", params: { sort: "last_synced_at", order: "desc" }
+
+        expect(response.parsed_body["data"].pluck("id")).to eq([recent.id, old.id, never.id])
+      end
+
+      it "sorts by track_count descending" do
+        big = create(:playlist, :with_tracks, tracks_count: 5, user: user, name: "Big",
+                                              available_on_spotify: true,)
+        small = create(:playlist, :with_tracks, tracks_count: 1, user: user, name: "Small",
+                                                available_on_spotify: true,)
+
+        get "/api/v1/playlists", params: { sort: "track_count", order: "desc" }
+
+        expect(response.parsed_body["data"].pluck("id")).to eq([big.id, small.id])
+      end
+
       it "returns playlist attributes" do
         playlist = create(:playlist, :with_spotify, :sync_enabled, user: user, available_on_spotify: true)
 
