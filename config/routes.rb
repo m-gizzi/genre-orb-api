@@ -42,6 +42,7 @@ Rails.application.routes.draw do
       end
       resources :playlists, only: %i[index show update] do
         get :tracks, on: :member
+        get :liked, on: :collection
       end
       resources :artists, only: %i[index show] do
         collection do

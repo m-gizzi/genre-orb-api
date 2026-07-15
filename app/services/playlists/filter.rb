@@ -24,6 +24,7 @@ module Playlists
       @user.playlists
            .includes(:current_version)
            .where(available_on_spotify: true)
+           .where("playlists.type IS DISTINCT FROM 'LikedSongsPlaylist'")
            .order(order_term)
     end
 

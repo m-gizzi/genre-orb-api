@@ -15,6 +15,11 @@ module Api
         render_data(PlaylistDetailSerializer.new(playlist).serializable_hash)
       end
 
+      def liked
+        playlist = current_user.liked_songs_playlist
+        render_data(playlist ? PlaylistSerializer.new(playlist).serializable_hash : nil)
+      end
+
       def tracks
         playlist = current_user.playlists.find(params.expect(:id))
         pagy, version_tracks = paginate(playlist_version_tracks(playlist))

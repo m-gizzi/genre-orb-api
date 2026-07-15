@@ -103,12 +103,37 @@ RSpec.describe "Api::V1::Playlists" do
         expect(response.parsed_body["data"].first["track_count"]).to eq(5)
       end
 
-      it "returns is_liked_songs attribute" do
+      it "excludes Liked Songs from the index" do
+        regular = create(:playlist, user: user, name: "Mix", available_on_spotify: true)
         create(:liked_songs_playlist, user: user)
 
         get "/api/v1/playlists"
-        expect(response.parsed_body["data"].first["is_liked_songs"]).to be(true)
+
+        expect(response.parsed_body["data"].pluck("id")).to contain_exactly(regular.id)
       end
+    end
+  end
+
+  describe "GET /api/v1/playlists/liked" do
+    before { sign_in user }
+
+    it "returns the user's Liked Songs playlist" do
+      liked = create(:liked_songs_playlist, user: user)
+
+      get "/api/v1/playlists/liked"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["data"]).to include(
+        "id" => liked.id,
+        "is_liked_songs" => true,
+      )
+    end
+
+    it "returns null data when the user has no Liked Songs playlist" do
+      get "/api/v1/playlists/liked"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["data"]).to be_nil
     end
   end
 
