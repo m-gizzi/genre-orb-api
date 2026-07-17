@@ -116,6 +116,15 @@ RSpec.describe "Api::V1::Playlists" do
         expect(response.parsed_body["data"].first["track_count"]).to eq(5)
       end
 
+      it "filters by name search" do
+        rock = create(:playlist, user: user, name: "Rock Anthems", available_on_spotify: true)
+        create(:playlist, user: user, name: "Jazz Standards", available_on_spotify: true)
+
+        get "/api/v1/playlists", params: { search: "rock" }
+
+        expect(response.parsed_body["data"].pluck("id")).to contain_exactly(rock.id)
+      end
+
       it "excludes Liked Songs from the index" do
         regular = create(:playlist, user: user, name: "Mix", available_on_spotify: true)
         create(:liked_songs_playlist, user: user)

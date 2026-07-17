@@ -21,14 +21,22 @@ module Playlists
     end
 
     def call
-      @user.playlists
-           .includes(:current_version)
-           .where(available_on_spotify: true)
-           .where("playlists.type IS DISTINCT FROM 'LikedSongsPlaylist'")
-           .order(order_term)
+      relation = @user.playlists
+                      .includes(:current_version)
+                      .where(available_on_spotify: true)
+                      .where("playlists.type IS DISTINCT FROM 'LikedSongsPlaylist'")
+      relation = filter_search(relation)
+      relation.order(order_term)
     end
 
     private
+
+    def filter_search(relation)
+      value = @params[:search]
+      return relation if value.blank?
+
+      relation.where("playlists.name ILIKE ?", "%#{ActiveRecord::Base.sanitize_sql_like(value.to_s)}%")
+    end
 
     def order_term
       node = SORT_NODES.fetch(sort_key).call
