@@ -48,6 +48,15 @@ RSpec.describe "Api::V1::Genres" do
 
         expect(response.parsed_body["data"].pluck("name")).to contain_exactly("death metal")
       end
+
+      it "sorts by name descending" do
+        add_track_with_genre(create(:genre, name: "ambient"))
+        add_track_with_genre(create(:genre, name: "zydeco"))
+
+        get "/api/v1/genres", params: { order: "desc" }
+
+        expect(response.parsed_body["data"].pluck("name")).to eq(%w[zydeco ambient])
+      end
     end
   end
 

@@ -76,6 +76,28 @@ RSpec.describe "Api::V1::Albums" do
 
         expect(response.parsed_body["data"].pluck("id")).to contain_exactly(reign.id)
       end
+
+      it "sorts by release_year descending" do
+        older = create(:album, title: "Older", release_year: 1990)
+        add_track(create(:track, album: older))
+        newer = create(:album, title: "Newer", release_year: 2020)
+        add_track(create(:track, album: newer))
+
+        get "/api/v1/albums", params: { sort: "release_year", order: "desc" }
+
+        expect(response.parsed_body["data"].pluck("id")).to eq([newer.id, older.id])
+      end
+
+      it "filters by release_year range" do
+        in_range = create(:album, title: "In", release_year: 2000)
+        add_track(create(:track, album: in_range))
+        too_old = create(:album, title: "Old", release_year: 1980)
+        add_track(create(:track, album: too_old))
+
+        get "/api/v1/albums", params: { year_min: 1990, year_max: 2010 }
+
+        expect(response.parsed_body["data"].pluck("id")).to contain_exactly(in_range.id)
+      end
     end
   end
 
