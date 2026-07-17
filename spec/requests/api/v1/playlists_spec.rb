@@ -72,6 +72,19 @@ RSpec.describe "Api::V1::Playlists" do
         expect(response.parsed_body["data"].pluck("id")).to eq([recent.id, old.id, never.id])
       end
 
+      it "sorts by last_synced_at ascending (nulls first)" do
+        recent = create(:playlist, user: user, name: "Recent", available_on_spotify: true,
+                                   last_synced_at: 1.hour.ago,)
+        old = create(:playlist, user: user, name: "Old", available_on_spotify: true,
+                                last_synced_at: 3.days.ago,)
+        never = create(:playlist, user: user, name: "Never", available_on_spotify: true,
+                                  last_synced_at: nil,)
+
+        get "/api/v1/playlists", params: { sort: "last_synced_at", order: "asc" }
+
+        expect(response.parsed_body["data"].pluck("id")).to eq([never.id, old.id, recent.id])
+      end
+
       it "sorts by track_count descending" do
         big = create(:playlist, :with_tracks, tracks_count: 5, user: user, name: "Big",
                                               available_on_spotify: true,)

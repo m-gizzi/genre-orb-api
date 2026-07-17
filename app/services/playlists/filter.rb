@@ -32,7 +32,7 @@ module Playlists
 
     def order_term
       node = SORT_NODES.fetch(sort_key).call
-      (descending? ? node.desc : node.asc).nulls_last
+      descending? ? node.desc.nulls_last : node.asc.nulls_first
     end
 
     def sort_key
