@@ -20,7 +20,7 @@ module Artists
 
     def filtered_ids
       relation = user.library_artists
-      relation = search(relation, "artists.name")
+      relation = search(relation, Artist.arel_table[:name])
       relation = filter_genre(relation)
       relation.reselect("artists.id")
     end

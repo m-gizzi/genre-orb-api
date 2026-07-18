@@ -10,7 +10,7 @@ module Genres
     SORT_NULLS = :none
 
     def call
-      relation = search(user.library_genres, "genres.name")
+      relation = search(user.library_genres, Genre.arel_table[:name])
       relation.order(*sort.terms)
     end
   end

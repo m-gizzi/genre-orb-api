@@ -19,7 +19,7 @@ module Filters
       value = params[:search]
       return relation if value.blank?
 
-      relation.where("#{column} ILIKE ?", contains(value))
+      relation.where(column.matches(contains(value)))
     end
 
     def sort

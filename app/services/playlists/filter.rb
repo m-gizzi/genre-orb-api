@@ -20,7 +20,7 @@ module Playlists
                      .includes(:current_version)
                      .where(available_on_spotify: true)
                      .where("playlists.type IS DISTINCT FROM 'LikedSongsPlaylist'")
-      relation = search(relation, "playlists.name")
+      relation = search(relation, Playlist.arel_table[:name])
       relation.order(*sort.terms)
     end
   end

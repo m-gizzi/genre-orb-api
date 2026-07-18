@@ -16,7 +16,7 @@ module Albums
 
     def call
       relation = user.library_albums.includes(:artists)
-      relation = search(relation, "albums.title")
+      relation = search(relation, Album.arel_table[:title])
       relation = filter_genre(relation)
       relation = filter_artist(relation)
       relation = filter_year(relation)
