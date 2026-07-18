@@ -18,26 +18,49 @@ FactoryBot.define do
       preview_url { "https://p.scdn.co/mp3-preview/#{SecureRandom.hex(20)}" }
     end
 
-    trait :with_artists do
+    trait :in_library do
       transient do
-        artist_count { 1 }
+        user { nil }
+        current_version { nil }
       end
 
       after(:create) do |track, evaluator|
-        evaluator.artist_count.times do
-          create(:track_artist, track: track, artist: create(:artist))
+        version = evaluator.current_version
+        unless version
+          playlist = create(:playlist, user: evaluator.user || create(:user))
+          version = create(:playlist_version, playlist: playlist)
+          playlist.update!(current_version: version)
+        end
+        create(:playlist_version_track, playlist_version: version, track: track)
+      end
+    end
+
+    trait :with_artists do
+      transient do
+        artist_count { 1 }
+        artists { [] }
+      end
+
+      after(:create) do |track, evaluator|
+        records = evaluator.artists.presence ||
+                  Array.new(evaluator.artist_count) { create(:artist) }
+        records.each do |artist|
+          create(:track_artist, track: track, artist: artist)
         end
       end
     end
 
     trait :with_genres do
       transient do
-        genre_names { ["rock"] }
+        genre_names { [] }
+        genres { [] }
       end
 
       after(:create) do |track, evaluator|
         evaluator.genre_names.each do |name|
-          genre = Genre.find_or_create_by!(name: name)
+          create(:track_genre, track: track, genre: Genre.find_or_create_by!(name: name))
+        end
+        evaluator.genres.each do |genre|
           create(:track_genre, track: track, genre: genre)
         end
       end

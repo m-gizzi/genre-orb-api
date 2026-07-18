@@ -5,14 +5,7 @@ require "rails_helper"
 RSpec.describe "Api::V1::Albums" do
   let(:user) { create(:user) }
   let(:playlist) { create(:playlist, user: user) }
-  let(:version) do
-    create(:playlist_version, playlist: playlist).tap { |v| playlist.update!(current_version: v) }
-  end
-
-  def add_track(track)
-    create(:playlist_version_track, playlist_version: version, track: track)
-    track
-  end
+  let(:version) { create(:playlist_version, :current, playlist: playlist) }
 
   describe "GET /api/v1/albums" do
     context "when not authenticated" do
@@ -26,10 +19,8 @@ RSpec.describe "Api::V1::Albums" do
       before { sign_in user }
 
       it "returns only albums in the user's library, with nested artists and a meta envelope" do
-        artist = create(:artist, name: "Slayer")
-        album = create(:album, title: "Reign in Blood")
-        create(:album_artist, album: album, artist: artist)
-        add_track(create(:track, album: album))
+        album = create(:album, :with_artists, title: "Reign in Blood", artists: [create(:artist, name: "Slayer")])
+        create(:track, :in_library, current_version: version, album: album)
 
         other_album = create(:album, title: "Unowned")
         create(:track, album: other_album)
@@ -42,11 +33,23 @@ RSpec.describe "Api::V1::Albums" do
         expect(response.parsed_body["meta"]).to include("page" => 1, "total" => 1)
       end
 
+      it "includes saved (library) and total track counts" do
+        album = create(:album, title: "Reign in Blood", total_tracks: 10)
+        create(:track, :in_library, current_version: version, album: album)
+        create(:track, :in_library, current_version: version, album: album)
+
+        get "/api/v1/albums"
+
+        body = response.parsed_body["data"].first
+        expect(body["saved_tracks"]).to eq(2)
+        expect(body["total_tracks"]).to eq(10)
+      end
+
       it "filters by title search" do
         reign = create(:album, title: "Reign in Blood")
-        add_track(create(:track, album: reign))
+        create(:track, :in_library, current_version: version, album: reign)
         seasons = create(:album, title: "Seasons in the Abyss")
-        add_track(create(:track, album: seasons))
+        create(:track, :in_library, current_version: version, album: seasons)
 
         get "/api/v1/albums", params: { search: "reign" }
 
@@ -56,9 +59,10 @@ RSpec.describe "Api::V1::Albums" do
       it "filters by genre id" do
         metal = create(:genre, name: "metal")
         reign = create(:album, title: "Reign in Blood")
-        create(:track_genre, track: add_track(create(:track, album: reign)), genre: metal)
+        create(:track, :in_library, :with_genres, current_version: version, album: reign, genres: [metal])
         watermark = create(:album, title: "Watermark")
-        create(:track_genre, track: add_track(create(:track, album: watermark)), genre: create(:genre, name: "new age"))
+        create(:track, :in_library, :with_genres, current_version: version, album: watermark,
+                                                  genres: [create(:genre, name: "new age")],)
 
         get "/api/v1/albums", params: { genre: metal.id }
 
@@ -68,9 +72,10 @@ RSpec.describe "Api::V1::Albums" do
       it "filters by genre name" do
         metal = create(:genre, name: "metal")
         reign = create(:album, title: "Reign in Blood")
-        create(:track_genre, track: add_track(create(:track, album: reign)), genre: metal)
+        create(:track, :in_library, :with_genres, current_version: version, album: reign, genres: [metal])
         watermark = create(:album, title: "Watermark")
-        create(:track_genre, track: add_track(create(:track, album: watermark)), genre: create(:genre, name: "new age"))
+        create(:track, :in_library, :with_genres, current_version: version, album: watermark,
+                                                  genres: [create(:genre, name: "new age")],)
 
         get "/api/v1/albums", params: { genre: "metal" }
 
@@ -79,9 +84,9 @@ RSpec.describe "Api::V1::Albums" do
 
       it "sorts by release_year descending" do
         older = create(:album, title: "Older", release_year: 1990)
-        add_track(create(:track, album: older))
+        create(:track, :in_library, current_version: version, album: older)
         newer = create(:album, title: "Newer", release_year: 2020)
-        add_track(create(:track, album: newer))
+        create(:track, :in_library, current_version: version, album: newer)
 
         get "/api/v1/albums", params: { sort: "release_year", order: "desc" }
 
@@ -90,9 +95,9 @@ RSpec.describe "Api::V1::Albums" do
 
       it "filters by release_year range" do
         in_range = create(:album, title: "In", release_year: 2000)
-        add_track(create(:track, album: in_range))
+        create(:track, :in_library, current_version: version, album: in_range)
         too_old = create(:album, title: "Old", release_year: 1980)
-        add_track(create(:track, album: too_old))
+        create(:track, :in_library, current_version: version, album: too_old)
 
         get "/api/v1/albums", params: { year_min: 1990, year_max: 2010 }
 
@@ -106,7 +111,8 @@ RSpec.describe "Api::V1::Albums" do
 
     it "returns the album with its library tracks" do
       album = create(:album, title: "Reign in Blood")
-      in_library = add_track(create(:track, title: "Angel of Death", album: album, track_number: 1))
+      in_library = create(:track, :in_library, current_version: version, title: "Angel of Death",
+                                               album: album, track_number: 1,)
       create(:track, title: "Not Owned", album: album, track_number: 2)
 
       get "/api/v1/albums/#{album.id}"

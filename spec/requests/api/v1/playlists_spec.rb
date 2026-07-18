@@ -188,8 +188,7 @@ RSpec.describe "Api::V1::Playlists" do
 
     it "returns the playlist's tracks in position order with a meta envelope" do
       playlist = create(:playlist, user: user, available_on_spotify: true)
-      version = create(:playlist_version, playlist: playlist)
-      playlist.update!(current_version: version)
+      version = create(:playlist_version, :current, playlist: playlist)
       first = create(:track, title: "First")
       second = create(:track, title: "Second")
       create(:playlist_version_track, playlist_version: version, track: second, position: 1)

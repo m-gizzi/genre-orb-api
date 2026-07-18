@@ -5,16 +5,7 @@ require "rails_helper"
 RSpec.describe "Api::V1::Genres" do
   let(:user) { create(:user) }
   let(:playlist) { create(:playlist, user: user) }
-  let(:version) do
-    create(:playlist_version, playlist: playlist).tap { |v| playlist.update!(current_version: v) }
-  end
-
-  def add_track_with_genre(genre)
-    track = create(:track)
-    create(:track_genre, track: track, genre: genre)
-    create(:playlist_version_track, playlist_version: version, track: track)
-    track
-  end
+  let(:version) { create(:playlist_version, :current, playlist: playlist) }
 
   describe "GET /api/v1/genres" do
     context "when not authenticated" do
@@ -29,7 +20,7 @@ RSpec.describe "Api::V1::Genres" do
 
       it "returns only genres present in the user's library" do
         metal = create(:genre, name: "metal")
-        add_track_with_genre(metal)
+        create(:track, :in_library, :with_genres, current_version: version, genres: [metal])
 
         create(:track_genre, track: create(:track), genre: create(:genre, name: "unowned"))
 
@@ -41,8 +32,10 @@ RSpec.describe "Api::V1::Genres" do
       end
 
       it "filters by search substring" do
-        add_track_with_genre(create(:genre, name: "death metal"))
-        add_track_with_genre(create(:genre, name: "jazz"))
+        create(:track, :in_library, :with_genres, current_version: version,
+                                                  genres: [create(:genre, name: "death metal")],)
+        create(:track, :in_library, :with_genres, current_version: version,
+                                                  genres: [create(:genre, name: "jazz")],)
 
         get "/api/v1/genres", params: { search: "metal" }
 
@@ -50,8 +43,10 @@ RSpec.describe "Api::V1::Genres" do
       end
 
       it "sorts by name descending" do
-        add_track_with_genre(create(:genre, name: "ambient"))
-        add_track_with_genre(create(:genre, name: "zydeco"))
+        create(:track, :in_library, :with_genres, current_version: version,
+                                                  genres: [create(:genre, name: "ambient")],)
+        create(:track, :in_library, :with_genres, current_version: version,
+                                                  genres: [create(:genre, name: "zydeco")],)
 
         get "/api/v1/genres", params: { order: "desc" }
 
@@ -65,7 +60,7 @@ RSpec.describe "Api::V1::Genres" do
 
     it "returns a genre in the user's library" do
       metal = create(:genre, name: "metal")
-      add_track_with_genre(metal)
+      create(:track, :in_library, :with_genres, current_version: version, genres: [metal])
 
       get "/api/v1/genres/#{metal.id}"
 

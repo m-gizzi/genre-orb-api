@@ -20,9 +20,7 @@ RSpec.describe Spotify::ArtistMetadataUpserter do
 
   describe "#call" do
     let(:artist) { create(:artist, spotify_id: "artist_1", metadata: {}) }
-    let(:track) { create(:track) }
-
-    before { create(:track_artist, track: track, artist: artist) }
+    let!(:track) { create(:track, :with_artists, artists: [artist]) }
 
     it "stores fetched metadata on the artist" do
       described_class.new(
@@ -45,7 +43,7 @@ RSpec.describe Spotify::ArtistMetadataUpserter do
     end
 
     context "when the artist already has stored genres" do
-      let(:artist) { create(:artist, spotify_id: "artist_1", metadata: { "genres" => ["doom metal"] }) }
+      let(:artist) { create(:artist, :with_genre_metadata, spotify_id: "artist_1", genres: ["doom metal"]) }
 
       it "unions new genres with existing rather than replacing them" do
         described_class.new(

@@ -17,5 +17,27 @@ FactoryBot.define do
         }
       end
     end
+
+    trait :with_genre_metadata do
+      transient do
+        genres { ["thrash"] }
+      end
+
+      metadata { { "genres" => genres } }
+    end
+
+    trait :in_library do
+      transient do
+        user { nil }
+        current_version { nil }
+        genres { [] }
+      end
+
+      after(:create) do |artist, evaluator|
+        track = create(:track, :in_library, user: evaluator.user, current_version: evaluator.current_version)
+        evaluator.genres.each { |genre| create(:track_genre, track: track, genre: genre) }
+        create(:track_artist, track: track, artist: artist)
+      end
+    end
   end
 end

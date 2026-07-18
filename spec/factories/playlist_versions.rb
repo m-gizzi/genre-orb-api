@@ -6,6 +6,10 @@ FactoryBot.define do
     sequence(:version_number) { |n| n }
     track_count { 0 }
 
+    trait :current do
+      after(:create) { |version| version.playlist.update!(current_version: version) }
+    end
+
     trait :with_tracks do
       transient do
         tracks_count { 5 }

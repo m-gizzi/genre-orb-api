@@ -5,15 +5,13 @@ require "rails_helper"
 RSpec.describe Tracks::Filter do
   let(:user) { create(:user) }
   let(:playlist) { create(:playlist, user: user) }
-  let(:version) do
-    create(:playlist_version, playlist: playlist).tap { |v| playlist.update!(current_version: v) }
-  end
+  let(:version) { create(:playlist_version, :current, playlist: playlist) }
 
   let(:metal) { create(:genre, name: "metal") }
   let(:jazz) { create(:genre, name: "jazz") }
 
-  let(:old_album) { create(:album, release_year: 2019) }
-  let(:recent_album) { create(:album, release_year: 2021) }
+  let(:old_album) { create(:album, title: "Debut", release_year: 2019) }
+  let(:recent_album) { create(:album, title: "Sequel", release_year: 2021) }
 
   let(:alpha) do
     build_track("Alpha", genre: metal, artist_name: "Anthrax",
@@ -29,11 +27,9 @@ RSpec.describe Tracks::Filter do
   end
 
   def build_track(title, genre:, artist_name:, **track_attrs)
-    track = create(:track, title: title, **track_attrs)
-    create(:track_genre, track: track, genre: genre)
-    create(:track_artist, track: track, artist: create(:artist, name: artist_name))
-    create(:playlist_version_track, playlist_version: version, track: track)
-    track
+    create(:track, :in_library, :with_genres, :with_artists,
+           current_version: version, title: title, genres: [genre],
+           artists: [create(:artist, name: artist_name)], **track_attrs,)
   end
 
   def titles(params)
@@ -70,8 +66,12 @@ RSpec.describe Tracks::Filter do
   end
 
   describe "album filter" do
-    it "filters by album_id" do
-      expect(titles(album_id: old_album.id)).to contain_exactly("Alpha")
+    it "filters by album title substring (case-insensitive)" do
+      expect(titles(album: "debut")).to contain_exactly("Alpha")
+    end
+
+    it "filters by album id" do
+      expect(titles(album: old_album.id)).to contain_exactly("Alpha")
     end
   end
 
@@ -121,6 +121,14 @@ RSpec.describe Tracks::Filter do
 
     it "sorts by release year descending" do
       expect(titles(sort: "year", order: "desc")).to eq(%w[Beta Alphabet Alpha])
+    end
+
+    it "sorts by album title ascending" do
+      expect(titles(sort: "album", order: "asc")).to eq(%w[Alpha Beta Alphabet])
+    end
+
+    it "sorts by artist name ascending" do
+      expect(titles(sort: "artist", order: "asc")).to eq(%w[Alpha Alphabet Beta])
     end
 
     it "orders tracks whose album has no release year last, regardless of direction" do
