@@ -18,8 +18,7 @@ module Api
 
       def show
         artist = current_user.library_artists.find(params.expect(:id))
-        albums = current_user.library_albums.where(id: artist.album_ids)
-        render_data(ArtistDetailSerializer.new(artist, params: { albums: albums }).serializable_hash)
+        render_data(ArtistDetailSerializer.new(artist, params: detail_params(artist)).serializable_hash)
       end
 
       def sync_status
@@ -36,6 +35,36 @@ module Api
       end
 
       private
+
+      def detail_params(artist)
+        albums = albums_for(artist)
+        {
+          albums: albums,
+          saved_counts: saved_counts(albums),
+          genre_ids: genre_id_lookup(artist),
+        }
+      end
+
+      def albums_for(artist)
+        current_user.library_albums
+                    .includes(:artists)
+                    .where(id: artist.album_ids)
+                    .order(Album.arel_table[:release_year].asc.nulls_last)
+      end
+
+      def saved_counts(albums)
+        current_user.library_tracks
+                    .where(album_id: albums.map(&:id))
+                    .group(:album_id)
+                    .count(:id)
+      end
+
+      def genre_id_lookup(artist)
+        names = (artist.metadata&.dig("genres") || []).map { |name| Genre.normalize_name(name) }
+        return {} if names.empty?
+
+        current_user.library_genres.where(name: names).pluck(:name, :id).to_h
+      end
 
       def build_sync_status_response
         {

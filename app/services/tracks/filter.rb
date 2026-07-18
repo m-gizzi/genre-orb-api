@@ -7,7 +7,17 @@ module Tracks
       "popularity" => -> { Track.arel_table[:popularity] },
       "duration" => -> { Track.arel_table[:duration_ms] },
       "year" => -> { Album.arel_table[:release_year] },
+      "album" => -> { Album.arel_table[:title] },
+      "artist" => lambda {
+        Arel.sql(
+          "(SELECT MIN(artists.name) FROM artists " \
+          "INNER JOIN track_artists ON track_artists.artist_id = artists.id " \
+          "WHERE track_artists.track_id = tracks.id)",
+        )
+      },
     }.freeze
+
+    ALBUM_SORTS = %w[year album].freeze
 
     DEFAULT_SORT = "title"
 
@@ -18,7 +28,7 @@ module Tracks
 
     def call
       relation = Track.where(id: filtered_ids).with_catalog_associations
-      relation = relation.references(:album) if sort_key == "year"
+      relation = relation.references(:album) if ALBUM_SORTS.include?(sort_key)
       relation.order(*order_terms)
     end
 
@@ -62,10 +72,14 @@ module Tracks
     end
 
     def filter_album(relation)
-      value = params[:album_id]
+      value = params[:album]
       return relation if value.blank?
 
-      relation.where(tracks: { album_id: value })
+      if numeric?(value)
+        relation.where(tracks: { album_id: value })
+      else
+        relation.joins(:album).where("albums.title ILIKE ?", contains(value))
+      end
     end
 
     def filter_year(relation)
@@ -115,7 +129,13 @@ module Tracks
     def order_terms
       attribute = SORT_ATTRIBUTES.fetch(sort_key).call
       primary = descending? ? attribute.desc : attribute.asc
-      [primary.nulls_last, Track.arel_table[:id].asc]
+      [primary.nulls_last, *secondary_terms, Track.arel_table[:id].asc]
+    end
+
+    def secondary_terms
+      return [] unless sort_key == "album"
+
+      [Track.arel_table[:track_number].asc.nulls_last]
     end
 
     def sort_key

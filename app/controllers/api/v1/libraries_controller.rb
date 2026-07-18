@@ -69,7 +69,7 @@ module Api
           error_message: @session.error_message,
           started_at: @session.started_at&.iso8601,
           completed_at: @session.completed_at&.iso8601,
-          playlists: @session.sync_session_playlists.map { |ssp| serialize_session_playlist(ssp) },
+          playlists: @session.sync_session_playlists.sort_by(&:id).map { |ssp| serialize_session_playlist(ssp) },
         }
       end
 
