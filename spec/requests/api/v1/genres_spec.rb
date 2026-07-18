@@ -52,6 +52,20 @@ RSpec.describe "Api::V1::Genres" do
 
         expect(response.parsed_body["data"].pluck("name")).to eq(%w[zydeco ambient])
       end
+
+      it "sorts by the number of associated library tracks" do
+        metal = create(:genre, name: "metal")
+        rock = create(:genre, name: "rock")
+        2.times do
+          create(:track, :in_library, :with_genres, current_version: version, genres: [metal])
+        end
+        create(:track, :in_library, :with_genres, current_version: version, genres: [rock])
+
+        get "/api/v1/genres", params: { sort: "track_count", order: "desc" }
+
+        expect(response.parsed_body["data"].pluck("name")).to eq(%w[metal rock])
+        expect(response.parsed_body["meta"]).to include("total" => 2)
+      end
     end
   end
 

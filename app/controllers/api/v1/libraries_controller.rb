@@ -50,7 +50,6 @@ module Api
         render_error(I18n.t("api.errors.spotify_not_connected"), status: :unprocessable_content)
       end
 
-      # Library sessions carry per-playlist detail on top of the shared fields.
       def serialize_session(session)
         super.merge(
           playlists: session.sync_session_playlists.sort_by(&:id).map { |ssp| serialize_session_playlist(ssp) },
