@@ -33,7 +33,7 @@ RSpec.describe Tracks::Filter do
   end
 
   def titles(params)
-    described_class.new(user.library_tracks, params).call.map(&:title)
+    described_class.new(user, params).call.map(&:title)
   end
 
   before { [alpha, beta, alphabet] }

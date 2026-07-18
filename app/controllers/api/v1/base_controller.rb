@@ -38,10 +38,6 @@ module Api
         }
       end
 
-      def like_contains(value)
-        "%#{ActiveRecord::Base.sanitize_sql_like(value.to_s)}%"
-      end
-
       def render_not_found
         render_error(I18n.t("api.errors.not_found"), status: :not_found)
       end
