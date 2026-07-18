@@ -22,7 +22,7 @@ module Api
 
       def tracks
         playlist = current_user.playlists.find(params.expect(:id))
-        pagy, version_tracks = paginate(playlist_version_tracks(playlist))
+        pagy, version_tracks = paginate(playlist.current_version_tracks)
         tracks = version_tracks.map(&:track)
         render_data(TrackSerializer.new(tracks).serializable_hash, meta: pagy_meta(pagy))
       end
@@ -34,15 +34,6 @@ module Api
       end
 
       private
-
-      def playlist_version_tracks(playlist)
-        version = playlist.current_version
-        return PlaylistVersionTrack.none unless version
-
-        version.playlist_version_tracks
-               .order(:position)
-               .includes(track: [:album, :artists, { track_genres: :genre }])
-      end
 
       def playlist_params
         params.expect(playlist: [:sync_enabled])

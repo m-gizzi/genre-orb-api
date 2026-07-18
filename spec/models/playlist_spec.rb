@@ -26,4 +26,21 @@ RSpec.describe Playlist do
       expect { user.destroy! }.to change(described_class, :count).by(-1)
     end
   end
+
+  describe "#current_version_tracks" do
+    it "returns the current version's tracks in position order" do
+      playlist = create(:playlist)
+      version = create(:playlist_version, :current, playlist: playlist)
+      first = create(:track)
+      second = create(:track)
+      create(:playlist_version_track, playlist_version: version, track: second, position: 1)
+      create(:playlist_version_track, playlist_version: version, track: first, position: 0)
+
+      expect(playlist.current_version_tracks.map(&:track)).to eq([first, second])
+    end
+
+    it "returns none when there is no current version" do
+      expect(create(:playlist).current_version_tracks).to be_empty
+    end
+  end
 end

@@ -3,6 +3,8 @@
 module Api
   module V1
     class LibrariesController < BaseController
+      include SyncStatusRendering
+
       SYNC_OUTCOME_RESPONSES = {
         spotify_not_connected: { key: "api.errors.spotify_not_connected", status: :unprocessable_content },
         already_in_progress: { key: "api.library.sync_in_progress", status: :conflict },
@@ -30,7 +32,7 @@ module Api
         return render_sync_outcome(result.outcome) unless result.started?
 
         @session = result.sync_session
-        render_data({ status: "queued", session: serialize_session }, status: :accepted)
+        render_data({ status: "queued", session: serialize_session(@session) }, status: :accepted)
       end
 
       private
@@ -38,39 +40,21 @@ module Api
       def build_status_response
         {
           has_active_sync: @session&.active? || false,
-          current_session: @session ? serialize_session : nil,
+          current_session: @session ? serialize_session(@session) : nil,
           playlists_metadata_fetched_at: current_user.playlists_metadata_fetched_at&.iso8601,
           playlists_metadata_error: current_user.playlists_metadata_error,
         }.merge(rate_limit_info)
-      end
-
-      def rate_limit_info
-        rate_limited = SyncRateLimitState.user_paused?(current_user.id)
-        {
-          rate_limited: rate_limited,
-          rate_limit_resume_at: rate_limited ? SyncRateLimitState.user_resume_at(current_user.id)&.iso8601 : nil,
-        }
-      end
-
-      def render_sync_outcome(outcome)
-        response = SYNC_OUTCOME_RESPONSES.fetch(outcome)
-        render_error(I18n.t(response[:key]), status: response[:status])
       end
 
       def render_spotify_error
         render_error(I18n.t("api.errors.spotify_not_connected"), status: :unprocessable_content)
       end
 
-      def serialize_session
-        {
-          id: @session.id,
-          status: @session.status,
-          progress: @session.progress,
-          error_message: @session.error_message,
-          started_at: @session.started_at&.iso8601,
-          completed_at: @session.completed_at&.iso8601,
-          playlists: @session.sync_session_playlists.sort_by(&:id).map { |ssp| serialize_session_playlist(ssp) },
-        }
+      # Library sessions carry per-playlist detail on top of the shared fields.
+      def serialize_session(session)
+        super.merge(
+          playlists: session.sync_session_playlists.sort_by(&:id).map { |ssp| serialize_session_playlist(ssp) },
+        )
       end
 
       def serialize_session_playlist(ssp)

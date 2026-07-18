@@ -6,6 +6,9 @@ class Album < ApplicationRecord
 
   has_many :tracks, dependent: :destroy, inverse_of: :album
 
+  scope :for_artist, ->(artist) { where(id: artist.album_ids) }
+  scope :by_release_year, -> { order(arel_table[:release_year].asc.nulls_last) }
+
   validates :title, presence: true
   validates :spotify_id, uniqueness: true
   validates :release_year,

@@ -16,12 +16,14 @@ RSpec.describe "Api::V1::Artists" do
     context "when authenticated" do
       before { sign_in user }
 
-      it "returns library artists with metadata-derived fields and a meta envelope" do
+      it "returns library artists with their genres, metadata fields, and a meta envelope" do
+        thrash = create(:genre, name: "thrash")
         artist = create(
           :artist, :in_library,
           user: user,
           name: "Slayer",
-          metadata: { "genres" => ["thrash"], "followers" => 100, "popularity" => 70 },
+          genres: [thrash],
+          metadata: { "followers" => 100, "popularity" => 70 },
         )
         create(:artist, name: "Not In Library")
 
@@ -30,7 +32,10 @@ RSpec.describe "Api::V1::Artists" do
         expect(response).to have_http_status(:ok)
         expect(response.parsed_body["data"].pluck("id")).to contain_exactly(artist.id)
         expect(response.parsed_body["data"].first).to include(
-          "name" => "Slayer", "genres" => ["thrash"], "followers" => 100, "popularity" => 70,
+          "name" => "Slayer",
+          "genres" => [{ "id" => thrash.id, "name" => "thrash" }],
+          "followers" => 100,
+          "popularity" => 70,
         )
         expect(response.parsed_body["meta"]).to include("total" => 1)
       end
@@ -97,11 +102,7 @@ RSpec.describe "Api::V1::Artists" do
     before { sign_in user }
 
     it "returns the artist with its library albums" do
-      artist = create(
-        :artist,
-        name: "Slayer",
-        metadata: { "genres" => ["thrash"], "followers" => 100, "popularity" => 70 },
-      )
+      artist = create(:artist, name: "Slayer")
       album = create(:album, title: "Reign in Blood")
       create(:album_artist, album: album, artist: artist)
 
@@ -113,8 +114,6 @@ RSpec.describe "Api::V1::Artists" do
       data = response.parsed_body["data"]
       expect(response).to have_http_status(:ok)
       expect(data).to include("id" => artist.id, "name" => "Slayer")
-      # Genre is not in the library here, so its id resolves to null.
-      expect(data["genres"]).to eq([{ "id" => nil, "name" => "thrash" }])
       expect(data["albums"].pluck("id")).to contain_exactly(album.id)
     end
 
