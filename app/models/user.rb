@@ -23,27 +23,29 @@ class User < ApplicationRecord
     playlists.liked_songs.first
   end
 
-  def library_artists
-    scope_to_library(Artist.joins(tracks: { playlist_versions: :playlist }))
+  def library_tracks
+    Track.where(id: library_track_ids)
   end
 
-  def library_tracks
-    scope_to_library(Track.joins(playlist_versions: :playlist))
+  def library_artists
+    Artist.where(id: TrackArtist.where(track_id: library_track_ids).select(:artist_id))
   end
 
   def library_albums
-    scope_to_library(Album.joins(tracks: { playlist_versions: :playlist }))
+    Album.where(id: library_tracks.where.not(album_id: nil).select(:album_id))
   end
 
   def library_genres
-    scope_to_library(Genre.joins(tracks: { playlist_versions: :playlist }))
+    Genre.where(id: TrackGenre.where(track_id: library_track_ids).select(:genre_id))
   end
 
   private
 
-  def scope_to_library(relation)
-    relation.where(playlists: { user_id: id })
-            .where("playlist_versions.id = playlists.current_version_id")
-            .distinct
+  def current_playlist_version_ids
+    playlists.where.not(current_version_id: nil).select(:current_version_id)
+  end
+
+  def library_track_ids
+    PlaylistVersionTrack.where(playlist_version_id: current_playlist_version_ids).select(:track_id)
   end
 end

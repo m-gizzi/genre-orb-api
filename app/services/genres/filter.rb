@@ -29,10 +29,12 @@ module Genres
           "INNER JOIN (" \
           "SELECT track_genres.genre_id, COUNT(DISTINCT track_genres.track_id) AS library_track_count " \
           "FROM track_genres " \
-          "INNER JOIN playlist_version_tracks ON playlist_version_tracks.track_id = track_genres.track_id " \
-          "INNER JOIN playlist_versions ON playlist_versions.id = playlist_version_tracks.playlist_version_id " \
-          "INNER JOIN playlists ON playlists.id = playlist_versions.playlist_id " \
-          "WHERE playlists.user_id = ? AND playlist_versions.id = playlists.current_version_id " \
+          "WHERE track_genres.track_id IN (" \
+          "SELECT playlist_version_tracks.track_id FROM playlist_version_tracks " \
+          "WHERE playlist_version_tracks.playlist_version_id IN (" \
+          "SELECT playlists.current_version_id FROM playlists " \
+          "WHERE playlists.user_id = ? AND playlists.current_version_id IS NOT NULL" \
+          ")) " \
           "GROUP BY track_genres.genre_id" \
           ") library_track_counts ON library_track_counts.genre_id = genres.id",
           user.id,

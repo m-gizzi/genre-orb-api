@@ -10,14 +10,17 @@ module Tracks
       "duration" => -> { Track.arel_table[:duration_ms] },
       "year" => -> { Album.arel_table[:release_year] },
       "album" => -> { Album.arel_table[:title] },
-      "artist" => lambda {
-        Arel.sql(
-          "(SELECT MIN(artists.name) FROM artists " \
-          "INNER JOIN track_artists ON track_artists.artist_id = artists.id " \
-          "WHERE track_artists.track_id = tracks.id)",
-        )
-      },
+      "artist" => -> { Arel.sql("track_primary_artist.sort_name") },
     }.freeze
+
+    ARTIST_SORT_JOIN = <<~SQL.squish
+      LEFT JOIN (
+        SELECT track_artists.track_id, MIN(artists.name) AS sort_name
+        FROM track_artists
+        INNER JOIN artists ON artists.id = track_artists.artist_id
+        GROUP BY track_artists.track_id
+      ) track_primary_artist ON track_primary_artist.track_id = tracks.id
+    SQL
 
     ALBUM_SORTS = %w[year album].freeze
 
@@ -27,6 +30,7 @@ module Tracks
     def call
       relation = Track.where(id: filtered_ids).with_catalog_associations
       relation = relation.references(:album) if ALBUM_SORTS.include?(sort.key)
+      relation = relation.joins(ARTIST_SORT_JOIN) if sort.key == "artist"
       relation.order(*order_terms)
     end
 

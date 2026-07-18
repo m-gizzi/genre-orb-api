@@ -131,6 +131,13 @@ RSpec.describe Tracks::Filter do
       expect(titles(sort: "artist", order: "asc")).to eq(%w[Alpha Alphabet Beta])
     end
 
+    it "orders tracks with no artists last, regardless of direction" do
+      create(:track, :in_library, current_version: version, title: "Instrumental")
+
+      expect(titles(sort: "artist", order: "asc").last).to eq("Instrumental")
+      expect(titles(sort: "artist", order: "desc").last).to eq("Instrumental")
+    end
+
     it "orders tracks whose album has no release year last, regardless of direction" do
       build_track("Undated", genre: metal, artist_name: "Unknown", album: create(:album, release_year: nil))
 
