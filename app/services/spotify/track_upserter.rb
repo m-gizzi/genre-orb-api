@@ -54,6 +54,7 @@ module Spotify
 
     def build_artist_record(sp_artist)
       return nil unless sp_artist["id"]
+      return nil if sp_artist["name"].blank?
 
       {
         spotify_id: sp_artist["id"],
@@ -82,6 +83,7 @@ module Spotify
 
     def build_album_record(sp_album)
       return nil unless sp_album["id"]
+      return nil if sp_album["name"].blank?
 
       {
         spotify_id: sp_album["id"],
@@ -116,11 +118,16 @@ module Spotify
     def build_track_record(item, albums_by_spotify_id)
       track = item["track"]
       return nil unless track && track["id"]
+      return nil if unusable_track?(track)
 
       album = albums_by_spotify_id[track.dig("album", "id")]
       return nil unless album
 
       build_track_attributes(track, album)
+    end
+
+    def unusable_track?(track)
+      track["name"].blank? || track["duration_ms"].to_i.zero?
     end
 
     def build_track_attributes(track, album)
