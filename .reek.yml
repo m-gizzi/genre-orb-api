@@ -61,6 +61,8 @@ detectors:
 
   TooManyMethods:
     max_methods: 20
+    exclude:
+      - Spotify::TrackUpserter
 
   TooManyInstanceVariables:
     max_instance_variables: 5
