@@ -103,6 +103,51 @@ RSpec.describe "Api::V1::Albums" do
 
         expect(response.parsed_body["data"].pluck("id")).to contain_exactly(in_range.id)
       end
+
+      it "ignores a non-numeric year bound instead of erroring" do
+        album = create(:album, title: "Any", release_year: 2000)
+        create(:track, :in_library, current_version: version, album: album)
+
+        get "/api/v1/albums", params: { year_min: "abc" }
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body["data"].pluck("id")).to contain_exactly(album.id)
+      end
+
+      it "filters by artist id" do
+        slayer = create(:artist, name: "Slayer")
+        reign = create(:album, :with_artists, title: "Reign in Blood", artists: [slayer])
+        create(:track, :in_library, current_version: version, album: reign)
+        other = create(:album, :with_artists, title: "Watermark", artists: [create(:artist, name: "Enya")])
+        create(:track, :in_library, current_version: version, album: other)
+
+        get "/api/v1/albums", params: { artist: slayer.id }
+
+        expect(response.parsed_body["data"].pluck("id")).to contain_exactly(reign.id)
+      end
+
+      it "filters by artist name" do
+        slayer = create(:artist, name: "Slayer")
+        reign = create(:album, :with_artists, title: "Reign in Blood", artists: [slayer])
+        create(:track, :in_library, current_version: version, album: reign)
+        other = create(:album, :with_artists, title: "Watermark", artists: [create(:artist, name: "Enya")])
+        create(:track, :in_library, current_version: version, album: other)
+
+        get "/api/v1/albums", params: { artist: "slay" }
+
+        expect(response.parsed_body["data"].pluck("id")).to contain_exactly(reign.id)
+      end
+
+      it "sorts by average track popularity descending" do
+        popular = create(:album, title: "Popular")
+        create(:track, :in_library, current_version: version, album: popular, popularity: 90)
+        niche = create(:album, title: "Niche")
+        create(:track, :in_library, current_version: version, album: niche, popularity: 10)
+
+        get "/api/v1/albums", params: { sort: "popularity", order: "desc" }
+
+        expect(response.parsed_body["data"].pluck("id")).to eq([popular.id, niche.id])
+      end
     end
   end
 

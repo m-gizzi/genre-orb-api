@@ -215,6 +215,34 @@ RSpec.describe Spotify::TrackUpserter do
         expect(Album.where(spotify_id: "al")).to be_empty
         expect(result).to be_empty
       end
+
+      it "skips a non-track item such as a podcast episode" do
+        result = service.call([item_with(track_overrides: { "id" => "ep", "type" => "episode" })])
+        expect(result).to be_empty
+        expect(Track.count).to eq(0)
+      end
+
+      it "keeps real tracks alongside a podcast episode on the same page" do
+        song = build_spotify_track_item(
+          track_id: "song", track_name: "Real Song", artist_id: "a", artist_name: "Artist",
+          album_id: "al", album_name: "Album",
+        )
+        song["track"]["type"] = "track"
+        episode = item_with(track_overrides: { "id" => "ep", "type" => "episode" })
+
+        result = service.call([song, episode])
+        expect(result.keys).to eq(["song"])
+      end
+    end
+
+    context "when re-syncing the same page" do
+      it "does not duplicate track-artist or album-artist join rows" do
+        service.call(track_items)
+        service.call(track_items)
+
+        expect(TrackArtist.count).to eq(2)
+        expect(AlbumArtist.count).to eq(2)
+      end
     end
 
     context "with year-only release date" do
