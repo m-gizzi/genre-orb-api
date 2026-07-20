@@ -12,7 +12,7 @@ module Api
       }.freeze
 
       def index
-        scope = Artists::Filter.new(current_user, params).call.includes(:genres)
+        scope = Artists::Filter.new(current_user, params).call
 
         pagy, artists = paginate(scope)
         render_data(ArtistSerializer.new(artists).serializable_hash, meta: pagy_meta(pagy))

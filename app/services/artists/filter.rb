@@ -13,7 +13,7 @@ module Artists
     DEFAULT_SORT = "name"
 
     def call
-      Artist.where(id: filtered_ids).order(*sort.terms)
+      Artist.where(id: filtered_ids).includes(:genres).order(*sort.terms)
     end
 
     private
