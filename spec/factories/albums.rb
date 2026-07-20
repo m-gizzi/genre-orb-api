@@ -14,11 +14,14 @@ FactoryBot.define do
     trait :with_artists do
       transient do
         artist_count { 1 }
+        artists { [] }
       end
 
       after(:create) do |album, evaluator|
-        evaluator.artist_count.times do
-          create(:album_artist, album: album, artist: create(:artist))
+        records = evaluator.artists.presence ||
+                  Array.new(evaluator.artist_count) { create(:artist) }
+        records.each do |artist|
+          create(:album_artist, album: album, artist: artist)
         end
       end
     end

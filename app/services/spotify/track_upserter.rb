@@ -54,6 +54,7 @@ module Spotify
 
     def build_artist_record(sp_artist)
       return nil unless sp_artist["id"]
+      return nil if sp_artist["name"].blank?
 
       {
         spotify_id: sp_artist["id"],
@@ -82,6 +83,7 @@ module Spotify
 
     def build_album_record(sp_album)
       return nil unless sp_album["id"]
+      return nil if sp_album["name"].blank?
 
       {
         spotify_id: sp_album["id"],
@@ -116,11 +118,18 @@ module Spotify
     def build_track_record(item, albums_by_spotify_id)
       track = item["track"]
       return nil unless track && track["id"]
+      return nil if unusable_track?(track)
 
       album = albums_by_spotify_id[track.dig("album", "id")]
       return nil unless album
 
       build_track_attributes(track, album)
+    end
+
+    def unusable_track?(track)
+      return true if track["type"].present? && track["type"] != "track"
+
+      track["name"].blank? || track["duration_ms"].to_i.zero?
     end
 
     def build_track_attributes(track, album)
@@ -142,14 +151,16 @@ module Spotify
       join_records = build_track_artist_joins(items, tracks_by_spotify_id, artists_by_spotify_id)
       return if join_records.empty?
 
-      TrackArtist.upsert_all(join_records, unique_by: %i[track_id artist_id])
+      TrackArtist.insert_all(join_records, unique_by: %i[track_id artist_id])
     end
 
     def build_track_artist_joins(items, tracks_by_spotify_id, artists_by_spotify_id)
       records = items.flat_map do |item|
         build_track_artist_records(item, tracks_by_spotify_id, artists_by_spotify_id)
       end
-      records.uniq { |record| [record[:track_id], record[:artist_id]] }
+      records
+        .uniq { |record| [record[:track_id], record[:artist_id]] }
+        .sort_by { |record| [record[:track_id], record[:artist_id]] }
     end
 
     def build_track_artist_records(item, tracks_by_spotify_id, artists_by_spotify_id)
@@ -168,14 +179,16 @@ module Spotify
       join_records = build_album_artist_joins(items, albums_by_spotify_id, artists_by_spotify_id)
       return if join_records.empty?
 
-      AlbumArtist.upsert_all(join_records, unique_by: %i[album_id artist_id])
+      AlbumArtist.insert_all(join_records, unique_by: %i[album_id artist_id])
     end
 
     def build_album_artist_joins(items, albums_by_spotify_id, artists_by_spotify_id)
       records = items.flat_map do |item|
         build_album_artist_records(item, albums_by_spotify_id, artists_by_spotify_id)
       end
-      records.uniq { |record| [record[:album_id], record[:artist_id]] }
+      records
+        .uniq { |record| [record[:album_id], record[:artist_id]] }
+        .sort_by { |record| [record[:album_id], record[:artist_id]] }
     end
 
     def build_album_artist_records(item, albums_by_spotify_id, artists_by_spotify_id)

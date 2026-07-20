@@ -50,6 +50,52 @@ RSpec.describe "Api::V1::Playlists" do
         expect(response.parsed_body["data"].pluck("name")).to eq(%w[Alpha Middle Zebra])
       end
 
+      it "sorts by name descending" do
+        create(:playlist, user: user, name: "Alpha", available_on_spotify: true)
+        create(:playlist, user: user, name: "Zebra", available_on_spotify: true)
+
+        get "/api/v1/playlists", params: { sort: "name", order: "desc" }
+
+        expect(response.parsed_body["data"].pluck("name")).to eq(%w[Zebra Alpha])
+      end
+
+      it "sorts by last_synced_at descending (nulls last)" do
+        recent = create(:playlist, user: user, name: "Recent", available_on_spotify: true,
+                                   last_synced_at: 1.hour.ago,)
+        old = create(:playlist, user: user, name: "Old", available_on_spotify: true,
+                                last_synced_at: 3.days.ago,)
+        never = create(:playlist, user: user, name: "Never", available_on_spotify: true,
+                                  last_synced_at: nil,)
+
+        get "/api/v1/playlists", params: { sort: "last_synced_at", order: "desc" }
+
+        expect(response.parsed_body["data"].pluck("id")).to eq([recent.id, old.id, never.id])
+      end
+
+      it "sorts by last_synced_at ascending (nulls first)" do
+        recent = create(:playlist, user: user, name: "Recent", available_on_spotify: true,
+                                   last_synced_at: 1.hour.ago,)
+        old = create(:playlist, user: user, name: "Old", available_on_spotify: true,
+                                last_synced_at: 3.days.ago,)
+        never = create(:playlist, user: user, name: "Never", available_on_spotify: true,
+                                  last_synced_at: nil,)
+
+        get "/api/v1/playlists", params: { sort: "last_synced_at", order: "asc" }
+
+        expect(response.parsed_body["data"].pluck("id")).to eq([never.id, old.id, recent.id])
+      end
+
+      it "sorts by track_count descending" do
+        big = create(:playlist, :with_tracks, tracks_count: 5, user: user, name: "Big",
+                                              available_on_spotify: true,)
+        small = create(:playlist, :with_tracks, tracks_count: 1, user: user, name: "Small",
+                                                available_on_spotify: true,)
+
+        get "/api/v1/playlists", params: { sort: "track_count", order: "desc" }
+
+        expect(response.parsed_body["data"].pluck("id")).to eq([big.id, small.id])
+      end
+
       it "returns playlist attributes" do
         playlist = create(:playlist, :with_spotify, :sync_enabled, user: user, available_on_spotify: true)
 
@@ -70,12 +116,46 @@ RSpec.describe "Api::V1::Playlists" do
         expect(response.parsed_body["data"].first["track_count"]).to eq(5)
       end
 
-      it "returns is_liked_songs attribute" do
+      it "filters by name search" do
+        rock = create(:playlist, user: user, name: "Rock Anthems", available_on_spotify: true)
+        create(:playlist, user: user, name: "Jazz Standards", available_on_spotify: true)
+
+        get "/api/v1/playlists", params: { search: "rock" }
+
+        expect(response.parsed_body["data"].pluck("id")).to contain_exactly(rock.id)
+      end
+
+      it "excludes Liked Songs from the index" do
+        regular = create(:playlist, user: user, name: "Mix", available_on_spotify: true)
         create(:liked_songs_playlist, user: user)
 
         get "/api/v1/playlists"
-        expect(response.parsed_body["data"].first["is_liked_songs"]).to be(true)
+
+        expect(response.parsed_body["data"].pluck("id")).to contain_exactly(regular.id)
       end
+    end
+  end
+
+  describe "GET /api/v1/playlists/liked" do
+    before { sign_in user }
+
+    it "returns the user's Liked Songs playlist" do
+      liked = create(:liked_songs_playlist, user: user)
+
+      get "/api/v1/playlists/liked"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["data"]).to include(
+        "id" => liked.id,
+        "is_liked_songs" => true,
+      )
+    end
+
+    it "returns null data when the user has no Liked Songs playlist" do
+      get "/api/v1/playlists/liked"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["data"]).to be_nil
     end
   end
 
@@ -108,8 +188,7 @@ RSpec.describe "Api::V1::Playlists" do
 
     it "returns the playlist's tracks in position order with a meta envelope" do
       playlist = create(:playlist, user: user, available_on_spotify: true)
-      version = create(:playlist_version, playlist: playlist)
-      playlist.update!(current_version: version)
+      version = create(:playlist_version, :current, playlist: playlist)
       first = create(:track, title: "First")
       second = create(:track, title: "Second")
       create(:playlist_version_track, playlist_version: version, track: second, position: 1)

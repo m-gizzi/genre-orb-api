@@ -164,6 +164,87 @@ RSpec.describe Spotify::TrackUpserter do
       end
     end
 
+    context "with phantom / empty Spotify data" do
+      def item_with(track_overrides: {}, artist_overrides: {}, album_overrides: {})
+        base = build_spotify_track_item(
+          track_id: "t", track_name: "Song", artist_id: "a", artist_name: "Artist",
+          album_id: "al", album_name: "Album",
+        )
+        base["track"].merge!(track_overrides)
+        base["track"]["artists"][0].merge!(artist_overrides)
+        base["track"]["album"].merge!(album_overrides)
+        base
+      end
+
+      it "skips a track with a blank title" do
+        result = service.call([item_with(track_overrides: { "name" => "" })])
+        expect(result).to be_empty
+        expect(Track.count).to eq(0)
+      end
+
+      it "skips a track with zero duration" do
+        result = service.call([item_with(track_overrides: { "duration_ms" => 0 })])
+        expect(result).to be_empty
+        expect(Track.count).to eq(0)
+      end
+
+      it "keeps the good tracks on a page that also contains a phantom" do
+        good = build_spotify_track_item(
+          track_id: "good", track_name: "Real Song", artist_id: "a", artist_name: "Artist",
+          album_id: "al", album_name: "Album",
+        )
+        phantom = item_with(track_overrides: { "id" => "phantom", "name" => "", "duration_ms" => 0 })
+
+        result = service.call([good, phantom])
+        expect(result.keys).to eq(["good"])
+      end
+
+      it "does not create a blank-name artist" do
+        service.call([item_with(artist_overrides: { "name" => "" })])
+        expect(Artist.where(spotify_id: "a")).to be_empty
+      end
+
+      it "does not overwrite an existing artist's name with a blank one" do
+        create(:artist, spotify_id: "a", name: "Real Artist")
+        service.call([item_with(artist_overrides: { "name" => "" })])
+        expect(Artist.find_by(spotify_id: "a").name).to eq("Real Artist")
+      end
+
+      it "does not create a blank-title album (and so drops its track)" do
+        result = service.call([item_with(album_overrides: { "name" => "" })])
+        expect(Album.where(spotify_id: "al")).to be_empty
+        expect(result).to be_empty
+      end
+
+      it "skips a non-track item such as a podcast episode" do
+        result = service.call([item_with(track_overrides: { "id" => "ep", "type" => "episode" })])
+        expect(result).to be_empty
+        expect(Track.count).to eq(0)
+      end
+
+      it "keeps real tracks alongside a podcast episode on the same page" do
+        song = build_spotify_track_item(
+          track_id: "song", track_name: "Real Song", artist_id: "a", artist_name: "Artist",
+          album_id: "al", album_name: "Album",
+        )
+        song["track"]["type"] = "track"
+        episode = item_with(track_overrides: { "id" => "ep", "type" => "episode" })
+
+        result = service.call([song, episode])
+        expect(result.keys).to eq(["song"])
+      end
+    end
+
+    context "when re-syncing the same page" do
+      it "does not duplicate track-artist or album-artist join rows" do
+        service.call(track_items)
+        service.call(track_items)
+
+        expect(TrackArtist.count).to eq(2)
+        expect(AlbumArtist.count).to eq(2)
+      end
+    end
+
     context "with year-only release date" do
       let(:track_items) do
         [
@@ -211,7 +292,7 @@ RSpec.describe Spotify::TrackUpserter do
 
     context "when the artist already has genre metadata" do
       before do
-        create(:artist, spotify_id: "artist_1", metadata: { "genres" => ["death metal", "black metal"] })
+        create(:artist, :with_genre_metadata, spotify_id: "artist_1", genres: ["death metal", "black metal"])
       end
 
       it "copies the artist's genres onto the newly-synced track" do

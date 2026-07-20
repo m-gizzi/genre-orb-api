@@ -5,17 +5,6 @@ require "rails_helper"
 RSpec.describe "Api::V1::Artists" do
   let(:user) { create(:user) }
 
-  def create_library_artist(metadata_fetched_at: nil, **attrs)
-    playlist = create(:playlist, user: user)
-    version = create(:playlist_version, playlist: playlist)
-    playlist.update!(current_version: version)
-    track = create(:track)
-    create(:playlist_version_track, playlist_version: version, track: track)
-    artist = create(:artist, metadata_fetched_at: metadata_fetched_at, **attrs)
-    create(:track_artist, track: track, artist: artist)
-    artist
-  end
-
   describe "GET /api/v1/artists" do
     context "when not authenticated" do
       it "returns 401 unauthorized" do
@@ -27,10 +16,14 @@ RSpec.describe "Api::V1::Artists" do
     context "when authenticated" do
       before { sign_in user }
 
-      it "returns library artists with metadata-derived fields and a meta envelope" do
-        artist = create_library_artist(
+      it "returns library artists with their genres, metadata fields, and a meta envelope" do
+        thrash = create(:genre, name: "thrash")
+        artist = create(
+          :artist, :in_library,
+          user: user,
           name: "Slayer",
-          metadata: { "genres" => ["thrash"], "followers" => 100, "popularity" => 70 },
+          genres: [thrash],
+          metadata: { "followers" => 100, "popularity" => 70 },
         )
         create(:artist, name: "Not In Library")
 
@@ -39,18 +32,68 @@ RSpec.describe "Api::V1::Artists" do
         expect(response).to have_http_status(:ok)
         expect(response.parsed_body["data"].pluck("id")).to contain_exactly(artist.id)
         expect(response.parsed_body["data"].first).to include(
-          "name" => "Slayer", "genres" => ["thrash"], "followers" => 100, "popularity" => 70,
+          "name" => "Slayer",
+          "genres" => [{ "id" => thrash.id, "name" => "thrash" }],
+          "followers" => 100,
+          "popularity" => 70,
         )
         expect(response.parsed_body["meta"]).to include("total" => 1)
       end
 
       it "filters by name search" do
-        slayer = create_library_artist(name: "Slayer")
-        create_library_artist(name: "Metallica")
+        slayer = create(:artist, :in_library, user: user, name: "Slayer")
+        create(:artist, :in_library, user: user, name: "Metallica")
 
         get "/api/v1/artists", params: { search: "slay" }
 
         expect(response.parsed_body["data"].pluck("id")).to contain_exactly(slayer.id)
+      end
+
+      it "filters by genre id" do
+        metal = create(:genre, name: "metal")
+        in_genre = create(:artist, :in_library, user: user, name: "Slayer", genres: [metal])
+        create(:artist, :in_library, user: user, name: "Enya", genres: [create(:genre, name: "new age")])
+
+        get "/api/v1/artists", params: { genre: metal.id }
+
+        expect(response.parsed_body["data"].pluck("id")).to contain_exactly(in_genre.id)
+      end
+
+      it "filters by genre name" do
+        metal = create(:genre, name: "metal")
+        in_genre = create(:artist, :in_library, user: user, name: "Slayer", genres: [metal])
+        create(:artist, :in_library, user: user, name: "Enya", genres: [create(:genre, name: "new age")])
+
+        get "/api/v1/artists", params: { genre: "metal" }
+
+        expect(response.parsed_body["data"].pluck("id")).to contain_exactly(in_genre.id)
+      end
+
+      it "sorts by name descending" do
+        create(:artist, :in_library, user: user, name: "Aaa")
+        create(:artist, :in_library, user: user, name: "Zzz")
+
+        get "/api/v1/artists", params: { sort: "name", order: "desc" }
+
+        expect(response.parsed_body["data"].pluck("name")).to eq(%w[Zzz Aaa])
+      end
+
+      it "sorts by popularity descending" do
+        low = create(:artist, :in_library, user: user, name: "Low", metadata: { "popularity" => 30 })
+        high = create(:artist, :in_library, user: user, name: "High", metadata: { "popularity" => 90 })
+
+        get "/api/v1/artists", params: { sort: "popularity", order: "desc" }
+
+        expect(response.parsed_body["data"].pluck("id")).to eq([high.id, low.id])
+      end
+
+      it "sorts by followers descending" do
+        few = create(:artist, :in_library, user: user, name: "Few", metadata: { "followers" => 100 })
+        many = create(:artist, :in_library, user: user, name: "Many", metadata: { "followers" => 5000 })
+
+        get "/api/v1/artists", params: { sort: "followers", order: "desc" }
+
+        expect(response.parsed_body["data"].pluck("id")).to eq([many.id, few.id])
       end
     end
   end
@@ -59,27 +102,31 @@ RSpec.describe "Api::V1::Artists" do
     before { sign_in user }
 
     it "returns the artist with its library albums" do
-      artist = create(
-        :artist,
-        name: "Slayer",
-        metadata: { "genres" => ["thrash"], "followers" => 100, "popularity" => 70 },
-      )
+      artist = create(:artist, name: "Slayer")
       album = create(:album, title: "Reign in Blood")
       create(:album_artist, album: album, artist: artist)
 
-      playlist = create(:playlist, user: user)
-      version = create(:playlist_version, playlist: playlist)
-      playlist.update!(current_version: version)
-      track = create(:track, album: album)
-      create(:playlist_version_track, playlist_version: version, track: track)
+      track = create(:track, :in_library, user: user, album: album)
       create(:track_artist, track: track, artist: artist)
 
       get "/api/v1/artists/#{artist.id}"
 
       data = response.parsed_body["data"]
       expect(response).to have_http_status(:ok)
-      expect(data).to include("id" => artist.id, "name" => "Slayer", "genres" => ["thrash"])
+      expect(data).to include("id" => artist.id, "name" => "Slayer")
       expect(data["albums"].pluck("id")).to contain_exactly(album.id)
+    end
+
+    it "resolves genre ids for genres present in the library" do
+      thrash = create(:genre, name: "thrash")
+      artist = create(:artist, :in_library, user: user, name: "Slayer",
+                                            metadata: { "genres" => ["thrash"] }, genres: [thrash],)
+
+      get "/api/v1/artists/#{artist.id}"
+
+      expect(response.parsed_body["data"]["genres"]).to eq(
+        [{ "id" => thrash.id, "name" => "thrash" }],
+      )
     end
 
     it "returns 404 for an artist outside the user's library" do
@@ -129,9 +176,9 @@ RSpec.describe "Api::V1::Artists" do
       end
 
       it "returns artist counts scoped to the user's current library" do
-        create_library_artist(metadata_fetched_at: nil)
-        create_library_artist(metadata_fetched_at: nil)
-        create_library_artist(metadata_fetched_at: 1.day.ago)
+        create(:artist, :in_library, user: user, metadata_fetched_at: nil)
+        create(:artist, :in_library, user: user, metadata_fetched_at: nil)
+        create(:artist, :in_library, user: user, metadata_fetched_at: 1.day.ago)
         create(:artist, metadata_fetched_at: nil)
 
         get "/api/v1/artists/sync_status"
@@ -193,7 +240,7 @@ RSpec.describe "Api::V1::Artists" do
         end
 
         context "when artists need metadata" do
-          before { create_library_artist(metadata_fetched_at: nil) }
+          before { create(:artist, :in_library, user: user, metadata_fetched_at: nil) }
 
           it "returns 202 accepted" do
             post "/api/v1/artists/sync"
@@ -243,7 +290,7 @@ RSpec.describe "Api::V1::Artists" do
         end
 
         context "with sync_all=true when all artists are already fetched" do
-          before { create_library_artist(metadata_fetched_at: 1.day.ago) }
+          before { create(:artist, :in_library, user: user, metadata_fetched_at: 1.day.ago) }
 
           it "returns 202 accepted" do
             post "/api/v1/artists/sync", params: { sync_all: true }

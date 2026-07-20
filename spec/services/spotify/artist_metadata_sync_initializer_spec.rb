@@ -7,24 +7,9 @@ RSpec.describe Spotify::ArtistMetadataSyncInitializer do
   let(:service) { described_class.new(user, sync_all: sync_all) }
   let(:sync_all) { false }
 
-  let(:library_track) do
-    playlist = create(:playlist, user: user)
-    version = create(:playlist_version, playlist: playlist)
-    playlist.update!(current_version: version)
-    track = create(:track)
-    create(:playlist_version_track, playlist_version: version, track: track)
-    track
-  end
-
-  def add_library_artist(**attrs)
-    artist = create(:artist, **attrs)
-    create(:track_artist, track: library_track, artist: artist)
-    artist
-  end
-
   describe "#call" do
     context "when Spotify is not connected" do
-      before { add_library_artist(metadata_fetched_at: nil) }
+      before { create(:artist, :in_library, user: user, metadata_fetched_at: nil) }
 
       it "returns a spotify_not_connected outcome" do
         expect(service.call.outcome).to eq(:spotify_not_connected)
@@ -49,12 +34,7 @@ RSpec.describe Spotify::ArtistMetadataSyncInitializer do
       end
 
       context "when unfetched artists belong to another user's library" do
-        before do
-          version = create(:playlist_version, playlist: create(:playlist, user: create(:user)))
-          track = create(:track)
-          create(:playlist_version_track, playlist_version: version, track: track)
-          create(:track_artist, track: track, artist: create(:artist, metadata_fetched_at: nil))
-        end
+        before { create(:artist, :in_library, user: create(:user), metadata_fetched_at: nil) }
 
         it "returns a no_artists outcome" do
           expect(service.call.outcome).to eq(:no_artists)
@@ -63,7 +43,7 @@ RSpec.describe Spotify::ArtistMetadataSyncInitializer do
 
       context "when a sync is already in progress" do
         before do
-          add_library_artist(metadata_fetched_at: nil)
+          create(:artist, :in_library, user: user, metadata_fetched_at: nil)
           create(:artist_metadata_session, user: user)
         end
 
@@ -77,8 +57,8 @@ RSpec.describe Spotify::ArtistMetadataSyncInitializer do
       end
 
       context "with artists that need metadata" do
-        let!(:unfetched_artists) { Array.new(3) { add_library_artist(metadata_fetched_at: nil) } }
-        let!(:fetched_artist) { add_library_artist(metadata_fetched_at: 1.day.ago) }
+        let!(:unfetched_artists) { Array.new(3) { create(:artist, :in_library, user: user, metadata_fetched_at: nil) } }
+        let!(:fetched_artist) { create(:artist, :in_library, user: user, metadata_fetched_at: 1.day.ago) }
 
         it "returns a started outcome" do
           expect(service.call).to be_started
@@ -119,8 +99,12 @@ RSpec.describe Spotify::ArtistMetadataSyncInitializer do
 
       context "with sync_all: true" do
         let(:sync_all) { true }
-        let!(:unfetched_artists) { Array.new(2) { add_library_artist(metadata_fetched_at: nil) } }
-        let!(:fetched_artists) { Array.new(2) { add_library_artist(metadata_fetched_at: 1.day.ago) } }
+        let!(:unfetched_artists) { Array.new(2) { create(:artist, :in_library, user: user, metadata_fetched_at: nil) } }
+        let!(:fetched_artists) do
+          Array.new(2) do
+            create(:artist, :in_library, user: user, metadata_fetched_at: 1.day.ago)
+          end
+        end
 
         it "includes all artists regardless of metadata_fetched_at" do
           result = service.call
@@ -132,7 +116,7 @@ RSpec.describe Spotify::ArtistMetadataSyncInitializer do
       context "with more artists than batch size" do
         before do
           # More than the 50-artist batch limit.
-          120.times { add_library_artist(metadata_fetched_at: nil) }
+          create(:track, :in_library, :with_artists, user: user, artist_count: 120)
         end
 
         it "splits into multiple batches" do
@@ -153,7 +137,7 @@ RSpec.describe Spotify::ArtistMetadataSyncInitializer do
 
       context "with exactly batch size artists" do
         before do
-          50.times { add_library_artist(metadata_fetched_at: nil) }
+          create(:track, :in_library, :with_artists, user: user, artist_count: 50)
         end
 
         it "creates single batch" do

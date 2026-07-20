@@ -1,33 +1,43 @@
 # frozen_string_literal: true
 
 module Tracks
-  class Filter
-    SORT_ATTRIBUTES = {
+  class Filter < Filters::Base
+    include Filters::GenreScopable
+
+    SORT_NODES = {
       "title" => -> { Track.arel_table[:title] },
       "popularity" => -> { Track.arel_table[:popularity] },
       "duration" => -> { Track.arel_table[:duration_ms] },
       "year" => -> { Album.arel_table[:release_year] },
+      "album" => -> { Album.arel_table[:title] },
+      "artist" => -> { Arel.sql("track_primary_artist.sort_name") },
     }.freeze
 
-    DEFAULT_SORT = "title"
+    ARTIST_SORT_JOIN = <<~SQL.squish
+      LEFT JOIN (
+        SELECT track_artists.track_id, MIN(artists.name) AS sort_name
+        FROM track_artists
+        INNER JOIN artists ON artists.id = track_artists.artist_id
+        GROUP BY track_artists.track_id
+      ) track_primary_artist ON track_primary_artist.track_id = tracks.id
+    SQL
 
-    def initialize(scope, params)
-      @scope = scope
-      @params = params
-    end
+    ALBUM_SORTS = %w[year album].freeze
+
+    DEFAULT_SORT = "title"
+    SORT_NULLS = :last
 
     def call
       relation = Track.where(id: filtered_ids).with_catalog_associations
-      relation = relation.references(:album) if sort_key == "year"
+      relation = relation.references(:album) if ALBUM_SORTS.include?(sort.key)
+      relation = relation.joins(ARTIST_SORT_JOIN) if sort.key == "artist"
       relation.order(*order_terms)
     end
 
     private
 
-    attr_reader :params
-
     def filtered_ids
-      relation = @scope
+      relation = user.library_tracks
       relation = filter_genre(relation)
       relation = filter_artist(relation)
       relation = filter_album(relation)
@@ -39,15 +49,9 @@ module Tracks
     end
 
     def filter_genre(relation)
-      value = params[:genre]
-      return relation if value.blank?
+      return relation if params[:genre].blank?
 
-      if numeric?(value)
-        relation.joins(:track_genres).where(track_genres: { genre_id: value })
-      else
-        relation.joins(track_genres: :genre)
-                .where(genres: { name: Genre.normalize_name(value) })
-      end
+      relation.where(id: genre_track_ids)
     end
 
     def filter_artist(relation)
@@ -62,10 +66,14 @@ module Tracks
     end
 
     def filter_album(relation)
-      value = params[:album_id]
+      value = params[:album]
       return relation if value.blank?
 
-      relation.where(tracks: { album_id: value })
+      if numeric?(value)
+        relation.where(tracks: { album_id: value })
+      else
+        relation.joins(:album).where("albums.title ILIKE ?", contains(value))
+      end
     end
 
     def filter_year(relation)
@@ -85,17 +93,8 @@ module Tracks
     end
 
     def apply_range(relation, table, column, minimum, maximum)
-      range = bounded_range(minimum, maximum)
+      range = Filters::Range.bounded(minimum, maximum)
       range ? relation.where(table => { column => range }) : relation
-    end
-
-    def bounded_range(minimum, maximum)
-      minimum = minimum.presence
-      maximum = maximum.presence
-      return nil unless minimum || maximum
-      return (minimum..maximum) if minimum && maximum
-
-      minimum ? (minimum..) : (..maximum)
     end
 
     def filter_title(relation)
@@ -113,25 +112,13 @@ module Tracks
     end
 
     def order_terms
-      attribute = SORT_ATTRIBUTES.fetch(sort_key).call
-      primary = descending? ? attribute.desc : attribute.asc
-      [primary.nulls_last, Track.arel_table[:id].asc]
+      sort.terms(*secondary_terms, Track.arel_table[:id].asc)
     end
 
-    def sort_key
-      SORT_ATTRIBUTES.key?(params[:sort].to_s) ? params[:sort].to_s : DEFAULT_SORT
-    end
+    def secondary_terms
+      return [] unless sort.key == "album"
 
-    def descending?
-      params[:order].to_s.casecmp("desc").zero?
-    end
-
-    def numeric?(value)
-      value.to_s.match?(/\A\d+\z/)
-    end
-
-    def contains(value)
-      "%#{ActiveRecord::Base.sanitize_sql_like(value.to_s)}%"
+      [Track.arel_table[:track_number].asc.nulls_last]
     end
   end
 end
