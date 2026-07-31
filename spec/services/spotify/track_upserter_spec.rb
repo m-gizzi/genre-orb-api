@@ -290,9 +290,13 @@ RSpec.describe Spotify::TrackUpserter do
       ]
     end
 
-    context "when the artist already has genre metadata" do
+    context "when the artist already has genres" do
       before do
-        create(:artist, :with_genre_metadata, spotify_id: "artist_1", genres: ["death metal", "black metal"])
+        create(
+          :artist, :with_genres,
+          spotify_id: "artist_1",
+          genres: [create(:genre, name: "death metal"), create(:genre, name: "black metal")],
+        )
       end
 
       it "copies the artist's genres onto the newly-synced track" do

@@ -4,6 +4,9 @@ class Genre < ApplicationRecord
   has_many :track_genres, dependent: :destroy, inverse_of: :genre
   has_many :tracks, through: :track_genres
 
+  has_many :artist_genres, dependent: :destroy, inverse_of: :genre
+  has_many :artists, through: :artist_genres
+
   validates :name, presence: true, uniqueness: { case_sensitive: false }
 
   before_validation :normalize_name

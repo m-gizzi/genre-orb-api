@@ -4,15 +4,18 @@ module Albums
   class Filter < Filters::Base
     include Filters::GenreScopable
 
-    DERIVED_POPULARITY = "(SELECT AVG(tracks.popularity) FROM tracks WHERE tracks.album_id = albums.id)"
+    AVERAGE_TRACK_POPULARITY = <<~SQL.squish
+      (SELECT AVG(tracks.popularity) FROM tracks WHERE tracks.album_id = albums.id)
+    SQL
 
-    SORT_NODES = {
-      "title" => -> { Album.arel_table[:title] },
-      "release_year" => -> { Album.arel_table[:release_year] },
-      "popularity" => -> { Arel.sql("derived_popularity") },
-    }.freeze
-
-    DEFAULT_SORT = "title"
+    sorts(
+      {
+        "title" => -> { Album.arel_table[:title] },
+        "release_year" => -> { Album.arel_table[:release_year] },
+        "popularity" => -> { Arel.sql(AVERAGE_TRACK_POPULARITY) },
+      },
+      default: "title",
+    )
 
     def call
       relation = user.library_albums.includes(:artists)
@@ -20,7 +23,6 @@ module Albums
       relation = filter_genre(relation)
       relation = filter_artist(relation)
       relation = filter_year(relation)
-      relation = relation.select("albums.*", "#{DERIVED_POPULARITY} AS derived_popularity") if sort.key == "popularity"
       relation.order(*sort.terms)
     end
 

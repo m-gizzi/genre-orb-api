@@ -14,7 +14,7 @@ RSpec.describe Track do
   end
 
   describe ".counts_by_album" do
-    it "returns distinct track counts keyed by album_id" do
+    it "returns track counts keyed by album_id" do
       populated = create(:album)
       single = create(:album)
       create_list(:track, 2, album: populated)

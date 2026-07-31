@@ -2,28 +2,16 @@
 
 module Genres
   class Filter < Filters::Base
-    SORT_NODES = {
-      "name" => -> { Genre.arel_table[:name] },
-      "track_count" => -> { Arel.sql("library_track_count") },
-    }.freeze
+    TRACK_COUNTS_SELECT = "track_genres.genre_id, COUNT(DISTINCT track_genres.track_id) AS library_track_count"
 
-    DEFAULT_SORT = "name"
-    SORT_NULLS = :none
-
-    TRACK_COUNTS_JOIN = <<~SQL.squish
-      INNER JOIN (
-        SELECT track_genres.genre_id, COUNT(DISTINCT track_genres.track_id) AS library_track_count
-        FROM track_genres
-        WHERE track_genres.track_id IN (
-          SELECT playlist_version_tracks.track_id FROM playlist_version_tracks
-          WHERE playlist_version_tracks.playlist_version_id IN (
-            SELECT playlists.current_version_id FROM playlists
-            WHERE playlists.user_id = ? AND playlists.current_version_id IS NOT NULL
-          )
-        )
-        GROUP BY track_genres.genre_id
-      ) library_track_counts ON library_track_counts.genre_id = genres.id
-    SQL
+    sorts(
+      {
+        "name" => -> { Genre.arel_table[:name] },
+        "track_count" => -> { Arel.sql("library_track_counts.library_track_count") },
+      },
+      default: "name",
+      nulls: :none,
+    )
 
     def call
       relation = search(base_relation, Genre.arel_table[:name])
@@ -35,11 +23,18 @@ module Genres
     def base_relation
       return user.library_genres unless sort.key == "track_count"
 
-      Genre.joins(library_track_counts_join).select("genres.*", "library_track_count")
+      Genre.joins(track_counts_join)
     end
 
-    def library_track_counts_join
-      ActiveRecord::Base.sanitize_sql_array([TRACK_COUNTS_JOIN, user.id])
+    def track_counts
+      TrackGenre.where(track_id: user.library_tracks.select(:id))
+                .group(:genre_id)
+                .select(TRACK_COUNTS_SELECT)
+    end
+
+    def track_counts_join
+      "INNER JOIN (#{track_counts.to_sql}) library_track_counts " \
+        "ON library_track_counts.genre_id = genres.id"
     end
   end
 end

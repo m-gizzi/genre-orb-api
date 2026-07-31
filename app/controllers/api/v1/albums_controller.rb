@@ -16,13 +16,14 @@ module Api
 
       def show
         album = current_user.library_albums.includes(:artists).find(params.expect(:id))
-        tracks = current_user.library_tracks.for_album(album).with_catalog_associations.order(:track_number)
-        render_data(
-          AlbumDetailSerializer.new(
-            album,
-            params: { tracks: tracks, saved_counts: { album.id => tracks.size } },
-          ).serializable_hash,
-        )
+        render_data(AlbumDetailSerializer.new(album, params: detail_params(album)).serializable_hash)
+      end
+
+      private
+
+      def detail_params(album)
+        tracks = current_user.library_tracks.for_album(album).with_catalog_associations.order(:track_number).load
+        { tracks: tracks, saved_counts: { album.id => tracks.size } }
       end
     end
   end

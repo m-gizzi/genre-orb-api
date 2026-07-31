@@ -4,22 +4,27 @@ require "rails_helper"
 
 RSpec.describe Artist do
   describe "#genres" do
-    it "returns the distinct genres of the artist's tracks" do
-      artist = create(:artist)
+    it "returns the genres assigned to the artist" do
       rock = create(:genre, name: "rock")
       metal = create(:genre, name: "metal")
-      track_one = create(:track, :with_artists, artists: [artist])
-      track_two = create(:track, :with_artists, artists: [artist])
-      create(:track_genre, track: track_one, genre: rock)
-      create(:track_genre, track: track_two, genre: rock)
-      create(:track_genre, track: track_two, genre: metal)
+      artist = create(:artist, :with_genres, genres: [rock, metal])
 
       expect(artist.genres).to contain_exactly(rock, metal)
     end
 
-    it "ignores metadata genres — only track genres count" do
-      artist = create(:artist, metadata: { "genres" => ["rock"] })
-      create(:track, :with_artists, artists: [artist])
+    it "excludes genres that only reached the artist's tracks through a collaborator" do
+      metal = create(:genre, name: "metal")
+      new_age = create(:genre, name: "new age")
+      slayer = create(:artist, :with_genres, genres: [metal])
+      enya = create(:artist, :with_genres, genres: [new_age])
+      collaboration = create(:track, :with_artists, artists: [slayer, enya])
+      create(:track_genre, track: collaboration, genre: new_age)
+
+      expect(slayer.genres).to contain_exactly(metal)
+    end
+
+    it "ignores genres that exist only in unpropagated Spotify metadata" do
+      artist = create(:artist, :with_genre_metadata, metadata_genre_names: ["rock"])
 
       expect(artist.genres).to be_empty
     end

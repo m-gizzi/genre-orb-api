@@ -46,12 +46,12 @@ RSpec.describe "Api::V1::Tracks" do
         )
       end
 
-      it "caps per_page at 100" do
+      it "caps per_page at the configured maximum" do
         create(:track, :in_library, current_version: version)
 
         get "/api/v1/tracks", params: { per_page: 1000 }
 
-        expect(response.parsed_body["meta"]["per_page"]).to eq(100)
+        expect(response.parsed_body["meta"]["per_page"]).to eq(Pagy::DEFAULT[:limit_max])
       end
 
       it "treats an out-of-range page as the last page" do

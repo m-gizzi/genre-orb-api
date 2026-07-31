@@ -19,7 +19,7 @@ RSpec.describe "Api::V1::Artists" do
       it "returns library artists with their genres, metadata fields, and a meta envelope" do
         thrash = create(:genre, name: "thrash")
         artist = create(
-          :artist, :in_library,
+          :artist, :in_library, :with_genres,
           user: user,
           name: "Slayer",
           genres: [thrash],
@@ -51,8 +51,9 @@ RSpec.describe "Api::V1::Artists" do
 
       it "filters by genre id" do
         metal = create(:genre, name: "metal")
-        in_genre = create(:artist, :in_library, user: user, name: "Slayer", genres: [metal])
-        create(:artist, :in_library, user: user, name: "Enya", genres: [create(:genre, name: "new age")])
+        in_genre = create(:artist, :in_library, :with_genres, user: user, name: "Slayer", genres: [metal])
+        create(:artist, :in_library, :with_genres, user: user, name: "Enya",
+                                                   genres: [create(:genre, name: "new age")],)
 
         get "/api/v1/artists", params: { genre: metal.id }
 
@@ -61,12 +62,28 @@ RSpec.describe "Api::V1::Artists" do
 
       it "filters by genre name" do
         metal = create(:genre, name: "metal")
-        in_genre = create(:artist, :in_library, user: user, name: "Slayer", genres: [metal])
-        create(:artist, :in_library, user: user, name: "Enya", genres: [create(:genre, name: "new age")])
+        in_genre = create(:artist, :in_library, :with_genres, user: user, name: "Slayer", genres: [metal])
+        create(:artist, :in_library, :with_genres, user: user, name: "Enya",
+                                                   genres: [create(:genre, name: "new age")],)
 
         get "/api/v1/artists", params: { genre: "metal" }
 
         expect(response.parsed_body["data"].pluck("id")).to contain_exactly(in_genre.id)
+      end
+
+      it "does not match an artist on a collaborator's genres" do
+        metal = create(:genre, name: "metal")
+        new_age = create(:genre, name: "new age")
+        slayer = create(:artist, :with_genres, name: "Slayer", genres: [metal])
+        enya = create(:artist, :with_genres, name: "Enya", genres: [new_age])
+
+        collaboration = create(:track, :in_library, user: user)
+        create(:track_artist, track: collaboration, artist: slayer)
+        create(:track_artist, track: collaboration, artist: enya)
+
+        get "/api/v1/artists", params: { genre: "new age" }
+
+        expect(response.parsed_body["data"].pluck("id")).to contain_exactly(enya.id)
       end
 
       it "sorts by name descending" do
@@ -117,10 +134,9 @@ RSpec.describe "Api::V1::Artists" do
       expect(data["albums"].pluck("id")).to contain_exactly(album.id)
     end
 
-    it "resolves genre ids for genres present in the library" do
+    it "serializes the artist's genres with their ids" do
       thrash = create(:genre, name: "thrash")
-      artist = create(:artist, :in_library, user: user, name: "Slayer",
-                                            metadata: { "genres" => ["thrash"] }, genres: [thrash],)
+      artist = create(:artist, :in_library, :with_genres, user: user, name: "Slayer", genres: [thrash])
 
       get "/api/v1/artists/#{artist.id}"
 

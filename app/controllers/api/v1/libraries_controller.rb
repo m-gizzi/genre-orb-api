@@ -5,11 +5,11 @@ module Api
     class LibrariesController < BaseController
       include SyncStatusRendering
 
-      SYNC_OUTCOME_RESPONSES = {
+      sync_outcomes(
         spotify_not_connected: { key: "api.errors.spotify_not_connected", status: :unprocessable_content },
         already_in_progress: { key: "api.library.sync_in_progress", status: :conflict },
         no_playlists: { key: "api.library.no_playlists_selected", status: :unprocessable_content },
-      }.freeze
+      )
 
       def status
         @session = current_user.sync_sessions

@@ -2,7 +2,7 @@
 
 module Filters
   module Sql
-    module_function
+    private
 
     def contains(value)
       "%#{ActiveRecord::Base.sanitize_sql_like(value.to_s)}%"

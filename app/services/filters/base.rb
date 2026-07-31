@@ -4,7 +4,19 @@ module Filters
   class Base
     include Filters::Sql
 
-    SORT_NULLS = :directional
+    class << self
+      attr_reader :default_sort, :sort_nulls
+
+      def sorts(nodes, default:, nulls: :directional)
+        @sort_nodes = nodes.freeze
+        @default_sort = default
+        @sort_nulls = nulls
+      end
+
+      def sort_nodes
+        @sort_nodes || raise(NotImplementedError, "#{name} must declare sortable keys with `sorts`")
+      end
+    end
 
     def initialize(user, params)
       @user = user
@@ -24,10 +36,10 @@ module Filters
 
     def sort
       @sort ||= Filters::Sort.new(
-        nodes: self.class::SORT_NODES,
-        default: self.class::DEFAULT_SORT,
+        nodes: self.class.sort_nodes,
+        default: self.class.default_sort,
         params: params,
-        nulls: self.class::SORT_NULLS,
+        nulls: self.class.sort_nulls,
       )
     end
   end

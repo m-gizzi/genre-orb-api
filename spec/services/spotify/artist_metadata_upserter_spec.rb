@@ -42,8 +42,18 @@ RSpec.describe Spotify::ArtistMetadataUpserter do
       expect(track.reload.genres.pluck(:name)).to contain_exactly("death metal", "black metal")
     end
 
+    it "assigns the genres to the artist itself" do
+      described_class.new(
+        spotify_response([sp_artist(id: "artist_1", genres: ["death metal", "black metal"])]),
+      ).call
+
+      expect(artist.reload.genres.pluck(:name)).to contain_exactly("death metal", "black metal")
+    end
+
     context "when the artist already has stored genres" do
-      let(:artist) { create(:artist, :with_genre_metadata, spotify_id: "artist_1", genres: ["doom metal"]) }
+      let(:artist) do
+        create(:artist, :with_genre_metadata, spotify_id: "artist_1", metadata_genre_names: ["doom metal"])
+      end
 
       it "unions new genres with existing rather than replacing them" do
         described_class.new(

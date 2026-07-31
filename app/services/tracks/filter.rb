@@ -4,33 +4,30 @@ module Tracks
   class Filter < Filters::Base
     include Filters::GenreScopable
 
-    SORT_NODES = {
-      "title" => -> { Track.arel_table[:title] },
-      "popularity" => -> { Track.arel_table[:popularity] },
-      "duration" => -> { Track.arel_table[:duration_ms] },
-      "year" => -> { Album.arel_table[:release_year] },
-      "album" => -> { Album.arel_table[:title] },
-      "artist" => -> { Arel.sql("track_primary_artist.sort_name") },
-    }.freeze
-
-    ARTIST_SORT_JOIN = <<~SQL.squish
-      LEFT JOIN (
-        SELECT track_artists.track_id, MIN(artists.name) AS sort_name
-        FROM track_artists
-        INNER JOIN artists ON artists.id = track_artists.artist_id
-        GROUP BY track_artists.track_id
-      ) track_primary_artist ON track_primary_artist.track_id = tracks.id
+    ARTIST_SORT_NAME = <<~SQL.squish
+      (SELECT MIN(artists.name) FROM track_artists
+       INNER JOIN artists ON artists.id = track_artists.artist_id
+       WHERE track_artists.track_id = tracks.id)
     SQL
 
-    ALBUM_SORTS = %w[year album].freeze
+    sorts(
+      {
+        "title" => -> { Track.arel_table[:title] },
+        "popularity" => -> { Track.arel_table[:popularity] },
+        "duration" => -> { Track.arel_table[:duration_ms] },
+        "year" => -> { Album.arel_table[:release_year] },
+        "album" => -> { Album.arel_table[:title] },
+        "artist" => -> { Arel.sql(ARTIST_SORT_NAME) },
+      },
+      default: "title",
+      nulls: :last,
+    )
 
-    DEFAULT_SORT = "title"
-    SORT_NULLS = :last
+    ALBUM_SORTS = %w[year album].freeze
 
     def call
       relation = Track.where(id: filtered_ids).with_catalog_associations
       relation = relation.references(:album) if ALBUM_SORTS.include?(sort.key)
-      relation = relation.joins(ARTIST_SORT_JOIN) if sort.key == "artist"
       relation.order(*order_terms)
     end
 

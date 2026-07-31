@@ -3,6 +3,17 @@
 module SyncStatusRendering
   extend ActiveSupport::Concern
 
+  class_methods do
+    def sync_outcomes(responses)
+      @sync_outcome_responses = responses.freeze
+    end
+
+    def sync_outcome_responses
+      @sync_outcome_responses ||
+        raise(NotImplementedError, "#{name} must declare sync outcomes with `sync_outcomes`")
+    end
+  end
+
   private
 
   def rate_limit_info
@@ -14,7 +25,7 @@ module SyncStatusRendering
   end
 
   def render_sync_outcome(outcome)
-    response = self.class::SYNC_OUTCOME_RESPONSES.fetch(outcome)
+    response = self.class.sync_outcome_responses.fetch(outcome)
     render_error(I18n.t(response[:key]), status: response[:status])
   end
 

@@ -5,11 +5,11 @@ module Api
     class ArtistsController < BaseController
       include SyncStatusRendering
 
-      SYNC_OUTCOME_RESPONSES = {
+      sync_outcomes(
         spotify_not_connected: { key: "api.errors.spotify_not_connected", status: :unprocessable_content },
         already_in_progress: { key: "api.artists.sync_in_progress", status: :conflict },
         no_artists: { key: "api.artists.no_artists_need_sync", status: :unprocessable_content },
-      }.freeze
+      )
 
       def index
         scope = Artists::Filter.new(current_user, params).call
