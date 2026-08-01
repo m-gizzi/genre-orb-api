@@ -32,6 +32,14 @@ class Playlist < ApplicationRecord
     current_version&.tracks || Track.none
   end
 
+  def current_version_tracks
+    return PlaylistVersionTrack.none unless current_version
+
+    current_version.playlist_version_tracks
+                   .order(:position)
+                   .includes(track: [:album, :artists, { track_genres: :genre }])
+  end
+
   def track_count
     current_version&.track_count || 0
   end

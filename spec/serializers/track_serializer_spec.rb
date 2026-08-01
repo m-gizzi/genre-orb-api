@@ -7,9 +7,9 @@ RSpec.describe TrackSerializer do
     album = create(:album, title: "Reign in Blood", release_year: 1986)
     artist = create(:artist, name: "Slayer")
     genre = create(:genre, name: "thrash metal")
-    track = create(:track, title: "Angel of Death", album: album, duration_ms: 290_000, popularity: 65)
-    create(:track_artist, track: track, artist: artist)
-    create(:track_genre, track: track, genre: genre, source: :spotify)
+    track = create(:track, :with_artists, :with_genres, title: "Angel of Death", album: album,
+                                                        duration_ms: 290_000, popularity: 65,
+                                                        artists: [artist], genres: [genre],)
 
     loaded = Track.with_catalog_associations.find(track.id)
     result = described_class.new(loaded).serializable_hash

@@ -6,7 +6,7 @@ class ArtistSerializer
   attributes :id, :name, :spotify_id, :image_url
 
   attribute :genres do |artist|
-    artist.metadata&.dig("genres") || []
+    GenreSerializer.new(artist.genres).serializable_hash
   end
 
   attribute :followers do |artist|

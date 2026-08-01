@@ -2,6 +2,9 @@
 
 class ArtistDetailSerializer < ArtistSerializer
   attribute :albums do |_artist|
-    AlbumSummarySerializer.new(params[:albums] || []).serializable_hash
+    AlbumSerializer.new(
+      params[:albums] || [],
+      params: { saved_counts: params[:saved_counts] || {} },
+    ).serializable_hash
   end
 end

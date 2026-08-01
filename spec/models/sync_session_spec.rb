@@ -42,9 +42,7 @@ RSpec.describe SyncSession do
 
   describe "#reconcile!" do
     it "marks the session completed when every playlist succeeded" do
-      session = create(:sync_session, :running, total_playlists: 2)
-      create(:sync_session_playlist, :completed, sync_session: session)
-      create(:sync_session_playlist, :skipped, sync_session: session)
+      session = create(:sync_session, :running, :with_playlists, playlist_statuses: %i[completed skipped])
 
       session.reconcile!
 
@@ -53,9 +51,7 @@ RSpec.describe SyncSession do
     end
 
     it "marks the session completed_with_errors on a mix of success and failure" do
-      session = create(:sync_session, :running, total_playlists: 2)
-      create(:sync_session_playlist, :completed, sync_session: session)
-      create(:sync_session_playlist, :failed, sync_session: session)
+      session = create(:sync_session, :running, :with_playlists, playlist_statuses: %i[completed failed])
 
       session.reconcile!
 
@@ -63,9 +59,7 @@ RSpec.describe SyncSession do
     end
 
     it "marks the session failed when every playlist failed" do
-      session = create(:sync_session, :running, total_playlists: 2)
-      create(:sync_session_playlist, :failed, sync_session: session)
-      create(:sync_session_playlist, :failed, sync_session: session)
+      session = create(:sync_session, :running, :with_playlists, playlist_statuses: %i[failed failed])
 
       session.reconcile!
 
@@ -73,9 +67,7 @@ RSpec.describe SyncSession do
     end
 
     it "stays active while any playlist is still in flight" do
-      session = create(:sync_session, :running, total_playlists: 2)
-      create(:sync_session_playlist, :completed, sync_session: session)
-      create(:sync_session_playlist, :fetching, sync_session: session)
+      session = create(:sync_session, :running, :with_playlists, playlist_statuses: %i[completed fetching])
 
       session.reconcile!
 
@@ -83,8 +75,7 @@ RSpec.describe SyncSession do
     end
 
     it "does not re-transition an already-terminal session" do
-      session = create(:sync_session, :completed, total_playlists: 1)
-      create(:sync_session_playlist, :failed, sync_session: session)
+      session = create(:sync_session, :completed, :with_playlists, playlist_statuses: [:failed])
 
       session.reconcile!
 

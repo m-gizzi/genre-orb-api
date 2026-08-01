@@ -7,6 +7,11 @@ class Artist < ApplicationRecord
   has_many :track_artists, dependent: :destroy, inverse_of: :artist
   has_many :tracks, through: :track_artists
 
+  has_many :artist_genres, dependent: :destroy, inverse_of: :artist
+  has_many :genres, through: :artist_genres
+
+  scope :synced, -> { where.not(metadata_fetched_at: nil) }
+
   validates :name, presence: true
   validates :spotify_id, uniqueness: true
 end

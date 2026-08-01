@@ -65,11 +65,6 @@ detectors:
   TooManyInstanceVariables:
     max_instance_variables: 5
 
-  NestedIterators:
-    exclude:
-      - Spotify::ArtistMetadataUpserter#collect_track_genre_pairs
-      - Spotify::TrackUpserter#genre_pairs_for_track
-
   DataClump:
     exclude:
       - SpotifyAdapter

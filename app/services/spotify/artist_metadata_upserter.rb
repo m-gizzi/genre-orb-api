@@ -12,6 +12,7 @@ module Spotify
       return if artists_data.empty?
 
       update_artists
+      propagate_genres_to_artists
       propagate_genres_to_tracks
     end
 
@@ -72,23 +73,29 @@ module Spotify
       artists_data.filter_map { |artist_data| artist_data&.dig("id") }
     end
 
+    def propagate_genres_to_artists
+      return if incoming_spotify_ids.empty?
+
+      pairs = incoming_artists.flat_map { |artist| genre_pairs_for(artist) }
+      Spotify::ArtistGenrePropagator.new.call(pairs)
+    end
+
+    def genre_pairs_for(artist)
+      genre_names(artist).map { |genre_name| { artist_id: artist.id, genre_name: genre_name } }
+    end
+
     def propagate_genres_to_tracks
       return if incoming_spotify_ids.empty?
 
-      artists = Artist.where(spotify_id: incoming_spotify_ids).includes(:tracks)
-      pairs = collect_track_genre_pairs(artists)
-      Spotify::TrackGenrePropagator.new.call(pairs)
+      Spotify::TrackGenreDeriver.new.by_artist(incoming_artists.map(&:id))
     end
 
-    def collect_track_genre_pairs(artists)
-      artists.flat_map do |artist|
-        genres = artist.metadata&.dig("genres") || []
-        next [] if genres.empty?
+    def incoming_artists
+      @incoming_artists ||= Artist.where(spotify_id: incoming_spotify_ids).to_a
+    end
 
-        artist.tracks.flat_map do |track|
-          genres.map { |genre_name| { track_id: track.id, genre_name: genre_name } }
-        end
-      end
+    def genre_names(artist)
+      artist.metadata&.dig("genres") || []
     end
   end
 end

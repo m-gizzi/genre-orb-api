@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_11_000006) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_31_000002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -37,6 +37,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_11_000006) do
     t.index ["spotify_id"], name: "index_albums_on_spotify_id", unique: true
     t.index ["title"], name: "index_albums_on_title"
     t.index ["title"], name: "index_albums_on_title_trgm", opclass: :gin_trgm_ops, using: :gin
+  end
+
+  create_table "artist_genres", force: :cascade do |t|
+    t.bigint "artist_id", null: false
+    t.datetime "created_at", null: false
+    t.bigint "genre_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["artist_id", "genre_id"], name: "index_artist_genres_on_artist_id_and_genre_id", unique: true
+    t.index ["artist_id"], name: "index_artist_genres_on_artist_id"
+    t.index ["genre_id"], name: "index_artist_genres_on_genre_id"
   end
 
   create_table "artist_metadata_sessions", force: :cascade do |t|
@@ -268,6 +278,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_11_000006) do
 
   add_foreign_key "album_artists", "albums"
   add_foreign_key "album_artists", "artists"
+  add_foreign_key "artist_genres", "artists"
+  add_foreign_key "artist_genres", "genres"
   add_foreign_key "artist_metadata_sessions", "users"
   add_foreign_key "playlist_version_tracks", "playlist_versions"
   add_foreign_key "playlist_version_tracks", "tracks"

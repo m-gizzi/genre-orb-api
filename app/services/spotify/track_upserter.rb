@@ -3,37 +3,28 @@
 module Spotify
   class TrackUpserter
     def call(spotify_track_items)
-      return {} if spotify_track_items.empty?
+      items = Spotify::PlayableTrackItems.new(spotify_track_items).call
+      return {} if items.empty?
 
-      artists_by_spotify_id = extract_and_upsert_artists(spotify_track_items)
-      albums_by_spotify_id = extract_and_upsert_albums(spotify_track_items)
-      tracks_by_spotify_id = upsert_tracks(spotify_track_items, albums_by_spotify_id)
+      artists_by_spotify_id = extract_and_upsert_artists(items)
+      albums_by_spotify_id = extract_and_upsert_albums(items)
+      tracks_by_spotify_id = upsert_tracks(items, albums_by_spotify_id)
 
-      create_track_artist_joins(spotify_track_items, tracks_by_spotify_id, artists_by_spotify_id)
-      create_album_artist_joins(spotify_track_items, albums_by_spotify_id, artists_by_spotify_id)
-      propagate_known_artist_genres(spotify_track_items, tracks_by_spotify_id, artists_by_spotify_id)
+      write_artist_joins(items, tracks_by_spotify_id, albums_by_spotify_id, artists_by_spotify_id)
+      Spotify::TrackGenreDeriver.new.by_track(tracks_by_spotify_id.values.map(&:id))
 
       tracks_by_spotify_id
     end
 
     private
 
-    def propagate_known_artist_genres(items, tracks_by_spotify_id, artists_by_spotify_id)
-      pairs = items.flat_map do |item|
-        track = tracks_by_spotify_id[item.dig("track", "id")]
-        next [] unless track
-
-        genre_pairs_for_track(track, item, artists_by_spotify_id)
-      end
-      Spotify::TrackGenrePropagator.new.call(pairs)
-    end
-
-    def genre_pairs_for_track(track, item, artists_by_spotify_id)
-      (item.dig("track", "artists") || []).flat_map do |sp_artist|
-        artist = artists_by_spotify_id[sp_artist["id"]]
-        genres = artist&.metadata&.dig("genres") || []
-        genres.map { |genre_name| { track_id: track.id, genre_name: genre_name } }
-      end
+    def write_artist_joins(items, tracks_by_spotify_id, albums_by_spotify_id, artists_by_spotify_id)
+      Spotify::ArtistJoinWriter.new(
+        items,
+        tracks_by_spotify_id: tracks_by_spotify_id,
+        albums_by_spotify_id: albums_by_spotify_id,
+        artists_by_spotify_id: artists_by_spotify_id,
+      ).call
     end
 
     def extract_and_upsert_artists(items)
@@ -54,6 +45,7 @@ module Spotify
 
     def build_artist_record(sp_artist)
       return nil unless sp_artist["id"]
+      return nil if sp_artist["name"].blank?
 
       {
         spotify_id: sp_artist["id"],
@@ -82,6 +74,7 @@ module Spotify
 
     def build_album_record(sp_album)
       return nil unless sp_album["id"]
+      return nil if sp_album["name"].blank?
 
       {
         spotify_id: sp_album["id"],
@@ -107,20 +100,26 @@ module Spotify
     end
 
     def build_track_data(items, albums_by_spotify_id)
-      items
-        .filter_map { |item| build_track_record(item, albums_by_spotify_id) }
+      storable, albumless = items.partition do |item|
+        albums_by_spotify_id.key?(item.dig("track", "album", "id"))
+      end
+      log_albumless_tracks(albumless)
+
+      storable
+        .map { |item| build_track_record(item, albums_by_spotify_id) }
         .uniq { |track| track[:spotify_id] }
         .sort_by { |track| track[:spotify_id] }
     end
 
     def build_track_record(item, albums_by_spotify_id)
       track = item["track"]
-      return nil unless track && track["id"]
+      build_track_attributes(track, albums_by_spotify_id.fetch(track.dig("album", "id")))
+    end
 
-      album = albums_by_spotify_id[track.dig("album", "id")]
-      return nil unless album
+    def log_albumless_tracks(items)
+      return if items.empty?
 
-      build_track_attributes(track, album)
+      Rails.logger.info("Spotify sync skipped #{items.size} track(s) whose album could not be stored")
     end
 
     def build_track_attributes(track, album)
@@ -136,58 +135,6 @@ module Spotify
         created_at: Time.current,
         updated_at: Time.current,
       }
-    end
-
-    def create_track_artist_joins(items, tracks_by_spotify_id, artists_by_spotify_id)
-      join_records = build_track_artist_joins(items, tracks_by_spotify_id, artists_by_spotify_id)
-      return if join_records.empty?
-
-      TrackArtist.upsert_all(join_records, unique_by: %i[track_id artist_id])
-    end
-
-    def build_track_artist_joins(items, tracks_by_spotify_id, artists_by_spotify_id)
-      records = items.flat_map do |item|
-        build_track_artist_records(item, tracks_by_spotify_id, artists_by_spotify_id)
-      end
-      records.uniq { |record| [record[:track_id], record[:artist_id]] }
-    end
-
-    def build_track_artist_records(item, tracks_by_spotify_id, artists_by_spotify_id)
-      track = tracks_by_spotify_id[item.dig("track", "id")]
-      return [] unless track
-
-      (item.dig("track", "artists") || []).filter_map do |sp_artist|
-        artist = artists_by_spotify_id[sp_artist["id"]]
-        next unless artist
-
-        { track_id: track.id, artist_id: artist.id, created_at: Time.current, updated_at: Time.current }
-      end
-    end
-
-    def create_album_artist_joins(items, albums_by_spotify_id, artists_by_spotify_id)
-      join_records = build_album_artist_joins(items, albums_by_spotify_id, artists_by_spotify_id)
-      return if join_records.empty?
-
-      AlbumArtist.upsert_all(join_records, unique_by: %i[album_id artist_id])
-    end
-
-    def build_album_artist_joins(items, albums_by_spotify_id, artists_by_spotify_id)
-      records = items.flat_map do |item|
-        build_album_artist_records(item, albums_by_spotify_id, artists_by_spotify_id)
-      end
-      records.uniq { |record| [record[:album_id], record[:artist_id]] }
-    end
-
-    def build_album_artist_records(item, albums_by_spotify_id, artists_by_spotify_id)
-      album = albums_by_spotify_id[item.dig("track", "album", "id")]
-      return [] unless album
-
-      (item.dig("track", "album", "artists") || []).filter_map do |sp_artist|
-        artist = artists_by_spotify_id[sp_artist["id"]]
-        next unless artist
-
-        { album_id: album.id, artist_id: artist.id, created_at: Time.current, updated_at: Time.current }
-      end
     end
 
     def extract_release_year(release_date)

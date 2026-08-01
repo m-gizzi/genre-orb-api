@@ -22,5 +22,19 @@ FactoryBot.define do
       completed_at { Time.current }
       error_message { "Sync failed" }
     end
+
+    trait :with_playlists do
+      transient do
+        playlist_statuses { [] }
+      end
+
+      total_playlists { playlist_statuses.size }
+
+      after(:create) do |session, evaluator|
+        evaluator.playlist_statuses.each do |status_trait|
+          create(:sync_session_playlist, *Array(status_trait), sync_session: session)
+        end
+      end
+    end
   end
 end
