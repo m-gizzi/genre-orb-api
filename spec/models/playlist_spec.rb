@@ -27,6 +27,33 @@ RSpec.describe Playlist do
     end
   end
 
+  describe "smart playlist targets" do
+    it "forces sync_enabled on when the playlist is rule-managed" do
+      smart_playlist = create(:smart_playlist)
+      target = smart_playlist.target_playlist
+
+      target.update!(sync_enabled: false)
+
+      expect(target.reload.sync_enabled).to be(true)
+    end
+
+    it "leaves sync_enabled alone for a regular playlist" do
+      playlist = create(:playlist, sync_enabled: true)
+
+      playlist.update!(sync_enabled: false)
+
+      expect(playlist.reload.sync_enabled).to be(false)
+    end
+
+    it "destroys the owning user even when a playlist is used as a smart playlist source" do
+      smart_playlist = create(:smart_playlist)
+      user = smart_playlist.target_playlist.user
+
+      expect { user.destroy! }.to change(SmartPlaylist, :count).by(-1)
+      expect(described_class.where(user_id: user.id)).to be_empty
+    end
+  end
+
   describe "#current_version_tracks" do
     it "returns the current version's tracks in position order" do
       playlist = create(:playlist)

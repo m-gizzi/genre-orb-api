@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class Playlist < ApplicationRecord
+  SPOTIFY_DESCRIPTION_LIMIT = 300
+
   belongs_to :user, inverse_of: :playlists
   belongs_to :current_version, class_name: "PlaylistVersion", optional: true
 
@@ -17,11 +19,14 @@ class Playlist < ApplicationRecord
   has_one :smart_playlist_as_target,
           class_name: "SmartPlaylist",
           foreign_key: :target_playlist_id,
-          dependent: :nullify,
+          dependent: :destroy,
           inverse_of: :target_playlist
 
   validates :name, presence: true
+  validates :description, length: { maximum: SPOTIFY_DESCRIPTION_LIMIT }, allow_nil: true
   validates :spotify_id, uniqueness: { scope: :user_id }, allow_nil: true
+
+  before_save :force_sync_enabled_for_smart_target
 
   scope :liked_songs, -> { where(type: "LikedSongsPlaylist") }
   scope :regular, -> { where.not(type: "LikedSongsPlaylist").or(where(type: nil)) }
@@ -48,9 +53,18 @@ class Playlist < ApplicationRecord
     false
   end
 
+  def smart?
+    smart_playlist_as_target.present?
+  end
+
   private
 
   def clear_current_version
     update_columns(current_version_id: nil) if current_version_id
+  end
+
+  # A rule-managed playlist must stay synced so we can see what Spotify actually holds.
+  def force_sync_enabled_for_smart_target
+    self.sync_enabled = true if smart?
   end
 end
