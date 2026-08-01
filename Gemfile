@@ -7,7 +7,6 @@ gem "bootsnap", require: false
 gem "devise"
 gem "faraday"
 gem "faraday-net_http_persistent"
-gem "image_processing", "~> 2.0"
 gem "kamal", require: false
 gem "omniauth"
 gem "omniauth-rails_csrf_protection"
