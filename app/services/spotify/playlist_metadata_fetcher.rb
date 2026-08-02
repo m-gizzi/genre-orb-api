@@ -88,7 +88,7 @@ module Spotify
 
     def upsert_liked_songs
       liked = LikedSongsPlaylist.find_or_initialize_by(user: user)
-      liked.name = "Liked Songs"
+      liked.name = LikedSongsPlaylist::CANONICAL_NAME
       liked.available_on_spotify = true
       liked.save!
     end

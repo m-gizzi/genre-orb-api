@@ -95,11 +95,23 @@ RSpec.describe Spotify::PlaylistDetailsPusher do
   end
 
   it "skips the push for a playlist that is not on Spotify" do
+    local_only = create(:playlist, user: user, name: "Old Name")
+    stub = stub_request(:put, %r{/playlists/}).to_return(status: 200, body: "")
+
+    described_class.new(local_only, { name: "Renamed" }).call
+
+    expect(stub).not_to have_been_requested
+    expect(local_only.reload.name).to eq("Renamed")
+  end
+
+  it "refuses to rename Liked Songs, whose details Spotify owns" do
     liked = create(:liked_songs_playlist, user: user)
     stub = stub_request(:put, %r{/playlists/}).to_return(status: 200, body: "")
 
-    described_class.new(liked, { name: "Renamed" }).call
+    expect { described_class.new(liked, { name: "Renamed" }).call }
+      .to raise_error(ActiveRecord::RecordInvalid, /managed by Spotify/)
 
     expect(stub).not_to have_been_requested
+    expect(liked.reload.name).to eq(LikedSongsPlaylist::CANONICAL_NAME)
   end
 end

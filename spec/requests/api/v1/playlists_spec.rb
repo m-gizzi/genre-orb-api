@@ -329,6 +329,31 @@ RSpec.describe "Api::V1::Playlists" do
         end
       end
 
+      context "when the playlist is Liked Songs" do
+        let(:playlist) { create(:liked_songs_playlist, user: user) }
+
+        it "returns 422 for a rename" do
+          patch "/api/v1/playlists/#{playlist.id}", params: { playlist: { name: "My Favourites" } }
+
+          expect(response).to have_http_status(:unprocessable_content)
+          expect(playlist.reload.name).to eq("Liked Songs")
+        end
+
+        it "returns 422 for a description" do
+          patch "/api/v1/playlists/#{playlist.id}", params: { playlist: { description: "Mine" } }
+
+          expect(response).to have_http_status(:unprocessable_content)
+          expect(playlist.reload.description).to be_nil
+        end
+
+        it "still allows toggling sync" do
+          patch "/api/v1/playlists/#{playlist.id}", params: { playlist: { sync_enabled: true } }
+
+          expect(response).to have_http_status(:ok)
+          expect(playlist.reload.sync_enabled).to be(true)
+        end
+      end
+
       context "when the playlist is a smart playlist target" do
         let(:playlist) { create(:smart_playlist).target_playlist }
         let(:user) { playlist.user }
