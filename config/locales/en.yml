@@ -10,12 +10,16 @@ en:
   api:
     errors:
       spotify_not_connected: "Spotify not connected"
+      spotify_unavailable: "Spotify is temporarily unavailable. Your changes were not saved."
+      spotify_rate_limited: "Spotify is rate limiting us. Please try again in a moment."
       unauthenticated: "You need to sign in or sign up before continuing"
       not_found: "Resource not found"
       bad_request: "Invalid request"
     library:
       sync_in_progress: "Sync already in progress"
       no_playlists_selected: "No playlists selected for sync"
+    smart_playlists:
+      target_required: "A target playlist is required"
     artists:
       sync_in_progress: "Artist metadata sync already in progress"
       no_artists_need_sync: "No artists need metadata sync"

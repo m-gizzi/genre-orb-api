@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_31_000002) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_02_180134) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -116,7 +116,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_31_000002) do
     t.boolean "available_on_spotify", default: true, null: false
     t.datetime "created_at", null: false
     t.bigint "current_version_id"
-    t.boolean "is_public", default: false, null: false
+    t.string "description"
     t.string "last_seen_snapshot_id"
     t.datetime "last_synced_at"
     t.string "last_synced_snapshot_id"
@@ -167,16 +167,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_31_000002) do
     t.datetime "last_evaluated_at"
     t.datetime "last_pushed_at"
     t.integer "match_count", default: 0, null: false
-    t.string "name", null: false
     t.jsonb "rules", default: {}, null: false
-    t.bigint "target_playlist_id"
+    t.bigint "target_playlist_id", null: false
     t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
     t.index ["is_enabled"], name: "index_smart_playlists_on_is_enabled"
     t.index ["last_evaluated_at"], name: "index_smart_playlists_on_last_evaluated_at"
-    t.index ["target_playlist_id"], name: "index_smart_playlists_on_target_playlist_id"
-    t.index ["user_id", "name"], name: "index_smart_playlists_on_user_id_and_name", unique: true
-    t.index ["user_id"], name: "index_smart_playlists_on_user_id"
+    t.index ["target_playlist_id"], name: "index_smart_playlists_on_target_playlist_id", unique: true
   end
 
   create_table "sync_session_playlists", force: :cascade do |t|
@@ -290,7 +286,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_31_000002) do
   add_foreign_key "smart_playlist_sources", "playlists"
   add_foreign_key "smart_playlist_sources", "smart_playlists"
   add_foreign_key "smart_playlists", "playlists", column: "target_playlist_id"
-  add_foreign_key "smart_playlists", "users"
   add_foreign_key "sync_session_playlists", "playlist_versions"
   add_foreign_key "sync_session_playlists", "playlists"
   add_foreign_key "sync_session_playlists", "sync_sessions"

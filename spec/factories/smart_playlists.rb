@@ -2,36 +2,61 @@
 
 FactoryBot.define do
   factory :smart_playlist do
-    user
-    sequence(:name) { |n| "Smart Playlist #{n}" }
-    target_playlist { nil }
-    is_enabled { true }
+    transient do
+      user { association :user }
+      source_count { 1 }
+    end
+
+    target_playlist { association :playlist, :with_spotify, user: user }
+    is_enabled { false }
     match_count { 0 }
-    rules do
-      {
-        "match" => "all",
-        "rules" => [
-          { "field" => "genre", "operator" => "equals", "value" => "rock" },
-        ],
-      }
+    rules { SmartPlaylist::EMPTY_RULES.deep_dup }
+
+    after(:build) do |smart_playlist, evaluator|
+      next if smart_playlist.smart_playlist_sources.any?
+
+      owner = smart_playlist.target_playlist.user
+      evaluator.source_count.times do
+        smart_playlist.smart_playlist_sources.build(playlist: build(:playlist, user: owner))
+      end
     end
 
-    trait :disabled do
-      is_enabled { false }
+    trait :with_rules do
+      rules do
+        {
+          "match" => "all",
+          "rules" => [
+            { "field" => "genre", "operator" => "equals", "value" => "rock" },
+          ],
+        }
+      end
     end
 
-    trait :with_target do
-      target_playlist { association :playlist, :with_spotify, user: user }
+    trait :enabled do
+      with_rules
+      is_enabled { true }
+    end
+
+    trait :liked_songs_source do
+      transient do
+        source_count { 0 }
+      end
+
+      after(:build) do |smart_playlist|
+        smart_playlist.smart_playlist_sources.build(
+          playlist: build(:liked_songs_playlist, user: smart_playlist.target_playlist.user),
+        )
+      end
     end
 
     trait :evaluated do
+      with_rules
       last_evaluated_at { 1.hour.ago }
       match_count { rand(10..100) }
     end
 
     trait :pushed do
       evaluated
-      with_target
       last_pushed_at { 30.minutes.ago }
     end
 
@@ -51,19 +76,6 @@ FactoryBot.define do
             },
           ],
         }
-      end
-    end
-
-    trait :with_sources do
-      transient do
-        source_count { 1 }
-      end
-
-      after(:create) do |smart_playlist, evaluator|
-        evaluator.source_count.times do
-          create(:smart_playlist_source, smart_playlist: smart_playlist,
-                                         playlist: create(:playlist, user: smart_playlist.user),)
-        end
       end
     end
   end

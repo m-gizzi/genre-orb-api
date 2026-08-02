@@ -18,7 +18,7 @@ module Spotify
       sync_playlists(spotify_playlists)
 
       Result.new(success?: true, playlists: user.playlists)
-    rescue SpotifyAdapter::RateLimitError
+    rescue Spotify::RateLimitError
       raise
     rescue StandardError => e
       Rails.logger.error("PlaylistMetadataFetcher error for user #{user.id}: #{e.message}")
@@ -56,9 +56,9 @@ module Spotify
 
     def liked_songs_accessible?
       adapter.liked_songs(limit: 1).present?
-    rescue SpotifyAdapter::RateLimitError
+    rescue Spotify::RateLimitError
       raise
-    rescue SpotifyAdapter::ApiError
+    rescue Spotify::ApiError
       false
     end
 
@@ -69,7 +69,7 @@ module Spotify
       Playlist.upsert_all(
         records,
         unique_by: %i[user_id spotify_id],
-        update_only: %i[name last_seen_snapshot_id is_public available_on_spotify],
+        update_only: %i[name description last_seen_snapshot_id available_on_spotify],
       )
     end
 
@@ -78,8 +78,8 @@ module Spotify
         user_id: user.id,
         spotify_id: spotify_playlist["id"],
         name: spotify_playlist["name"],
+        description: spotify_playlist["description"].presence,
         last_seen_snapshot_id: spotify_playlist["snapshot_id"],
-        is_public: spotify_playlist["public"] || false,
         available_on_spotify: true,
         created_at: Time.current,
         updated_at: Time.current,
@@ -88,7 +88,7 @@ module Spotify
 
     def upsert_liked_songs
       liked = LikedSongsPlaylist.find_or_initialize_by(user: user)
-      liked.name = "Liked Songs"
+      liked.name = LikedSongsPlaylist::CANONICAL_NAME
       liked.available_on_spotify = true
       liked.save!
     end

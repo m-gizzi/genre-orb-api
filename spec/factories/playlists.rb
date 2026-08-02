@@ -4,15 +4,10 @@ FactoryBot.define do
   factory :playlist do
     user
     sequence(:name) { |n| "Playlist #{n}" }
-    is_public { false }
 
     trait :with_spotify do
       sequence(:spotify_id) { |n| "spotify_playlist_#{n}" }
       sequence(:last_seen_snapshot_id) { |_n| "snapshot_#{SecureRandom.hex(8)}" }
-    end
-
-    trait :public do
-      is_public { true }
     end
 
     trait :sync_enabled do

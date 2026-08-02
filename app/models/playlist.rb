@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class Playlist < ApplicationRecord
+  SPOTIFY_DESCRIPTION_LIMIT = 300
+
   belongs_to :user, inverse_of: :playlists
   belongs_to :current_version, class_name: "PlaylistVersion", optional: true
 
@@ -17,11 +19,13 @@ class Playlist < ApplicationRecord
   has_one :smart_playlist_as_target,
           class_name: "SmartPlaylist",
           foreign_key: :target_playlist_id,
-          dependent: :nullify,
+          dependent: :destroy,
           inverse_of: :target_playlist
 
   validates :name, presence: true
+  validates :description, length: { maximum: SPOTIFY_DESCRIPTION_LIMIT }, allow_nil: true
   validates :spotify_id, uniqueness: { scope: :user_id }, allow_nil: true
+  validate :sync_cannot_be_disabled_for_smart_target
 
   scope :liked_songs, -> { where(type: "LikedSongsPlaylist") }
   scope :regular, -> { where.not(type: "LikedSongsPlaylist").or(where(type: nil)) }
@@ -48,9 +52,20 @@ class Playlist < ApplicationRecord
     false
   end
 
+  def smart?
+    smart_playlist_as_target.present?
+  end
+
   private
 
   def clear_current_version
     update_columns(current_version_id: nil) if current_version_id
+  end
+
+  def sync_cannot_be_disabled_for_smart_target
+    return if sync_enabled? || !sync_enabled_changed?
+    return unless smart?
+
+    errors.add(:sync_enabled, "cannot be turned off for a smart playlist's target")
   end
 end

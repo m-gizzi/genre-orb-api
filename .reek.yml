@@ -29,7 +29,7 @@ detectors:
   ControlParameter:
     exclude:
       - Auth::SessionsController#respond_to_on_destroy
-      - SpotifyAdapter::RateLimitError#initialize
+      - Spotify::RateLimitError#initialize
 
   FeatureEnvy:
     enabled: false
@@ -68,6 +68,7 @@ detectors:
   DataClump:
     exclude:
       - SpotifyAdapter
+      - Spotify::Client
       - Spotify::PlaylistSyncSetup
       - Spotify::TrackUpserter
 

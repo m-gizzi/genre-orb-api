@@ -12,7 +12,7 @@ RSpec.describe SpotifyAdapter do
   let(:json_headers) { { "Content-Type" => "application/json" } }
 
   def stub_get(path, query: nil, status: 200, body: {}, headers: json_headers)
-    stub = stub_request(:get, "#{described_class::BASE_URL}/#{path}")
+    stub = stub_request(:get, "#{Spotify::Client::BASE_URL}/#{path}")
     stub = stub.with(query: query) if query
     stub.to_return(status: status, body: body.to_json, headers: headers)
   end
@@ -32,7 +32,7 @@ RSpec.describe SpotifyAdapter do
       adapter.user_profile
 
       expect(
-        a_request(:get, "#{described_class::BASE_URL}/me")
+        a_request(:get, "#{Spotify::Client::BASE_URL}/me")
           .with(headers: { "Authorization" => "Bearer test_token" }),
       ).to have_been_requested
     end
@@ -70,6 +70,56 @@ RSpec.describe SpotifyAdapter do
     end
   end
 
+  describe "#create_playlist" do
+    it "posts the playlist attributes to the user's playlists endpoint" do
+      stub = stub_request(:post, "#{Spotify::Client::BASE_URL}/users/spotify_user_1/playlists")
+             .with(body: { name: "Metal Mix", description: "Heavy" }.to_json)
+             .to_return(status: 201, body: { "id" => "new_playlist" }.to_json, headers: json_headers)
+
+      result = adapter.create_playlist("spotify_user_1", name: "Metal Mix", description: "Heavy")
+
+      expect(stub).to have_been_requested
+      expect(result).to eq("id" => "new_playlist")
+    end
+
+    it "omits a nil description" do
+      stub = stub_request(:post, "#{Spotify::Client::BASE_URL}/users/spotify_user_1/playlists")
+             .with(body: { name: "Metal Mix" }.to_json)
+             .to_return(status: 201, body: { "id" => "new_playlist" }.to_json, headers: json_headers)
+
+      adapter.create_playlist("spotify_user_1", name: "Metal Mix")
+
+      expect(stub).to have_been_requested
+    end
+  end
+
+  describe "#update_playlist_details" do
+    it "puts the changed attributes to the playlist endpoint" do
+      stub = stub_request(:put, "#{Spotify::Client::BASE_URL}/playlists/playlist_123")
+             .with(body: { name: "Renamed" }.to_json)
+             .to_return(status: 200, body: "")
+
+      adapter.update_playlist_details("playlist_123", { name: "Renamed" })
+
+      expect(stub).to have_been_requested
+    end
+
+    it "tolerates Spotify's empty success body" do
+      stub_request(:put, "#{Spotify::Client::BASE_URL}/playlists/playlist_123")
+        .to_return(status: 200, body: "")
+
+      expect { adapter.update_playlist_details("playlist_123", { name: "Renamed" }) }.not_to raise_error
+    end
+
+    it "raises ApiError when Spotify rejects the write" do
+      stub_request(:put, "#{Spotify::Client::BASE_URL}/playlists/playlist_123")
+        .to_return(status: 403, body: { "error" => "forbidden" }.to_json, headers: json_headers)
+
+      expect { adapter.update_playlist_details("playlist_123", { name: "Renamed" }) }
+        .to raise_error(Spotify::ApiError, /403/)
+    end
+  end
+
   describe "#artists" do
     it "joins ids into a comma-separated query param" do
       stub = stub_get("artists", query: { ids: "a,b,c" }, body: { "artists" => [] })
@@ -104,14 +154,14 @@ RSpec.describe SpotifyAdapter do
     it "raises ApiError on unexpected status codes" do
       stub_get("me", status: 500, body: { "error" => "boom" })
 
-      expect { adapter.user_profile }.to raise_error(described_class::ApiError, /500/)
+      expect { adapter.user_profile }.to raise_error(Spotify::ApiError, /500/)
     end
 
     describe "rate limiting (429)" do
       it "raises RateLimitError carrying Retry-After and the user id" do
         stub_get("me", status: 429, headers: { "Retry-After" => "30" })
 
-        expect { adapter.user_profile }.to raise_error(described_class::RateLimitError) do |error|
+        expect { adapter.user_profile }.to raise_error(Spotify::RateLimitError) do |error|
           expect(error.retry_after).to eq(30)
           expect(error.user_id).to eq(user.id)
         end
@@ -120,20 +170,20 @@ RSpec.describe SpotifyAdapter do
       it "clamps a missing Retry-After header to a positive minimum" do
         stub_get("me", status: 429, headers: {})
 
-        expect { adapter.user_profile }.to raise_error(described_class::RateLimitError) do |error|
-          expect(error.retry_after).to eq(described_class::RateLimitError::MIN_RETRY_AFTER)
+        expect { adapter.user_profile }.to raise_error(Spotify::RateLimitError) do |error|
+          expect(error.retry_after).to eq(Spotify::RateLimitError::MIN_RETRY_AFTER)
         end
       end
     end
 
     describe "authentication (401)" do
       it "refreshes the token and retries once, then succeeds" do
-        stub_request(:get, "#{described_class::BASE_URL}/me")
+        stub_request(:get, "#{Spotify::Client::BASE_URL}/me")
           .to_return(
             { status: 401 },
             { status: 200, body: { "id" => "abc" }.to_json, headers: json_headers },
           )
-        token_stub = stub_request(:post, described_class::TOKEN_URL)
+        token_stub = stub_request(:post, Spotify::Client::TOKEN_URL)
                      .to_return(status: 200, body: { access_token: "refreshed_token", expires_in: 3600 }.to_json)
 
         expect(adapter.user_profile).to eq("id" => "abc")
@@ -142,8 +192,8 @@ RSpec.describe SpotifyAdapter do
       end
 
       it "verify_connection returns false when refresh cannot recover" do
-        stub_request(:get, "#{described_class::BASE_URL}/me").to_return(status: 401)
-        stub_request(:post, described_class::TOKEN_URL)
+        stub_request(:get, "#{Spotify::Client::BASE_URL}/me").to_return(status: 401)
+        stub_request(:post, Spotify::Client::TOKEN_URL)
           .to_return(status: 200, body: { access_token: "refreshed_token", expires_in: 3600 }.to_json)
 
         expect(adapter.verify_connection).to be(false)
@@ -154,7 +204,7 @@ RSpec.describe SpotifyAdapter do
   describe "proactive token refresh" do
     it "refreshes before the request when the token is expiring soon" do
       service_connection.update!(token_expires_at: 1.minute.from_now)
-      token_stub = stub_request(:post, described_class::TOKEN_URL)
+      token_stub = stub_request(:post, Spotify::Client::TOKEN_URL)
                    .to_return(status: 200, body: { access_token: "refreshed_token", expires_in: 3600 }.to_json)
       stub_get("me", body: { "id" => "abc" })
 

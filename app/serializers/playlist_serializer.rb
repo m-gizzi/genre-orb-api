@@ -3,7 +3,7 @@
 class PlaylistSerializer
   include Alba::Resource
 
-  attributes :id, :name, :spotify_id, :is_public,
+  attributes :id, :name, :description, :spotify_id,
              :sync_enabled, :available_on_spotify
 
   attribute :track_count, &:track_count
@@ -13,4 +13,10 @@ class PlaylistSerializer
   end
 
   attribute :is_liked_songs, &:liked_songs?
+
+  attribute :smart_playlist_id do |playlist|
+    playlist.smart_playlist_as_target&.id
+  end
+
+  attribute :is_smart, &:smart?
 end

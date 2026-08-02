@@ -15,8 +15,9 @@ RSpec.describe Spotify::PlaylistMetadataFetcher do
   describe "#call" do
     let(:spotify_playlists) do
       [
-        { "id" => "playlist_1", "name" => "My Playlist", "snapshot_id" => "snap1", "public" => true },
-        { "id" => "playlist_2", "name" => "Another", "snapshot_id" => "snap2", "public" => false },
+        { "id" => "playlist_1", "name" => "My Playlist", "description" => "From Spotify",
+          "snapshot_id" => "snap1", },
+        { "id" => "playlist_2", "name" => "Another", "description" => "", "snapshot_id" => "snap2" },
       ]
     end
 
@@ -43,9 +44,23 @@ RSpec.describe Spotify::PlaylistMetadataFetcher do
 
       playlist = Playlist.find_by(spotify_id: "playlist_1")
       expect(playlist.name).to eq("My Playlist")
+      expect(playlist.description).to eq("From Spotify")
       expect(playlist.last_seen_snapshot_id).to eq("snap1")
-      expect(playlist.is_public).to be(true)
       expect(playlist.available_on_spotify).to be(true)
+    end
+
+    it "stores a blank Spotify description as nil" do
+      service.call
+
+      expect(Playlist.find_by(spotify_id: "playlist_2").description).to be_nil
+    end
+
+    it "overwrites a locally edited description on the next fetch" do
+      create(:playlist, user: user, spotify_id: "playlist_1", name: "Stale", description: "Local edit")
+
+      service.call
+
+      expect(Playlist.find_by(spotify_id: "playlist_1").description).to eq("From Spotify")
     end
 
     it "creates liked songs playlist" do
@@ -63,11 +78,11 @@ RSpec.describe Spotify::PlaylistMetadataFetcher do
 
     context "when playlists span multiple pages" do
       let(:page1_playlists) do
-        [{ "id" => "p1", "name" => "Page 1", "snapshot_id" => "s1", "public" => false }]
+        [{ "id" => "p1", "name" => "Page 1", "snapshot_id" => "s1" }]
       end
 
       let(:page2_playlists) do
-        [{ "id" => "p2", "name" => "Page 2", "snapshot_id" => "s2", "public" => false }]
+        [{ "id" => "p2", "name" => "Page 2", "snapshot_id" => "s2" }]
       end
 
       before do
@@ -134,11 +149,11 @@ RSpec.describe Spotify::PlaylistMetadataFetcher do
     context "when rate limited" do
       before do
         allow(adapter).to receive(:playlists)
-          .and_raise(SpotifyAdapter::RateLimitError.new(retry_after: 30, user_id: user.id))
+          .and_raise(Spotify::RateLimitError.new(retry_after: 30, user_id: user.id))
       end
 
       it "re-raises so the job can pause and re-enqueue" do
-        expect { service.call }.to raise_error(SpotifyAdapter::RateLimitError)
+        expect { service.call }.to raise_error(Spotify::RateLimitError)
       end
     end
 

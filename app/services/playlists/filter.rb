@@ -17,9 +17,19 @@ module Playlists
     )
 
     def call
-      relation = user.playlists.regular.available.includes(:current_version)
+      relation = user.playlists.regular.available.includes(:current_version, :smart_playlist_as_target)
       relation = search(relation, Playlist.arel_table[:name])
+      relation = filter_sync_enabled(relation)
       relation.order(*sort.terms)
+    end
+
+    private
+
+    def filter_sync_enabled(relation)
+      value = params[:sync_enabled]
+      return relation if value.blank?
+
+      relation.where(sync_enabled: ActiveModel::Type::Boolean.new.cast(value))
     end
   end
 end

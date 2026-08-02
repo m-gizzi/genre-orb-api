@@ -9,9 +9,11 @@ class User < ApplicationRecord
   has_one :spotify_connection, -> { spotify }, class_name: "ServiceConnection", dependent: :destroy, inverse_of: :user
 
   has_many :playlists, dependent: :destroy, inverse_of: :user
-  has_many :smart_playlists, dependent: :destroy, inverse_of: :user
+  has_many :smart_playlists, through: :playlists, source: :smart_playlist_as_target
   has_many :sync_sessions, dependent: :destroy, inverse_of: :user
   has_many :artist_metadata_sessions, dependent: :destroy, inverse_of: :user
+
+  before_destroy :destroy_smart_playlists, prepend: true
 
   enum :registration_source, { email: 0, spotify: 1 }, validate: true
 
@@ -40,6 +42,11 @@ class User < ApplicationRecord
   end
 
   private
+
+  def destroy_smart_playlists
+    SmartPlaylist.where(target_playlist_id: playlists.select(:id)).destroy_all
+    playlists.reset
+  end
 
   def current_playlist_version_ids
     playlists.where.not(current_version_id: nil).select(:current_version_id)

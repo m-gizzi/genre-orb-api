@@ -3,6 +3,8 @@
 module Api
   module V1
     class PlaylistsController < BaseController
+      include SpotifyErrorRendering
+
       def index
         scope = Playlists::Filter.new(current_user, params).call
 
@@ -11,7 +13,9 @@ module Api
       end
 
       def show
-        playlist = current_user.playlists.includes(:current_version).find(params.expect(:id))
+        playlist = current_user.playlists
+                               .includes(:current_version, :smart_playlist_as_target)
+                               .find(params.expect(:id))
         render_data(PlaylistDetailSerializer.new(playlist).serializable_hash)
       end
 
@@ -27,16 +31,25 @@ module Api
         render_data(TrackSerializer.new(tracks).serializable_hash, meta: pagy_meta(pagy))
       end
 
+      def create
+        playlist = Spotify::PlaylistCreator.new(current_user, create_params).call
+        render_data(PlaylistSerializer.new(playlist).serializable_hash, status: :created)
+      end
+
       def update
         playlist = current_user.playlists.find(params.expect(:id))
-        playlist.update!(playlist_params)
+        Spotify::PlaylistDetailsPusher.new(playlist, update_params).call
         render_data(PlaylistSerializer.new(playlist).serializable_hash)
       end
 
       private
 
-      def playlist_params
-        params.expect(playlist: [:sync_enabled])
+      def create_params
+        params.expect(playlist: %i[name description])
+      end
+
+      def update_params
+        params.expect(playlist: %i[name description sync_enabled])
       end
     end
   end

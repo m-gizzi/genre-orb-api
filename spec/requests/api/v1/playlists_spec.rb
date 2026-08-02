@@ -125,6 +125,25 @@ RSpec.describe "Api::V1::Playlists" do
         expect(response.parsed_body["data"].pluck("id")).to contain_exactly(rock.id)
       end
 
+      it "filters by sync_enabled" do
+        synced = create(:playlist, :sync_enabled, user: user, available_on_spotify: true)
+        create(:playlist, user: user, available_on_spotify: true)
+
+        get "/api/v1/playlists", params: { sync_enabled: true }
+
+        expect(response.parsed_body["data"].pluck("id")).to contain_exactly(synced.id)
+        expect(response.parsed_body["meta"]["total"]).to eq(1)
+      end
+
+      it "returns every playlist when sync_enabled is blank" do
+        create(:playlist, :sync_enabled, user: user, available_on_spotify: true)
+        create(:playlist, user: user, available_on_spotify: true)
+
+        get "/api/v1/playlists", params: { sync_enabled: "" }
+
+        expect(response.parsed_body["meta"]["total"]).to eq(2)
+      end
+
       it "excludes Liked Songs from the index" do
         regular = create(:playlist, user: user, name: "Mix", available_on_spotify: true)
         create(:liked_songs_playlist, user: user)
@@ -255,12 +274,169 @@ RSpec.describe "Api::V1::Playlists" do
 
       context "with invalid parameters" do
         it "ignores non-permitted params" do
-          original_name = playlist.name
+          patch "/api/v1/playlists/#{playlist.id}",
+                params: { playlist: { spotify_id: "hacked", sync_enabled: true } }
 
-          patch "/api/v1/playlists/#{playlist.id}", params: { playlist: { name: "Hacked Name", sync_enabled: true } }
-
-          expect(playlist.reload.name).to eq(original_name)
+          expect(playlist.reload.spotify_id).to be_nil
         end
+
+        it "returns 422 for a description over Spotify's limit" do
+          patch "/api/v1/playlists/#{playlist.id}", params: { playlist: { description: "x" * 301 } }
+
+          expect(response).to have_http_status(:unprocessable_content)
+        end
+      end
+
+      context "when the playlist is on Spotify" do
+        let(:playlist) { create(:playlist, :with_spotify, user: user, name: "Old Name") }
+        let(:update_url) { "#{Spotify::Client::BASE_URL}/playlists/#{playlist.spotify_id}" }
+
+        before do
+          create(:service_connection, user: user, service_user_id: "spotify_user_1",
+                                      access_token: "test_token", token_expires_at: 1.hour.from_now,)
+        end
+
+        it "pushes a renamed playlist to Spotify" do
+          stub = stub_request(:put, update_url)
+                 .with(body: { name: "New Name" }.to_json)
+                 .to_return(status: 200, body: "")
+
+          patch "/api/v1/playlists/#{playlist.id}", params: { playlist: { name: "New Name" } }
+
+          expect(response).to have_http_status(:ok)
+          expect(stub).to have_been_requested
+          expect(playlist.reload.name).to eq("New Name")
+        end
+
+        it "returns 502 and keeps the old values when Spotify fails" do
+          stub_request(:put, update_url).to_return(status: 500, body: "")
+
+          patch "/api/v1/playlists/#{playlist.id}", params: { playlist: { name: "New Name" } }
+
+          expect(response).to have_http_status(:bad_gateway)
+          expect(response.parsed_body["errors"].first["code"]).to eq("spotify_unavailable")
+          expect(playlist.reload.name).to eq("Old Name")
+        end
+
+        it "returns 429 with Retry-After when Spotify rate limits the write" do
+          stub_request(:put, update_url).to_return(status: 429, headers: { "Retry-After" => "12" })
+
+          patch "/api/v1/playlists/#{playlist.id}", params: { playlist: { name: "New Name" } }
+
+          expect(response).to have_http_status(:too_many_requests)
+          expect(response.headers["Retry-After"]).to eq("12")
+          expect(playlist.reload.name).to eq("Old Name")
+        end
+      end
+
+      context "when the playlist is on Spotify but the user disconnected" do
+        let(:playlist) { create(:playlist, :with_spotify, user: user, name: "Old Name") }
+
+        it "returns 422 and keeps the old values" do
+          patch "/api/v1/playlists/#{playlist.id}", params: { playlist: { name: "New Name" } }
+
+          expect(response).to have_http_status(:unprocessable_content)
+          expect(response.parsed_body["errors"].first["code"]).to eq("spotify_not_connected")
+          expect(playlist.reload.name).to eq("Old Name")
+        end
+      end
+
+      context "when the playlist is Liked Songs" do
+        let(:playlist) { create(:liked_songs_playlist, user: user) }
+
+        it "returns 422 for a rename" do
+          patch "/api/v1/playlists/#{playlist.id}", params: { playlist: { name: "My Favourites" } }
+
+          expect(response).to have_http_status(:unprocessable_content)
+          expect(playlist.reload.name).to eq("Liked Songs")
+        end
+
+        it "returns 422 for a description" do
+          patch "/api/v1/playlists/#{playlist.id}", params: { playlist: { description: "Mine" } }
+
+          expect(response).to have_http_status(:unprocessable_content)
+          expect(playlist.reload.description).to be_nil
+        end
+
+        it "still allows toggling sync" do
+          patch "/api/v1/playlists/#{playlist.id}", params: { playlist: { sync_enabled: true } }
+
+          expect(response).to have_http_status(:ok)
+          expect(playlist.reload.sync_enabled).to be(true)
+        end
+      end
+
+      context "when the playlist is a smart playlist target" do
+        let(:playlist) { create(:smart_playlist).target_playlist }
+        let(:user) { playlist.user }
+
+        it "returns 422 when disabling sync" do
+          patch "/api/v1/playlists/#{playlist.id}", params: { playlist: { sync_enabled: false } }
+
+          expect(response).to have_http_status(:unprocessable_content)
+          expect(playlist.reload.sync_enabled).to be(true)
+        end
+      end
+    end
+  end
+
+  describe "POST /api/v1/playlists" do
+    let(:create_url) { "#{Spotify::Client::BASE_URL}/users/spotify_user_1/playlists" }
+    let(:payload) { { playlist: { name: "Metal Mix", description: "Heavy" } } }
+
+    context "when not authenticated" do
+      it "returns 401 unauthorized" do
+        post "/api/v1/playlists", params: payload
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context "when authenticated without Spotify" do
+      before { sign_in user }
+
+      it "returns 422" do
+        post "/api/v1/playlists", params: payload
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body["errors"].first["code"]).to eq("spotify_not_connected")
+      end
+    end
+
+    context "when authenticated with Spotify" do
+      before do
+        create(:service_connection, user: user, service_user_id: "spotify_user_1",
+                                    access_token: "test_token", token_expires_at: 1.hour.from_now,)
+        sign_in user
+      end
+
+      it "creates the playlist on Spotify and returns 201" do
+        stub_request(:post, create_url)
+          .to_return(status: 201, body: { "id" => "spotify_new_1" }.to_json,
+                     headers: { "Content-Type" => "application/json" },)
+
+        post "/api/v1/playlists", params: payload
+
+        expect(response).to have_http_status(:created)
+        expect(response.parsed_body.dig("data", "spotify_id")).to eq("spotify_new_1")
+        expect(response.parsed_body.dig("data", "description")).to eq("Heavy")
+      end
+
+      it "returns 502 and creates nothing when Spotify fails" do
+        stub_request(:post, create_url).to_return(status: 500, body: "")
+
+        post "/api/v1/playlists", params: payload
+
+        expect(response).to have_http_status(:bad_gateway)
+        expect(user.playlists.count).to eq(0)
+      end
+
+      it "returns 422 for a blank name without calling Spotify" do
+        stub = stub_request(:post, create_url)
+
+        post "/api/v1/playlists", params: { playlist: { name: "" } }
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(stub).not_to have_been_requested
       end
     end
   end
