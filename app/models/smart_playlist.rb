@@ -16,6 +16,7 @@ class SmartPlaylist < ApplicationRecord
   validates :target_playlist_id, uniqueness: true
   validates :rules, presence: true
   validate :rules_must_be_valid_structure
+  validate :target_must_exist_on_spotify
   validate :sources_must_be_present
   validate :sources_must_belong_to_owner
   validate :rules_must_be_present_when_enabled
@@ -42,6 +43,12 @@ class SmartPlaylist < ApplicationRecord
     return if rules.is_a?(Hash) && rules.key?("match") && rules.key?("rules")
 
     errors.add(:rules, "must have 'match' and 'rules' keys")
+  end
+
+  def target_must_exist_on_spotify
+    return if target_playlist.blank? || target_playlist.spotify_id.present?
+
+    errors.add(:target_playlist, "must be a playlist that exists on Spotify")
   end
 
   def sources_must_be_present

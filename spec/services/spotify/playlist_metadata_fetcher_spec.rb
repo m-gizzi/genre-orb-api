@@ -15,8 +15,10 @@ RSpec.describe Spotify::PlaylistMetadataFetcher do
   describe "#call" do
     let(:spotify_playlists) do
       [
-        { "id" => "playlist_1", "name" => "My Playlist", "snapshot_id" => "snap1", "public" => true },
-        { "id" => "playlist_2", "name" => "Another", "snapshot_id" => "snap2", "public" => false },
+        { "id" => "playlist_1", "name" => "My Playlist", "description" => "From Spotify",
+          "snapshot_id" => "snap1", "public" => true, },
+        { "id" => "playlist_2", "name" => "Another", "description" => "",
+          "snapshot_id" => "snap2", "public" => false, },
       ]
     end
 
@@ -43,9 +45,24 @@ RSpec.describe Spotify::PlaylistMetadataFetcher do
 
       playlist = Playlist.find_by(spotify_id: "playlist_1")
       expect(playlist.name).to eq("My Playlist")
+      expect(playlist.description).to eq("From Spotify")
       expect(playlist.last_seen_snapshot_id).to eq("snap1")
       expect(playlist.is_public).to be(true)
       expect(playlist.available_on_spotify).to be(true)
+    end
+
+    it "stores a blank Spotify description as nil" do
+      service.call
+
+      expect(Playlist.find_by(spotify_id: "playlist_2").description).to be_nil
+    end
+
+    it "overwrites a locally edited description on the next fetch" do
+      create(:playlist, user: user, spotify_id: "playlist_1", name: "Stale", description: "Local edit")
+
+      service.call
+
+      expect(Playlist.find_by(spotify_id: "playlist_1").description).to eq("From Spotify")
     end
 
     it "creates liked songs playlist" do

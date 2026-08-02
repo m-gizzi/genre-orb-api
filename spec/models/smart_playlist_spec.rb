@@ -28,6 +28,16 @@ RSpec.describe SmartPlaylist do
       expect(duplicate.errors[:target_playlist_id]).to be_present
     end
 
+    it "rejects Liked Songs as a target" do
+      user = create(:user)
+      smart_playlist = build(:smart_playlist, user: user,
+                                              target_playlist: create(:liked_songs_playlist, user: user),)
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:target_playlist])
+        .to include("must be a playlist that exists on Spotify")
+    end
+
     it "rejects rules without match and rules keys" do
       smart_playlist = build(:smart_playlist, rules: { "foo" => "bar" })
 
