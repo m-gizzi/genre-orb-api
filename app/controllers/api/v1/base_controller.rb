@@ -30,8 +30,7 @@ module Api
       end
 
       def nested_params(key)
-        raw = params[key]
-        return ActionController::Parameters.new if raw.nil?
+        raw = params.fetch(key, ActionController::Parameters.new)
         raise ActionController::ParameterMissing, key unless raw.is_a?(ActionController::Parameters)
 
         raw
