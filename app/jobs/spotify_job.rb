@@ -7,7 +7,7 @@ class SpotifyJob < ApplicationJob
 
   around_perform do |_job, block|
     block.call
-  rescue SpotifyAdapter::RateLimitError => e
+  rescue Spotify::RateLimitError => e
     raise unless e.user_id
 
     SyncRateLimitState.pause_user!(e.user_id, e.retry_after)

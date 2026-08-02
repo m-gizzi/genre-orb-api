@@ -18,7 +18,7 @@ module Spotify
       sync_playlists(spotify_playlists)
 
       Result.new(success?: true, playlists: user.playlists)
-    rescue SpotifyAdapter::RateLimitError
+    rescue Spotify::RateLimitError
       raise
     rescue StandardError => e
       Rails.logger.error("PlaylistMetadataFetcher error for user #{user.id}: #{e.message}")
@@ -56,9 +56,9 @@ module Spotify
 
     def liked_songs_accessible?
       adapter.liked_songs(limit: 1).present?
-    rescue SpotifyAdapter::RateLimitError
+    rescue Spotify::RateLimitError
       raise
-    rescue SpotifyAdapter::ApiError
+    rescue Spotify::ApiError
       false
     end
 

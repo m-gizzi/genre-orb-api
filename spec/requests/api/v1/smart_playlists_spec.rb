@@ -4,7 +4,7 @@ require "rails_helper"
 
 RSpec.describe "Api::V1::SmartPlaylists" do
   let(:user) { create(:user) }
-  let(:create_url) { "#{SpotifyAdapter::BASE_URL}/users/spotify_user_1/playlists" }
+  let(:create_url) { "#{Spotify::Client::BASE_URL}/users/spotify_user_1/playlists" }
 
   def connect_spotify(owner = user)
     create(:service_connection, user: owner, service_user_id: "spotify_user_1",

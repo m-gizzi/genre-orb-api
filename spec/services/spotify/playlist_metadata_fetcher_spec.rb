@@ -134,11 +134,11 @@ RSpec.describe Spotify::PlaylistMetadataFetcher do
     context "when rate limited" do
       before do
         allow(adapter).to receive(:playlists)
-          .and_raise(SpotifyAdapter::RateLimitError.new(retry_after: 30, user_id: user.id))
+          .and_raise(Spotify::RateLimitError.new(retry_after: 30, user_id: user.id))
       end
 
       it "re-raises so the job can pause and re-enqueue" do
-        expect { service.call }.to raise_error(SpotifyAdapter::RateLimitError)
+        expect { service.call }.to raise_error(Spotify::RateLimitError)
       end
     end
 

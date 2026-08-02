@@ -4,7 +4,7 @@ require "rails_helper"
 
 RSpec.describe Spotify::PlaylistCreator do
   let(:user) { create(:user) }
-  let(:create_url) { "#{SpotifyAdapter::BASE_URL}/users/spotify_user_1/playlists" }
+  let(:create_url) { "#{Spotify::Client::BASE_URL}/users/spotify_user_1/playlists" }
   let(:attributes) { { name: "Metal Mix", description: "Heavy stuff", is_public: true } }
 
   before do
@@ -41,14 +41,14 @@ RSpec.describe Spotify::PlaylistCreator do
   it "leaves no local record when Spotify rejects the create" do
     stub_create(status: 500, body: { "error" => "boom" })
 
-    expect { described_class.new(user, attributes).call }.to raise_error(SpotifyAdapter::ApiError)
+    expect { described_class.new(user, attributes).call }.to raise_error(Spotify::ApiError)
     expect(Playlist.count).to eq(0)
   end
 
   it "surfaces a rate limit without creating a local record" do
     stub_request(:post, create_url).to_return(status: 429, headers: { "Retry-After" => "12" })
 
-    expect { described_class.new(user, attributes).call }.to raise_error(SpotifyAdapter::RateLimitError)
+    expect { described_class.new(user, attributes).call }.to raise_error(Spotify::RateLimitError)
     expect(Playlist.count).to eq(0)
   end
 

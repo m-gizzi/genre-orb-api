@@ -4,10 +4,10 @@ module SpotifyErrorRendering
   extend ActiveSupport::Concern
 
   included do
-    rescue_from SpotifyAdapter::ApiError, with: :render_spotify_unavailable
-    rescue_from SpotifyAdapter::AuthenticationError, with: :render_spotify_not_connected
-    rescue_from SpotifyAdapter::TokenRefreshError, with: :render_spotify_not_connected
-    rescue_from SpotifyAdapter::RateLimitError, with: :render_spotify_rate_limited
+    rescue_from Spotify::ApiError, with: :render_spotify_unavailable
+    rescue_from Spotify::AuthenticationError, with: :render_spotify_not_connected
+    rescue_from Spotify::TokenRefreshError, with: :render_spotify_not_connected
+    rescue_from Spotify::RateLimitError, with: :render_spotify_rate_limited
   end
 
   private

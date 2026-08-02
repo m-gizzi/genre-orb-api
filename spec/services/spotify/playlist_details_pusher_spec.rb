@@ -7,7 +7,7 @@ RSpec.describe Spotify::PlaylistDetailsPusher do
   let(:playlist) do
     create(:playlist, :with_spotify, user: user, name: "Old Name", description: "Old description")
   end
-  let(:update_url) { "#{SpotifyAdapter::BASE_URL}/playlists/#{playlist.spotify_id}" }
+  let(:update_url) { "#{Spotify::Client::BASE_URL}/playlists/#{playlist.spotify_id}" }
 
   before do
     create(:service_connection, user: user, service_user_id: "spotify_user_1",
@@ -70,7 +70,7 @@ RSpec.describe Spotify::PlaylistDetailsPusher do
     stub_update(status: 502)
 
     expect { described_class.new(playlist, { name: "New Name" }).call }
-      .to raise_error(SpotifyAdapter::ApiError)
+      .to raise_error(Spotify::ApiError)
 
     expect(playlist.reload.name).to eq("Old Name")
   end
@@ -79,7 +79,7 @@ RSpec.describe Spotify::PlaylistDetailsPusher do
     stub_request(:put, update_url).to_return(status: 429, headers: { "Retry-After" => "12" })
 
     expect { described_class.new(playlist, { name: "New Name" }).call }
-      .to raise_error(SpotifyAdapter::RateLimitError)
+      .to raise_error(Spotify::RateLimitError)
 
     expect(playlist.reload.name).to eq("Old Name")
   end

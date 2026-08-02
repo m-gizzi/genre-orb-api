@@ -270,7 +270,7 @@ RSpec.describe "Api::V1::Playlists" do
 
       context "when the playlist is on Spotify" do
         let(:playlist) { create(:playlist, :with_spotify, user: user, name: "Old Name") }
-        let(:update_url) { "#{SpotifyAdapter::BASE_URL}/playlists/#{playlist.spotify_id}" }
+        let(:update_url) { "#{Spotify::Client::BASE_URL}/playlists/#{playlist.spotify_id}" }
 
         before do
           create(:service_connection, user: user, service_user_id: "spotify_user_1",
@@ -325,7 +325,7 @@ RSpec.describe "Api::V1::Playlists" do
   end
 
   describe "POST /api/v1/playlists" do
-    let(:create_url) { "#{SpotifyAdapter::BASE_URL}/users/spotify_user_1/playlists" }
+    let(:create_url) { "#{Spotify::Client::BASE_URL}/users/spotify_user_1/playlists" }
     let(:payload) { { playlist: { name: "Metal Mix", description: "Heavy", is_public: true } } }
 
     context "when not authenticated" do

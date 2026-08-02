@@ -29,7 +29,7 @@ detectors:
   ControlParameter:
     exclude:
       - Auth::SessionsController#respond_to_on_destroy
-      - SpotifyAdapter::RateLimitError#initialize
+      - Spotify::RateLimitError#initialize
 
   FeatureEnvy:
     enabled: false
@@ -41,6 +41,7 @@ detectors:
       - ServiceConnection#token_expiring_soon?
       - Spotify::PlaylistSyncStrategy#snapshot_unchanged?
       - Tracks::Filter#filter_explicit
+      - SmartPlaylist#sources_must_belong_to_owner
 
   TooManyStatements:
     enabled: false
@@ -58,6 +59,7 @@ detectors:
     exclude:
       - ArtistMetadataSyncJob#perform
       - Spotify::ArtistMetadataSyncInitializer#initialize
+      - SpotifyAdapter#create_playlist
 
   TooManyMethods:
     max_methods: 20
@@ -68,6 +70,7 @@ detectors:
   DataClump:
     exclude:
       - SpotifyAdapter
+      - Spotify::Client
       - Spotify::PlaylistSyncSetup
       - Spotify::TrackUpserter
 

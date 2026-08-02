@@ -5,7 +5,7 @@ require "rails_helper"
 RSpec.describe SmartPlaylists::Creator do
   let(:user) { create(:user) }
   let(:source) { create(:playlist, :with_spotify, user: user) }
-  let(:create_url) { "#{SpotifyAdapter::BASE_URL}/users/spotify_user_1/playlists" }
+  let(:create_url) { "#{Spotify::Client::BASE_URL}/users/spotify_user_1/playlists" }
 
   before do
     create(:service_connection, user: user, service_user_id: "spotify_user_1",
@@ -103,7 +103,7 @@ RSpec.describe SmartPlaylists::Creator do
     it "creates nothing locally when Spotify rejects the playlist" do
       stub_create(status: 500, body: { "error" => "boom" })
 
-      expect { described_class.new(user, params).call }.to raise_error(SpotifyAdapter::ApiError)
+      expect { described_class.new(user, params).call }.to raise_error(Spotify::ApiError)
 
       expect(SmartPlaylist.count).to eq(0)
       expect(Playlist.where(name: "Metal Mix")).to be_empty
