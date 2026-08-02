@@ -41,6 +41,7 @@ detectors:
       - ServiceConnection#token_expiring_soon?
       - Spotify::PlaylistSyncStrategy#snapshot_unchanged?
       - Tracks::Filter#filter_explicit
+      - Playlists::Filter#filter_sync_enabled
       - SmartPlaylist#sources_must_belong_to_owner
 
   TooManyStatements:

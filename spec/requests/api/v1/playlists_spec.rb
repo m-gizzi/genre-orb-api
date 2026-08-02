@@ -125,6 +125,25 @@ RSpec.describe "Api::V1::Playlists" do
         expect(response.parsed_body["data"].pluck("id")).to contain_exactly(rock.id)
       end
 
+      it "filters by sync_enabled" do
+        synced = create(:playlist, :sync_enabled, user: user, available_on_spotify: true)
+        create(:playlist, user: user, available_on_spotify: true)
+
+        get "/api/v1/playlists", params: { sync_enabled: true }
+
+        expect(response.parsed_body["data"].pluck("id")).to contain_exactly(synced.id)
+        expect(response.parsed_body["meta"]["total"]).to eq(1)
+      end
+
+      it "returns every playlist when sync_enabled is blank" do
+        create(:playlist, :sync_enabled, user: user, available_on_spotify: true)
+        create(:playlist, user: user, available_on_spotify: true)
+
+        get "/api/v1/playlists", params: { sync_enabled: "" }
+
+        expect(response.parsed_body["meta"]["total"]).to eq(2)
+      end
+
       it "excludes Liked Songs from the index" do
         regular = create(:playlist, user: user, name: "Mix", available_on_spotify: true)
         create(:liked_songs_playlist, user: user)
