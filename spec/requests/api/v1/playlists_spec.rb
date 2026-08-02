@@ -326,7 +326,7 @@ RSpec.describe "Api::V1::Playlists" do
 
   describe "POST /api/v1/playlists" do
     let(:create_url) { "#{Spotify::Client::BASE_URL}/users/spotify_user_1/playlists" }
-    let(:payload) { { playlist: { name: "Metal Mix", description: "Heavy", is_public: true } } }
+    let(:payload) { { playlist: { name: "Metal Mix", description: "Heavy" } } }
 
     context "when not authenticated" do
       it "returns 401 unauthorized" do

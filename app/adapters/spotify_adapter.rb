@@ -34,9 +34,9 @@ class SpotifyAdapter
     client.get("me/tracks", params: { limit: limit, offset: offset })
   end
 
-  def create_playlist(spotify_user_id, name:, description: nil, public: false)
+  def create_playlist(spotify_user_id, name:, description: nil)
     client.post("users/#{spotify_user_id}/playlists",
-                body: { name: name, description: description, public: public }.compact,)
+                body: { name: name, description: description }.compact,)
   end
 
   def update_playlist_details(playlist_id, attributes)

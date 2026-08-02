@@ -21,7 +21,7 @@ module Spotify
     private
 
     def local_attributes
-      attributes.slice(:name, :description, :is_public).merge(
+      attributes.slice(:name, :description).merge(
         sync_enabled: true,
         available_on_spotify: true,
       )
@@ -33,7 +33,6 @@ module Spotify
         connection.service_user_id,
         name: attributes[:name],
         description: attributes[:description].presence,
-        public: ActiveModel::Type::Boolean.new.cast(attributes[:is_public]) || false,
       )
     end
   end

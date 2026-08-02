@@ -2,12 +2,11 @@
 
 module Spotify
   class PlaylistDetailsPusher
-    MIRRORED_ATTRIBUTES = %w[name description is_public].freeze
+    MIRRORED_ATTRIBUTES = %w[name description].freeze
 
     SPOTIFY_KEYS = {
       "name" => :name,
       "description" => :description,
-      "is_public" => :public,
     }.freeze
 
     attr_reader :playlist, :attributes

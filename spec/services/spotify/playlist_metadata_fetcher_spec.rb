@@ -16,9 +16,8 @@ RSpec.describe Spotify::PlaylistMetadataFetcher do
     let(:spotify_playlists) do
       [
         { "id" => "playlist_1", "name" => "My Playlist", "description" => "From Spotify",
-          "snapshot_id" => "snap1", "public" => true, },
-        { "id" => "playlist_2", "name" => "Another", "description" => "",
-          "snapshot_id" => "snap2", "public" => false, },
+          "snapshot_id" => "snap1", },
+        { "id" => "playlist_2", "name" => "Another", "description" => "", "snapshot_id" => "snap2" },
       ]
     end
 
@@ -47,7 +46,6 @@ RSpec.describe Spotify::PlaylistMetadataFetcher do
       expect(playlist.name).to eq("My Playlist")
       expect(playlist.description).to eq("From Spotify")
       expect(playlist.last_seen_snapshot_id).to eq("snap1")
-      expect(playlist.is_public).to be(true)
       expect(playlist.available_on_spotify).to be(true)
     end
 
@@ -80,11 +78,11 @@ RSpec.describe Spotify::PlaylistMetadataFetcher do
 
     context "when playlists span multiple pages" do
       let(:page1_playlists) do
-        [{ "id" => "p1", "name" => "Page 1", "snapshot_id" => "s1", "public" => false }]
+        [{ "id" => "p1", "name" => "Page 1", "snapshot_id" => "s1" }]
       end
 
       let(:page2_playlists) do
-        [{ "id" => "p2", "name" => "Page 2", "snapshot_id" => "s2", "public" => false }]
+        [{ "id" => "p2", "name" => "Page 2", "snapshot_id" => "s2" }]
       end
 
       before do

@@ -59,7 +59,6 @@ detectors:
     exclude:
       - ArtistMetadataSyncJob#perform
       - Spotify::ArtistMetadataSyncInitializer#initialize
-      - SpotifyAdapter#create_playlist
 
   TooManyMethods:
     max_methods: 20

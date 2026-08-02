@@ -47,11 +47,11 @@ module Api
       private
 
       def create_params
-        params.expect(playlist: %i[name description is_public])
+        params.expect(playlist: %i[name description])
       end
 
       def update_params
-        params.expect(playlist: %i[name description is_public sync_enabled])
+        params.expect(playlist: %i[name description sync_enabled])
       end
     end
   end

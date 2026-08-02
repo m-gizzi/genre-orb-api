@@ -73,10 +73,10 @@ RSpec.describe SpotifyAdapter do
   describe "#create_playlist" do
     it "posts the playlist attributes to the user's playlists endpoint" do
       stub = stub_request(:post, "#{Spotify::Client::BASE_URL}/users/spotify_user_1/playlists")
-             .with(body: { name: "Metal Mix", description: "Heavy", public: true }.to_json)
+             .with(body: { name: "Metal Mix", description: "Heavy" }.to_json)
              .to_return(status: 201, body: { "id" => "new_playlist" }.to_json, headers: json_headers)
 
-      result = adapter.create_playlist("spotify_user_1", name: "Metal Mix", description: "Heavy", public: true)
+      result = adapter.create_playlist("spotify_user_1", name: "Metal Mix", description: "Heavy")
 
       expect(stub).to have_been_requested
       expect(result).to eq("id" => "new_playlist")
@@ -84,7 +84,7 @@ RSpec.describe SpotifyAdapter do
 
     it "omits a nil description" do
       stub = stub_request(:post, "#{Spotify::Client::BASE_URL}/users/spotify_user_1/playlists")
-             .with(body: { name: "Metal Mix", public: false }.to_json)
+             .with(body: { name: "Metal Mix" }.to_json)
              .to_return(status: 201, body: { "id" => "new_playlist" }.to_json, headers: json_headers)
 
       adapter.create_playlist("spotify_user_1", name: "Metal Mix")

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_213225) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_02_015256) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -119,7 +119,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_213225) do
     t.datetime "created_at", null: false
     t.bigint "current_version_id"
     t.string "description"
-    t.boolean "is_public", default: false, null: false
     t.string "last_seen_snapshot_id"
     t.datetime "last_synced_at"
     t.string "last_synced_snapshot_id"

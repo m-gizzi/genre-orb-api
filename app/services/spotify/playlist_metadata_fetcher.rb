@@ -69,7 +69,7 @@ module Spotify
       Playlist.upsert_all(
         records,
         unique_by: %i[user_id spotify_id],
-        update_only: %i[name description last_seen_snapshot_id is_public available_on_spotify],
+        update_only: %i[name description last_seen_snapshot_id available_on_spotify],
       )
     end
 
@@ -80,7 +80,6 @@ module Spotify
         name: spotify_playlist["name"],
         description: spotify_playlist["description"].presence,
         last_seen_snapshot_id: spotify_playlist["snapshot_id"],
-        is_public: spotify_playlist["public"] || false,
         available_on_spotify: true,
         created_at: Time.current,
         updated_at: Time.current,

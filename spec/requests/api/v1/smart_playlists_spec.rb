@@ -158,7 +158,7 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       let(:payload) do
         {
           smart_playlist: {
-            target_playlist_attributes: { name: "Metal Mix", description: "Heavy", is_public: false },
+            target_playlist_attributes: { name: "Metal Mix", description: "Heavy" },
             source_playlist_ids: [source.id],
           },
         }

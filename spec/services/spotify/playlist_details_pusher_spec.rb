@@ -39,12 +39,12 @@ RSpec.describe Spotify::PlaylistDetailsPusher do
     expect(stub).to have_been_requested
   end
 
-  it "maps is_public onto Spotify's public key" do
+  it "never sends Spotify's public key" do
     stub = stub_request(:put, update_url)
-           .with(body: { public: true }.to_json)
+           .with(body: { name: "New Name" }.to_json)
            .to_return(status: 200, body: "")
 
-    described_class.new(playlist, { is_public: true }).call
+    described_class.new(playlist, { name: "New Name" }).call
 
     expect(stub).to have_been_requested
   end

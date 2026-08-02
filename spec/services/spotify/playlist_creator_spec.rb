@@ -5,7 +5,7 @@ require "rails_helper"
 RSpec.describe Spotify::PlaylistCreator do
   let(:user) { create(:user) }
   let(:create_url) { "#{Spotify::Client::BASE_URL}/users/spotify_user_1/playlists" }
-  let(:attributes) { { name: "Metal Mix", description: "Heavy stuff", is_public: true } }
+  let(:attributes) { { name: "Metal Mix", description: "Heavy stuff" } }
 
   before do
     create(:service_connection, user: user, service_user_id: "spotify_user_1",
@@ -26,7 +26,17 @@ RSpec.describe Spotify::PlaylistCreator do
     expect(playlist.spotify_id).to eq("spotify_new_1")
     expect(playlist.name).to eq("Metal Mix")
     expect(playlist.description).to eq("Heavy stuff")
-    expect(playlist.is_public).to be(true)
+  end
+
+  it "does not send Spotify's public key, leaving its default in place" do
+    stub = stub_request(:post, create_url)
+           .with(body: { name: "Metal Mix", description: "Heavy stuff" }.to_json)
+           .to_return(status: 201, body: { "id" => "spotify_new_1" }.to_json,
+                      headers: { "Content-Type" => "application/json" },)
+
+    described_class.new(user, attributes).call
+
+    expect(stub).to have_been_requested
   end
 
   it "enables syncing and marks the playlist available" do

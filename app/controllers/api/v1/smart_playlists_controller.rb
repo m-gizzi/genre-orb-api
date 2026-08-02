@@ -50,7 +50,7 @@ module Api
           smart_playlist: [
             :target_playlist_id,
             { source_playlist_ids: [],
-              target_playlist_attributes: %i[name description is_public], },
+              target_playlist_attributes: %i[name description], },
           ],
         )
       end
