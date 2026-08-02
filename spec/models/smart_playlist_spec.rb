@@ -92,6 +92,95 @@ RSpec.describe SmartPlaylist do
       expect(with_rules([{ "field" => "genre", "operator" => "equals", "value" => false }])).to be_valid
     end
 
+    it "rejects a field the catalog dropped" do
+      smart_playlist = with_rules([{ "field" => "play_count", "operator" => "greater_than", "value" => 5 }])
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:rules]).to include('has an unknown field: "play_count"')
+    end
+
+    it "rejects an operator the field does not support" do
+      smart_playlist = with_rules([{ "field" => "genre", "operator" => "greater_than", "value" => "rock" }])
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:rules])
+        .to include('does not support the operator "greater_than" on the field "genre"')
+    end
+
+    it "rejects a list operator given a scalar" do
+      smart_playlist = with_rules([{ "field" => "artist", "operator" => "in", "value" => "Gojira" }])
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:rules]).to include("must have at least one value when matching a list")
+    end
+
+    it "accepts a list operator given a list" do
+      expect(
+        with_rules([{ "field" => "artist", "operator" => "in", "value" => %w[Gojira Meshuggah] }]),
+      ).to be_valid
+    end
+
+    it "rejects a range operator without exactly two values" do
+      smart_playlist = with_rules([{ "field" => "year", "operator" => "between", "value" => [2020] }])
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:rules])
+        .to include("must have exactly two values when comparing a range")
+    end
+
+    it "accepts a range operator given two values" do
+      expect(
+        with_rules([{ "field" => "year", "operator" => "between", "value" => [2020, 2024] }]),
+      ).to be_valid
+    end
+
+    it "rejects a scalar operator given a blank value" do
+      smart_playlist = with_rules([{ "field" => "title", "operator" => "contains", "value" => "" }])
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:rules]).to include("must have a single value")
+    end
+
+    it "accepts a relative date value" do
+      expect(
+        with_rules([
+                     { "field" => "date_added", "operator" => "in_the_last",
+                       "value" => { "count" => 30, "unit" => "days" }, },
+                   ]),
+      ).to be_valid
+    end
+
+    it "rejects a relative date with an unknown unit" do
+      smart_playlist = with_rules([
+                                    { "field" => "date_added", "operator" => "in_the_last",
+                                      "value" => { "count" => 30, "unit" => "fortnights" }, },
+                                  ])
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:rules])
+        .to include("must use one of these units: #{Rules::FieldCatalog::RELATIVE_UNITS.join(", ")}")
+    end
+
+    it "rejects a relative date with a non-positive count" do
+      smart_playlist = with_rules([
+                                    { "field" => "date_added", "operator" => "in_the_last",
+                                      "value" => { "count" => 0, "unit" => "days" }, },
+                                  ])
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:rules]).to include("must have a whole number count")
+    end
+
+    it "accepts the newly catalogued fields" do
+      expect(
+        with_rules([
+                     { "field" => "popularity", "operator" => "greater_than", "value" => 50 },
+                     { "field" => "explicit", "operator" => "equals", "value" => false },
+                     { "field" => "duration", "operator" => "between", "value" => [120_000, 300_000] },
+                   ]),
+      ).to be_valid
+    end
+
     it "rejects an unknown match type" do
       smart_playlist = build(:smart_playlist, rules: { "match" => "some", "rules" => [] })
 

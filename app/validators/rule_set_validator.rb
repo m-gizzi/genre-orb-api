@@ -1,15 +1,11 @@
 # frozen_string_literal: true
 
 class RuleSetValidator < ActiveModel::EachValidator
-  MATCH_TYPES = %w[all any].freeze
-  FIELDS = %w[genre artist album title year date_added duration play_count last_played].freeze
-  OPERATORS = %w[
-    equals not_equals contains starts_with ends_with
-    greater_than less_than between in not_in
-  ].freeze
+  Catalog = Rules::FieldCatalog
 
-  MAX_NODES = 100
-  MAX_DEPTH = 5
+  MATCH_TYPES = Catalog::MATCH_TYPES
+  MAX_NODES = Catalog::MAX_NODES
+  MAX_DEPTH = Catalog::MAX_DEPTH
 
   def validate_each(record, attribute, value)
     return if value.blank?
@@ -18,6 +14,8 @@ class RuleSetValidator < ActiveModel::EachValidator
   end
 
   class Inspection
+    SCALARS = [String, Numeric, TrueClass, FalseClass].freeze
+
     def initialize(root)
       @root = root
       @collected = []
@@ -59,9 +57,14 @@ class RuleSetValidator < ActiveModel::EachValidator
       return add("each rule must be an object") unless condition.is_a?(Hash)
       return unless within_node_limit?
 
-      validate_field(condition["field"])
-      validate_operator(condition["operator"])
-      add("each rule must have a value") unless condition.key?("value")
+      field = condition["field"]
+      operator = condition["operator"]
+
+      return unless known_field?(field) && known_operator?(operator)
+      return unless supported_pairing?(field, operator)
+      return add("each rule must have a value") unless condition.key?("value")
+
+      validate_value(condition["value"], Catalog.arity(operator))
     end
 
     def validate_match(match)
@@ -72,12 +75,66 @@ class RuleSetValidator < ActiveModel::EachValidator
       add("'not' must be true or false") unless [nil, true, false].include?(negation)
     end
 
-    def validate_field(field)
-      add("has an unknown field: #{field.inspect}") unless FIELDS.include?(field)
+    def known_field?(field)
+      return true if Catalog.field?(field)
+
+      add("has an unknown field: #{field.inspect}")
+      false
     end
 
-    def validate_operator(operator)
-      add("has an unknown operator: #{operator.inspect}") unless OPERATORS.include?(operator)
+    def known_operator?(operator)
+      return true if Catalog.operator?(operator)
+
+      add("has an unknown operator: #{operator.inspect}")
+      false
+    end
+
+    def supported_pairing?(field, operator)
+      return true if Catalog.supports?(field, operator)
+
+      add("does not support the operator #{operator.inspect} on the field #{field.inspect}")
+      false
+    end
+
+    def validate_value(value, arity)
+      case arity
+      when :one then validate_scalar(value)
+      when :two then validate_pair(value)
+      when :many then validate_list(value)
+      when :relative then validate_relative(value)
+      end
+    end
+
+    def validate_scalar(value)
+      add("must have a single value") unless scalar?(value)
+    end
+
+    def validate_pair(value)
+      return if value.is_a?(Array) && value.size == 2 && value.all? { |item| scalar?(item) }
+
+      add("must have exactly two values when comparing a range")
+    end
+
+    def validate_list(value)
+      return if value.is_a?(Array) && value.any? && value.all? { |item| scalar?(item) }
+
+      add("must have at least one value when matching a list")
+    end
+
+    def validate_relative(value)
+      return add("must have a count and a unit") unless value.is_a?(Hash)
+
+      count = value["count"]
+      add("must have a whole number count") unless count.is_a?(Integer) && count.positive?
+
+      unit = value["unit"]
+      return if Catalog::RELATIVE_UNITS.include?(unit)
+
+      add("must use one of these units: #{Catalog::RELATIVE_UNITS.join(", ")}")
+    end
+
+    def scalar?(value)
+      SCALARS.any? { |type| value.is_a?(type) } && value != ""
     end
 
     def group_shaped?(node)

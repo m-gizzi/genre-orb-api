@@ -44,7 +44,9 @@ Rails.application.routes.draw do
         get :tracks, on: :member
         get :liked, on: :collection
       end
-      resources :smart_playlists, only: %i[index show create update destroy]
+      resources :smart_playlists, only: %i[index show create update destroy] do
+        get :schema, on: :collection
+      end
       resources :artists, only: %i[index show] do
         collection do
           get :sync_status

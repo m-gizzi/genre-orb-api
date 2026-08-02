@@ -7,6 +7,10 @@ module Api
 
       rescue_from SmartPlaylists::Creator::MissingTargetError, with: :render_missing_target
 
+      def schema
+        render_data(Rules::FieldCatalog.to_h)
+      end
+
       def index
         scope = SmartPlaylists::Filter.new(current_user, params).call
 
