@@ -27,7 +27,7 @@ module Playlists
 
     def filter_sync_enabled(relation)
       value = params[:sync_enabled]
-      return relation if value.nil? || value == ""
+      return relation if value.blank?
 
       relation.where(sync_enabled: ActiveModel::Type::Boolean.new.cast(value))
     end

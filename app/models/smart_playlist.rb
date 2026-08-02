@@ -58,7 +58,7 @@ class SmartPlaylist < ApplicationRecord
   end
 
   def sources_must_belong_to_owner
-    return if target_playlist.nil?
+    return unless target_playlist
 
     owner_id = target_playlist.user_id
     return if live_sources.all? { |source| source.playlist&.user_id == owner_id }
