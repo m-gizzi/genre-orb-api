@@ -28,13 +28,22 @@ RSpec.describe Playlist do
   end
 
   describe "smart playlist targets" do
-    it "forces sync_enabled on when the playlist is rule-managed" do
-      smart_playlist = create(:smart_playlist)
-      target = smart_playlist.target_playlist
+    it "turns sync on when the playlist becomes rule-managed" do
+      target = create(:playlist, :with_spotify, sync_enabled: false)
 
-      target.update!(sync_enabled: false)
+      create(:smart_playlist, target_playlist: target)
 
       expect(target.reload.sync_enabled).to be(true)
+    end
+
+    it "refuses to turn sync off for a rule-managed playlist" do
+      target = create(:smart_playlist).target_playlist
+
+      target.sync_enabled = false
+
+      expect(target).not_to be_valid
+      expect(target.errors[:sync_enabled])
+        .to include("cannot be turned off for a smart playlist's target")
     end
 
     it "leaves sync_enabled alone for a regular playlist" do

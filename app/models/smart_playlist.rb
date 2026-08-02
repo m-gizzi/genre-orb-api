@@ -20,6 +20,8 @@ class SmartPlaylist < ApplicationRecord
   validate :sources_must_belong_to_owner
   validate :rules_must_be_present_when_enabled
 
+  after_create :enable_target_sync
+
   scope :enabled, -> { where(is_enabled: true) }
   scope :needs_evaluation, lambda {
     enabled.where("last_evaluated_at IS NULL OR last_evaluated_at < ?", EVALUATION_EXPIRES.ago)
@@ -30,6 +32,10 @@ class SmartPlaylist < ApplicationRecord
   end
 
   private
+
+  def enable_target_sync
+    target_playlist.update!(sync_enabled: true) unless target_playlist.sync_enabled?
+  end
 
   def rules_must_be_valid_structure
     return if rules.blank?

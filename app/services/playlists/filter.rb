@@ -17,7 +17,7 @@ module Playlists
     )
 
     def call
-      relation = user.playlists.regular.available.includes(:current_version)
+      relation = user.playlists.regular.available.includes(:current_version, :smart_playlist_as_target)
       relation = search(relation, Playlist.arel_table[:name])
       relation.order(*sort.terms)
     end

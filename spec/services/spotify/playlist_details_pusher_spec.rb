@@ -4,14 +4,15 @@ require "rails_helper"
 
 RSpec.describe Spotify::PlaylistDetailsPusher do
   let(:user) { create(:user) }
-  let!(:connection) do
-    create(:service_connection, user: user, service_user_id: "spotify_user_1",
-                                access_token: "test_token", token_expires_at: 1.hour.from_now)
-  end
   let(:playlist) do
     create(:playlist, :with_spotify, user: user, name: "Old Name", description: "Old description")
   end
   let(:update_url) { "#{SpotifyAdapter::BASE_URL}/playlists/#{playlist.spotify_id}" }
+
+  before do
+    create(:service_connection, user: user, service_user_id: "spotify_user_1",
+                                access_token: "test_token", token_expires_at: 1.hour.from_now,)
+  end
 
   def stub_update(status: 200)
     stub_request(:put, update_url).to_return(status: status, body: "")

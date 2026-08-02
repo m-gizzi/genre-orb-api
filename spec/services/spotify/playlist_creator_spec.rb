@@ -4,13 +4,13 @@ require "rails_helper"
 
 RSpec.describe Spotify::PlaylistCreator do
   let(:user) { create(:user) }
-  let!(:connection) do
-    create(:service_connection, user: user, service_user_id: "spotify_user_1",
-                                access_token: "test_token", token_expires_at: 1.hour.from_now)
-  end
-
   let(:create_url) { "#{SpotifyAdapter::BASE_URL}/users/spotify_user_1/playlists" }
   let(:attributes) { { name: "Metal Mix", description: "Heavy stuff", is_public: true } }
+
+  before do
+    create(:service_connection, user: user, service_user_id: "spotify_user_1",
+                                access_token: "test_token", token_expires_at: 1.hour.from_now,)
+  end
 
   def stub_create(status: 201, body: { "id" => "spotify_new_1" })
     stub_request(:post, create_url)

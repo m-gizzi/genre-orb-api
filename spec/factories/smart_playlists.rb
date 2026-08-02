@@ -3,7 +3,7 @@
 FactoryBot.define do
   factory :smart_playlist do
     transient do
-      user { create(:user) }
+      user { association :user }
       source_count { 1 }
     end
 
@@ -17,7 +17,7 @@ FactoryBot.define do
 
       owner = smart_playlist.target_playlist.user
       evaluator.source_count.times do
-        smart_playlist.smart_playlist_sources.build(playlist: create(:playlist, user: owner))
+        smart_playlist.smart_playlist_sources.build(playlist: build(:playlist, user: owner))
       end
     end
 
@@ -44,7 +44,7 @@ FactoryBot.define do
 
       after(:build) do |smart_playlist|
         smart_playlist.smart_playlist_sources.build(
-          playlist: create(:liked_songs_playlist, user: smart_playlist.target_playlist.user),
+          playlist: build(:liked_songs_playlist, user: smart_playlist.target_playlist.user),
         )
       end
     end

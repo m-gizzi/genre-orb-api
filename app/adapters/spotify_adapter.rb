@@ -58,7 +58,7 @@ class SpotifyAdapter
 
   def create_playlist(spotify_user_id, name:, description: nil, public: false)
     request(:post, "users/#{spotify_user_id}/playlists",
-            body: { name: name, description: description, public: public }.compact)
+            body: { name: name, description: description, public: public }.compact,)
   end
 
   def update_playlist_details(playlist_id, attributes)

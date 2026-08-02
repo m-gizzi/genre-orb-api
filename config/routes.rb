@@ -40,10 +40,11 @@ Rails.application.routes.draw do
         post :fetch_playlists
         post :sync
       end
-      resources :playlists, only: %i[index show update] do
+      resources :playlists, only: %i[index show create update] do
         get :tracks, on: :member
         get :liked, on: :collection
       end
+      resources :smart_playlists, only: %i[index show create update destroy]
       resources :artists, only: %i[index show] do
         collection do
           get :sync_status
