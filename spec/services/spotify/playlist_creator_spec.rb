@@ -71,6 +71,17 @@ RSpec.describe Spotify::PlaylistCreator do
     expect(stub).not_to have_been_requested
   end
 
+  it "raises without a local record when Spotify is not connected" do
+    user.spotify_connection.destroy!
+    stub = stub_create
+
+    expect { described_class.new(user.reload, attributes).call }
+      .to raise_error(Spotify::AuthenticationError)
+
+    expect(stub).not_to have_been_requested
+    expect(Playlist.count).to eq(0)
+  end
+
   it "rejects a description longer than Spotify allows" do
     stub = stub_create
 

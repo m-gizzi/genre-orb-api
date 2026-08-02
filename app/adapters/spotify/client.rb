@@ -8,6 +8,8 @@ module Spotify
     TOKEN_URL = "https://accounts.spotify.com/api/token"
 
     def initialize(service_connection)
+      raise AuthenticationError, "Spotify is not connected" unless service_connection
+
       @service_connection = service_connection
     end
 

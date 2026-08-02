@@ -329,6 +329,18 @@ RSpec.describe "Api::V1::Playlists" do
         end
       end
 
+      context "when the playlist is on Spotify but the user disconnected" do
+        let(:playlist) { create(:playlist, :with_spotify, user: user, name: "Old Name") }
+
+        it "returns 422 and keeps the old values" do
+          patch "/api/v1/playlists/#{playlist.id}", params: { playlist: { name: "New Name" } }
+
+          expect(response).to have_http_status(:unprocessable_content)
+          expect(response.parsed_body["errors"].first["code"]).to eq("spotify_not_connected")
+          expect(playlist.reload.name).to eq("Old Name")
+        end
+      end
+
       context "when the playlist is Liked Songs" do
         let(:playlist) { create(:liked_songs_playlist, user: user) }
 

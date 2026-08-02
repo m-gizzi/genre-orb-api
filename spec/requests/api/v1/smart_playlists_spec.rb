@@ -186,6 +186,28 @@ RSpec.describe "Api::V1::SmartPlaylists" do
         expect(Playlist.where(name: "Metal Mix")).to be_empty
       end
     end
+
+    context "when creating a new playlist without Spotify connected" do
+      before { sign_in user }
+
+      let(:payload) do
+        {
+          smart_playlist: {
+            target_playlist_attributes: { name: "Metal Mix" },
+            source_playlist_ids: [source.id],
+          },
+        }
+      end
+
+      it "returns 422 and creates nothing" do
+        post "/api/v1/smart_playlists", params: payload
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body["errors"].first["code"]).to eq("spotify_not_connected")
+        expect(SmartPlaylist.count).to eq(0)
+        expect(Playlist.where(name: "Metal Mix")).to be_empty
+      end
+    end
   end
 
   describe "PATCH /api/v1/smart_playlists/:id" do
