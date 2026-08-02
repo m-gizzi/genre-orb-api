@@ -14,8 +14,7 @@ class SmartPlaylist < ApplicationRecord
   delegate :user, :user_id, :name, to: :target_playlist
 
   validates :target_playlist_id, uniqueness: true
-  validates :rules, presence: true
-  validate :rules_must_be_valid_structure
+  validates :rules, presence: true, rule_set: true
   validate :target_must_exist_on_spotify
   validate :sources_must_be_present
   validate :sources_must_belong_to_owner
@@ -38,13 +37,6 @@ class SmartPlaylist < ApplicationRecord
     target_playlist.update!(sync_enabled: true) unless target_playlist.sync_enabled?
   end
 
-  def rules_must_be_valid_structure
-    return if rules.blank?
-    return if rules.is_a?(Hash) && rules.key?("match") && rules.key?("rules")
-
-    errors.add(:rules, "must have 'match' and 'rules' keys")
-  end
-
   def target_must_exist_on_spotify
     return if target_playlist.blank? || target_playlist.spotify_id.present?
 
@@ -59,11 +51,16 @@ class SmartPlaylist < ApplicationRecord
 
   def sources_must_belong_to_owner
     return unless target_playlist
-
-    owner_id = target_playlist.user_id
-    return if live_sources.all? { |source| source.playlist&.user_id == owner_id }
+    return if source_user_ids.all?(target_playlist.user_id)
 
     errors.add(:source_playlists, "must belong to the same user as the target playlist")
+  end
+
+  def source_user_ids
+    assigned, stored = live_sources.partition { |source| source.association(:playlist).loaded? }
+
+    assigned.map { |source| source.playlist&.user_id } +
+      Playlist.where(id: stored.map(&:playlist_id)).pluck(:user_id)
   end
 
   def live_sources

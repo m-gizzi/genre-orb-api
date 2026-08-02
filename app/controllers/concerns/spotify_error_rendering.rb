@@ -4,6 +4,8 @@ module SpotifyErrorRendering
   extend ActiveSupport::Concern
 
   included do
+    # rescue_from matches in reverse registration order, so RateLimitError must stay
+    # below its parent ApiError or every 429 renders as a 502.
     rescue_from Spotify::ApiError, with: :render_spotify_unavailable
     rescue_from Spotify::AuthenticationError, with: :render_spotify_not_connected
     rescue_from Spotify::TokenRefreshError, with: :render_spotify_not_connected

@@ -32,8 +32,6 @@ module Api
       end
 
       def create
-        return render_spotify_not_connected unless current_user.spotify_connected?
-
         playlist = Spotify::PlaylistCreator.new(current_user, create_params).call
         render_data(PlaylistSerializer.new(playlist).serializable_hash, status: :created)
       end

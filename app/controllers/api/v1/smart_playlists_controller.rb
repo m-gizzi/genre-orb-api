@@ -25,9 +25,12 @@ module Api
 
       def update
         smart_playlist = find_smart_playlist
-        smart_playlist.assign_attributes(update_params)
-        assign_sources(smart_playlist) if smart_playlist_params.key?(:source_playlist_ids)
-        smart_playlist.save!
+
+        SmartPlaylist.transaction do
+          smart_playlist.assign_attributes(update_params)
+          assign_sources(smart_playlist) if smart_playlist_params.key?(:source_playlist_ids)
+          smart_playlist.save!
+        end
 
         render_data(SmartPlaylistDetailSerializer.new(smart_playlist.reload).serializable_hash)
       end
@@ -56,7 +59,7 @@ module Api
       end
 
       def smart_playlist_params
-        @smart_playlist_params ||= params.fetch(:smart_playlist, {})
+        @smart_playlist_params ||= nested_params(:smart_playlist)
       end
 
       def update_params
@@ -64,8 +67,18 @@ module Api
       end
 
       def assign_sources(smart_playlist)
-        ids = Array(smart_playlist_params[:source_playlist_ids]).map(&:to_i).uniq
-        smart_playlist.source_playlist_ids = current_user.playlists.where(id: ids).ids
+        smart_playlist.source_playlist_ids = current_user.playlists.where(id: submitted_source_ids).ids
+      end
+
+      def submitted_source_ids
+        raw = smart_playlist_params[:source_playlist_ids]
+        raise ActionController::ParameterMissing, :source_playlist_ids unless list_of_ids?(raw)
+
+        raw.map(&:to_i).uniq
+      end
+
+      def list_of_ids?(value)
+        value.is_a?(Array) && value.all? { |id| id.is_a?(String) || id.is_a?(Integer) }
       end
 
       def render_missing_target

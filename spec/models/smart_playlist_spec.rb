@@ -45,6 +45,10 @@ RSpec.describe SmartPlaylist do
       expect(smart_playlist.errors[:rules]).to include("must have 'match' and 'rules' keys")
     end
 
+    it "accepts the nested groups the query builder supports" do
+      expect(build(:smart_playlist, :complex_rules)).to be_valid
+    end
+
     it "cannot be enabled while the ruleset is empty" do
       smart_playlist = build(:smart_playlist, is_enabled: true)
 
@@ -55,6 +59,100 @@ RSpec.describe SmartPlaylist do
 
     it "can be enabled once it has a rule" do
       expect(build(:smart_playlist, :enabled)).to be_valid
+    end
+  end
+
+  describe "rule set validation" do
+    def with_rules(rules)
+      build(:smart_playlist, rules: { "match" => "all", "rules" => rules })
+    end
+
+    it "rejects an unknown field" do
+      smart_playlist = with_rules([{ "field" => "bpm", "operator" => "equals", "value" => "120" }])
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:rules]).to include('has an unknown field: "bpm"')
+    end
+
+    it "rejects an unknown operator" do
+      smart_playlist = with_rules([{ "field" => "genre", "operator" => "matches_sql", "value" => "x" }])
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:rules]).to include('has an unknown operator: "matches_sql"')
+    end
+
+    it "rejects a rule with no value" do
+      smart_playlist = with_rules([{ "field" => "genre", "operator" => "equals" }])
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:rules]).to include("each rule must have a value")
+    end
+
+    it "accepts a false value" do
+      expect(with_rules([{ "field" => "genre", "operator" => "equals", "value" => false }])).to be_valid
+    end
+
+    it "rejects an unknown match type" do
+      smart_playlist = build(:smart_playlist, rules: { "match" => "some", "rules" => [] })
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:rules]).to include("'match' must be one of: all, any")
+    end
+
+    it "rejects a non-boolean negation" do
+      smart_playlist = build(:smart_playlist, rules: { "match" => "all", "rules" => [], "not" => "yes" })
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:rules]).to include("'not' must be true or false")
+    end
+
+    it "accepts a boolean negation" do
+      expect(build(:smart_playlist, rules: { "match" => "all", "rules" => [], "not" => true })).to be_valid
+    end
+
+    it "rejects a rules list that is not a list" do
+      smart_playlist = build(:smart_playlist, rules: { "match" => "all", "rules" => "everything" })
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:rules]).to include("'rules' must be a list")
+    end
+
+    it "validates conditions inside nested groups" do
+      smart_playlist = with_rules([
+                                    { "match" => "any",
+                                      "rules" => [{ "field" => "nope", "operator" => "equals", "value" => "x" }], },
+                                  ])
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:rules]).to include('has an unknown field: "nope"')
+    end
+
+    it "rejects a tree nested deeper than the limit" do
+      deepest = { "field" => "genre", "operator" => "equals", "value" => "rock" }
+      rules = (RuleSetValidator::MAX_DEPTH + 1).downto(1).reduce(deepest) do |inner, _level|
+        { "match" => "all", "rules" => [inner] }
+      end
+
+      smart_playlist = build(:smart_playlist, rules: rules)
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:rules])
+        .to include("is nested more than #{RuleSetValidator::MAX_DEPTH} levels deep")
+    end
+
+    it "rejects more rules than the limit" do
+      condition = { "field" => "genre", "operator" => "equals", "value" => "rock" }
+      smart_playlist = with_rules(Array.new(RuleSetValidator::MAX_NODES + 1) { condition })
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:rules])
+        .to include("cannot contain more than #{RuleSetValidator::MAX_NODES} rules")
+    end
+
+    it "accepts a tree at the limits" do
+      condition = { "field" => "genre", "operator" => "equals", "value" => "rock" }
+      # The root group counts as a node, so MAX_NODES - 1 conditions fit beneath it.
+      expect(with_rules(Array.new(RuleSetValidator::MAX_NODES - 1) { condition })).to be_valid
     end
   end
 

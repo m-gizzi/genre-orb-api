@@ -251,10 +251,24 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       expect(smart_playlist.reload.is_enabled).to be(true)
     end
 
-    it "returns 422 when clearing every source" do
+    it "returns 422 when clearing every source and keeps the existing sources" do
+      sources = smart_playlist.source_playlists.to_a
+
       patch "/api/v1/smart_playlists/#{smart_playlist.id}", params: { smart_playlist: { source_playlist_ids: [] } }
 
       expect(response).to have_http_status(:unprocessable_content)
+      expect(smart_playlist.reload.source_playlists).to match_array(sources)
+    end
+
+    it "rolls back a source change when another attribute is rejected" do
+      replacement = create(:playlist, :with_spotify, user: user)
+      sources = smart_playlist.source_playlists.to_a
+
+      patch "/api/v1/smart_playlists/#{smart_playlist.id}",
+            params: { smart_playlist: { source_playlist_ids: [replacement.id], is_enabled: true } }
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(smart_playlist.reload.source_playlists).to match_array(sources)
     end
 
     it "leaves the smart playlist alone when no attributes are given" do
@@ -266,11 +280,56 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       expect(smart_playlist.reload.source_playlists).to match_array(sources)
     end
 
-    it "ignores source ids belonging to another user" do
+    it "returns 422 when every source id belongs to another user and keeps the existing sources" do
+      sources = smart_playlist.source_playlists.to_a
+
       patch "/api/v1/smart_playlists/#{smart_playlist.id}",
             params: { smart_playlist: { source_playlist_ids: [create(:playlist).id] } }
 
       expect(response).to have_http_status(:unprocessable_content)
+      expect(smart_playlist.reload.source_playlists).to match_array(sources)
+    end
+
+    it "drops source ids belonging to another user and keeps the caller's own" do
+      mine = create(:playlist, :with_spotify, user: user)
+
+      patch "/api/v1/smart_playlists/#{smart_playlist.id}",
+            params: { smart_playlist: { source_playlist_ids: [mine.id, create(:playlist).id] } }
+
+      expect(response).to have_http_status(:ok)
+      expect(smart_playlist.reload.source_playlists).to contain_exactly(mine)
+    end
+
+    it "returns 422 for rules the query builder does not support" do
+      rules = { "match" => "all", "rules" => [{ "field" => "bpm", "operator" => "equals", "value" => "120" }] }
+      original = smart_playlist.rules
+
+      patch "/api/v1/smart_playlists/#{smart_playlist.id}", params: { smart_playlist: { rules: rules } }
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(smart_playlist.reload.rules).to eq(original)
+    end
+
+    it "returns 422 for an oversized rule set" do
+      condition = { "field" => "genre", "operator" => "equals", "value" => "rock" }
+      rules = { "match" => "all", "rules" => Array.new(RuleSetValidator::MAX_NODES + 1) { condition } }
+
+      patch "/api/v1/smart_playlists/#{smart_playlist.id}", params: { smart_playlist: { rules: rules } }
+
+      expect(response).to have_http_status(:unprocessable_content)
+    end
+
+    it "returns 400 when smart_playlist is not an object" do
+      patch "/api/v1/smart_playlists/#{smart_playlist.id}", params: { smart_playlist: "oops" }
+
+      expect(response).to have_http_status(:bad_request)
+    end
+
+    it "returns 400 when source_playlist_ids is not a list of ids" do
+      patch "/api/v1/smart_playlists/#{smart_playlist.id}",
+            params: { smart_playlist: { source_playlist_ids: { "0" => "1" } } }
+
+      expect(response).to have_http_status(:bad_request)
     end
 
     it "returns 404 for another user's smart playlist" do

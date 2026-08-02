@@ -29,6 +29,14 @@ module Api
         pagy(scope)
       end
 
+      def nested_params(key)
+        raw = params[key]
+        return ActionController::Parameters.new if raw.nil?
+        raise ActionController::ParameterMissing, key unless raw.is_a?(ActionController::Parameters)
+
+        raw
+      end
+
       def pagy_meta(pagy)
         {
           page: pagy.page,
