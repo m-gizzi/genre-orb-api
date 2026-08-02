@@ -56,6 +56,15 @@ class SpotifyAdapter
     request(:get, "me/tracks", params: { limit: limit, offset: offset })
   end
 
+  def create_playlist(spotify_user_id, name:, description: nil, public: false)
+    request(:post, "users/#{spotify_user_id}/playlists",
+            body: { name: name, description: description, public: public }.compact)
+  end
+
+  def update_playlist_details(playlist_id, attributes)
+    request(:put, "playlists/#{playlist_id}", body: attributes)
+  end
+
   def artists(spotify_ids)
     if spotify_ids.size > ARTIST_BATCH_LIMIT
       raise ArgumentError,

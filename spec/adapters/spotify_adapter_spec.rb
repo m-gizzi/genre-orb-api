@@ -70,6 +70,56 @@ RSpec.describe SpotifyAdapter do
     end
   end
 
+  describe "#create_playlist" do
+    it "posts the playlist attributes to the user's playlists endpoint" do
+      stub = stub_request(:post, "#{described_class::BASE_URL}/users/spotify_user_1/playlists")
+             .with(body: { name: "Metal Mix", description: "Heavy", public: true }.to_json)
+             .to_return(status: 201, body: { "id" => "new_playlist" }.to_json, headers: json_headers)
+
+      result = adapter.create_playlist("spotify_user_1", name: "Metal Mix", description: "Heavy", public: true)
+
+      expect(stub).to have_been_requested
+      expect(result).to eq("id" => "new_playlist")
+    end
+
+    it "omits a nil description" do
+      stub = stub_request(:post, "#{described_class::BASE_URL}/users/spotify_user_1/playlists")
+             .with(body: { name: "Metal Mix", public: false }.to_json)
+             .to_return(status: 201, body: { "id" => "new_playlist" }.to_json, headers: json_headers)
+
+      adapter.create_playlist("spotify_user_1", name: "Metal Mix")
+
+      expect(stub).to have_been_requested
+    end
+  end
+
+  describe "#update_playlist_details" do
+    it "puts the changed attributes to the playlist endpoint" do
+      stub = stub_request(:put, "#{described_class::BASE_URL}/playlists/playlist_123")
+             .with(body: { name: "Renamed" }.to_json)
+             .to_return(status: 200, body: "")
+
+      adapter.update_playlist_details("playlist_123", { name: "Renamed" })
+
+      expect(stub).to have_been_requested
+    end
+
+    it "tolerates Spotify's empty success body" do
+      stub_request(:put, "#{described_class::BASE_URL}/playlists/playlist_123")
+        .to_return(status: 200, body: "")
+
+      expect { adapter.update_playlist_details("playlist_123", { name: "Renamed" }) }.not_to raise_error
+    end
+
+    it "raises ApiError when Spotify rejects the write" do
+      stub_request(:put, "#{described_class::BASE_URL}/playlists/playlist_123")
+        .to_return(status: 403, body: { "error" => "forbidden" }.to_json, headers: json_headers)
+
+      expect { adapter.update_playlist_details("playlist_123", { name: "Renamed" }) }
+        .to raise_error(described_class::ApiError, /403/)
+    end
+  end
+
   describe "#artists" do
     it "joins ids into a comma-separated query param" do
       stub = stub_get("artists", query: { ids: "a,b,c" }, body: { "artists" => [] })
