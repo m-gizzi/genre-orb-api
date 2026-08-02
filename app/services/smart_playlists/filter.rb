@@ -14,7 +14,7 @@ module SmartPlaylists
     def call
       relation = user.smart_playlists
                      .joins(:target_playlist)
-                     .includes(target_playlist: :current_version)
+                     .includes(:source_playlists, target_playlist: :current_version)
       relation = search(relation, Playlist.arel_table[:name])
       relation.order(*sort.terms)
     end

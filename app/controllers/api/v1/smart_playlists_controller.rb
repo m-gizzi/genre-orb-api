@@ -26,7 +26,7 @@ module Api
       def update
         smart_playlist = find_smart_playlist
         smart_playlist.assign_attributes(update_params)
-        assign_sources(smart_playlist) if params[:smart_playlist].key?(:source_playlist_ids)
+        assign_sources(smart_playlist) if smart_playlist_params.key?(:source_playlist_ids)
         smart_playlist.save!
 
         render_data(SmartPlaylistDetailSerializer.new(smart_playlist.reload).serializable_hash)
@@ -55,12 +55,16 @@ module Api
         )
       end
 
+      def smart_playlist_params
+        @smart_playlist_params ||= params.fetch(:smart_playlist, {})
+      end
+
       def update_params
-        params.fetch(:smart_playlist, {}).permit(:is_enabled, rules: {})
+        smart_playlist_params.permit(:is_enabled, rules: {})
       end
 
       def assign_sources(smart_playlist)
-        ids = Array(params[:smart_playlist][:source_playlist_ids]).map(&:to_i).uniq
+        ids = Array(smart_playlist_params[:source_playlist_ids]).map(&:to_i).uniq
         smart_playlist.source_playlist_ids = current_user.playlists.where(id: ids).ids
       end
 

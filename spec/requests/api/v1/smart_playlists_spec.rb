@@ -257,6 +257,15 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       expect(response).to have_http_status(:unprocessable_content)
     end
 
+    it "leaves the smart playlist alone when no attributes are given" do
+      sources = smart_playlist.source_playlists.to_a
+
+      patch "/api/v1/smart_playlists/#{smart_playlist.id}"
+
+      expect(response).to have_http_status(:ok)
+      expect(smart_playlist.reload.source_playlists).to match_array(sources)
+    end
+
     it "ignores source ids belonging to another user" do
       patch "/api/v1/smart_playlists/#{smart_playlist.id}",
             params: { smart_playlist: { source_playlist_ids: [create(:playlist).id] } }

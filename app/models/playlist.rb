@@ -63,7 +63,8 @@ class Playlist < ApplicationRecord
   end
 
   def sync_cannot_be_disabled_for_smart_target
-    return if sync_enabled? || !smart?
+    return if sync_enabled? || !sync_enabled_changed?
+    return unless smart?
 
     errors.add(:sync_enabled, "cannot be turned off for a smart playlist's target")
   end

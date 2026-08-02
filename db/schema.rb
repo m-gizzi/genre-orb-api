@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_02_015256) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_02_180134) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -103,12 +103,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_02_015256) do
   create_table "playlist_versions", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "playlist_id", null: false
-    t.integer "source", default: 0, null: false
     t.integer "status", default: 0, null: false
     t.integer "track_count", default: 0, null: false
     t.datetime "updated_at", null: false
     t.integer "version_number", null: false
-    t.index ["playlist_id", "source"], name: "index_playlist_versions_on_playlist_id_and_source"
     t.index ["playlist_id", "version_number"], name: "index_playlist_versions_on_playlist_id_and_version_number", unique: true
     t.index ["playlist_id"], name: "index_playlist_versions_on_playlist_id"
     t.index ["status"], name: "index_playlist_versions_on_status"

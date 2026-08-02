@@ -11,11 +11,6 @@ class PlaylistVersion < ApplicationRecord
     complete: 1,
   }
 
-  enum :source, {
-    spotify_sync: 0,
-    rule_evaluation: 1,
-  }, prefix: true
-
   validates :version_number, presence: true, numericality: { only_integer: true, greater_than: 0 }
   validates :version_number, uniqueness: { scope: :playlist_id }
   validates :track_count, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
