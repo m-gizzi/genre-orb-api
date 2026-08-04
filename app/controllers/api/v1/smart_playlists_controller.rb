@@ -6,6 +6,8 @@ module Api
       include SpotifyErrorRendering
 
       rescue_from SmartPlaylists::Creator::MissingTargetError, with: :render_missing_target
+      rescue_from SmartPlaylists::EvaluationRecorder::NotReadyError, with: :render_not_ready
+      rescue_from ActiveRecord::QueryCanceled, with: :render_evaluation_timeout
 
       def schema
         expires_in 0, must_revalidate: true
@@ -45,7 +47,36 @@ module Api
         head :no_content
       end
 
+      def preview
+        smart_playlist = find_smart_playlist
+        evaluator = SmartPlaylists::Evaluator.new(smart_playlist, rules: preview_rules(smart_playlist))
+
+        pagy, tracks = SmartPlaylists::QueryTimeout.guard do
+          paginate(evaluator.matches, count: evaluator.count)
+        end
+
+        render_data(
+          TrackSerializer.new(tracks).serializable_hash,
+          meta: pagy_meta(pagy).merge(source_track_count: evaluator.source_track_count),
+        )
+      end
+
+      def evaluate
+        smart_playlist = SmartPlaylists::EvaluationRecorder.new(find_smart_playlist).call
+        render_data(SmartPlaylistDetailSerializer.new(smart_playlist).serializable_hash)
+      end
+
       private
+
+      def preview_rules(smart_playlist)
+        return if smart_playlist_params[:rules].blank?
+
+        rules = update_params[:rules].to_h
+        RuleSetValidator.new(attributes: [:rules]).validate_each(smart_playlist, :rules, rules)
+        raise ActiveRecord::RecordInvalid, smart_playlist if smart_playlist.errors[:rules].any?
+
+        rules
+      end
 
       def find_smart_playlist
         current_user.smart_playlists
@@ -87,11 +118,19 @@ module Api
       end
 
       def render_missing_target
-        render_error(
-          I18n.t("api.smart_playlists.target_required"),
-          status: :unprocessable_content,
-          code: "validation_error",
-        )
+        render_validation_error(I18n.t("api.smart_playlists.target_required"))
+      end
+
+      def render_not_ready
+        render_validation_error(I18n.t("api.smart_playlists.not_ready"))
+      end
+
+      def render_evaluation_timeout
+        render_validation_error(I18n.t("api.smart_playlists.evaluation_timeout"))
+      end
+
+      def render_validation_error(message)
+        render_error(message, status: :unprocessable_content, code: "validation_error")
       end
     end
   end

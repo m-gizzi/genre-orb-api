@@ -46,6 +46,10 @@ Rails.application.routes.draw do
       end
       resources :smart_playlists, only: %i[index show create update destroy] do
         get :schema, on: :collection
+        member do
+          post :preview
+          post :evaluate
+        end
       end
       resources :artists, only: %i[index show] do
         collection do
