@@ -78,6 +78,8 @@ class SmartPlaylist < ApplicationRecord
   end
 
   def cycles_back?(source_id)
+    return false unless source_id && target_playlist_id
+
     dependency_graph.reaches?(target_playlist_id, source_id)
   end
 
@@ -87,7 +89,8 @@ class SmartPlaylist < ApplicationRecord
 
   def cycle_message(looping)
     names = Playlist.where(id: looping).pluck(:name).sort
-    "cannot include #{names.to_sentence} — this smart playlist already fills #{'it'.pluralize(names.size)}, " \
+    subject = names.one? ? "it" : "them"
+    "cannot include #{names.to_sentence} — this smart playlist already fills #{subject}, " \
       "directly or through a chain"
   end
 

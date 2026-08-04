@@ -49,7 +49,7 @@ module Api
 
       def preview
         smart_playlist = find_smart_playlist
-        evaluator = SmartPlaylists::Evaluator.new(smart_playlist, rules: preview_rules(smart_playlist))
+        evaluator = SmartPlaylists::Evaluator.new(smart_playlist, **submitted_rules(smart_playlist))
 
         pagy, tracks = SmartPlaylists::QueryTimeout.guard do
           paginate(evaluator.matches, count: evaluator.count)
@@ -68,14 +68,14 @@ module Api
 
       private
 
-      def preview_rules(smart_playlist)
-        return if smart_playlist_params[:rules].blank?
+      def submitted_rules(smart_playlist)
+        return {} if smart_playlist_params[:rules].blank?
 
         rules = update_params[:rules].to_h
         RuleSetValidator.new(attributes: [:rules]).validate_each(smart_playlist, :rules, rules)
         raise ActiveRecord::RecordInvalid, smart_playlist if smart_playlist.errors[:rules].any?
 
-        rules
+        { rules: rules }
       end
 
       def find_smart_playlist

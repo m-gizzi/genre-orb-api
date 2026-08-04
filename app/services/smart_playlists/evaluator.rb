@@ -9,11 +9,11 @@ module SmartPlaylists
   # #matches is lazy; callers materialize it inside QueryTimeout.guard.
   class Evaluator
     MEMBERSHIPS_ALIAS = "source_memberships"
-    ORDER = "#{MEMBERSHIPS_ALIAS}.added_at DESC NULLS LAST"
+    ORDER = "#{MEMBERSHIPS_ALIAS}.added_at DESC NULLS LAST".freeze
 
-    def initialize(smart_playlist, rules: nil)
+    def initialize(smart_playlist, rules: smart_playlist.rules)
       @smart_playlist = smart_playlist
-      @rules = rules || smart_playlist.rules
+      @rules = rules
     end
 
     def matches
@@ -22,9 +22,7 @@ module SmartPlaylists
             .order(Arel.sql(ORDER), Track.arel_table[:id].asc)
     end
 
-    def count
-      scoped.count
-    end
+    delegate :count, to: :scoped
 
     def source_track_count
       source.count

@@ -16,6 +16,15 @@ module Rules
       "date" => :date,
     }.freeze
 
+    WILDCARDS = {
+      "equals" => ->(value) { value },
+      "contains" => ->(value) { "%#{value}%" },
+      "starts_with" => ->(value) { "#{value}%" },
+      "ends_with" => ->(value) { "%#{value}" },
+    }.freeze
+
+    COMPARISONS = { "equals" => :eq, "greater_than" => :gt, "less_than" => :lt }.freeze
+
     def self.call(condition, attribute)
       new(condition, attribute).call
     end
@@ -36,22 +45,15 @@ module Rules
     # ILIKE throughout: rule values are user-typed free text, so "gojira" has to
     # match "Gojira". With no wildcards it still uses the trigram indexes.
     def text
-      case condition.operator
-      when "equals" then attribute.matches(escaped)
-      when "contains" then attribute.matches("%#{escaped}%")
-      when "starts_with" then attribute.matches("#{escaped}%")
-      when "ends_with" then attribute.matches("%#{escaped}")
-      when "in" then attribute.matches_any(value.map { |entry| escape(entry) })
-      end
+      return attribute.matches_any(value.map { |entry| escape(entry) }) if operator == "in"
+
+      attribute.matches(WILDCARDS.fetch(operator).call(escaped))
     end
 
     def numeric
-      case condition.operator
-      when "equals" then attribute.eq(value)
-      when "greater_than" then attribute.gt(value)
-      when "less_than" then attribute.lt(value)
-      when "between" then attribute.between(value.first..value.last)
-      end
+      return attribute.between(value.first..value.last) if operator == "between"
+
+      attribute.public_send(COMPARISONS.fetch(operator), value)
     end
 
     def boolean
@@ -62,7 +64,7 @@ module Rules
     # per-user timezone is stored, so "2024-01-01" means that whole UTC day.
     # "is after" therefore starts at the following midnight.
     def date
-      case condition.operator
+      case operator
       when "in_the_last" then attribute.gteq(relative_cutoff)
       when "greater_than" then attribute.gteq(midnight(days_after(value, 1)))
       when "less_than" then attribute.lt(midnight(value))
@@ -101,6 +103,10 @@ module Rules
 
     def value
       condition.value
+    end
+
+    def operator
+      condition.operator
     end
   end
 end

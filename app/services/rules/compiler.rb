@@ -30,13 +30,13 @@ module Rules
 
     def combine(match, predicates)
       return identity(match) if predicates.empty?
+      return predicates.first if predicates.one?
 
-      joined = predicates.reduce { |left, right| pair(match, left, right) }
-      predicates.one? ? joined : Arel::Nodes::Grouping.new(joined)
+      Arel::Nodes::Grouping.new(junction(match).new(predicates))
     end
 
-    def pair(match, left, right)
-      any?(match) ? Arel::Nodes::Or.new(left, right) : Arel::Nodes::And.new([left, right])
+    def junction(match)
+      any?(match) ? Arel::Nodes::Or : Arel::Nodes::And
     end
 
     def negate(predicate)
