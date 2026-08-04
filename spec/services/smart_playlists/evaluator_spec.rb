@@ -240,4 +240,24 @@ RSpec.describe SmartPlaylists::Evaluator do
       expect(described_class.new(smart_playlist).count).to eq(3)
     end
   end
+
+  describe "a tree at the catalog's limits" do
+    def nest(depth, leaf)
+      return leaf if depth.zero?
+
+      { "match" => "any", "rules" => [nest(depth - 1, leaf)] }
+    end
+
+    it "compiles and runs" do
+      track = create(:track, :with_genres, genre_names: ["metal"])
+      leaf = { "field" => "genre", "operator" => "equals", "value" => "metal" }
+      deepest = nest(Rules::FieldCatalog::MAX_DEPTH - 1, leaf)
+      wide = Array.new(Rules::FieldCatalog::MAX_NODES - 10) { leaf }
+      smart_playlist = smart_playlist_for([track], rules: { "match" => "all",
+                                                            "rules" => [deepest, *wide], },)
+
+      expect(smart_playlist).to be_valid
+      expect(matches(smart_playlist)).to contain_exactly(track)
+    end
+  end
 end
