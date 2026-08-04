@@ -52,6 +52,30 @@ RSpec.describe "Api::V1::SmartPlaylists" do
 
         expect(popularity["constraints"]).to eq("min" => 0, "max" => 100)
       end
+
+      it "asks clients to revalidate rather than trust a cached catalog" do
+        get "/api/v1/smart_playlists/schema"
+
+        expect(response.headers["Cache-Control"]).to include("must-revalidate", "private")
+        expect(response.headers["ETag"]).to be_present
+      end
+
+      it "answers 304 without a body when the client already has this catalog" do
+        get "/api/v1/smart_playlists/schema"
+        etag = response.headers["ETag"]
+
+        sign_in user
+        get "/api/v1/smart_playlists/schema", headers: { "If-None-Match" => etag }
+
+        expect(response).to have_http_status(:not_modified)
+        expect(response.body).to be_empty
+      end
+
+      it "answers 200 when the catalog has moved on since the client's copy" do
+        get "/api/v1/smart_playlists/schema", headers: { "If-None-Match" => 'W/"stale"' }
+
+        expect(response).to have_http_status(:ok)
+      end
     end
   end
 
@@ -383,6 +407,21 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.parsed_body["errors"].pluck("message").join)
         .to include('does not support the operator "greater_than"')
+    end
+
+    it "refuses to store keys outside the schema rather than round-tripping them" do
+      original = smart_playlist.rules
+      rules = { "match" => "all", "rules" => [
+        { "field" => "genre", "operator" => "equals", "value" => "rock", "junk" => "x" * 500 },
+      ], }
+
+      patch "/api/v1/smart_playlists/#{smart_playlist.id}",
+            params: { smart_playlist: { rules: rules } }, as: :json
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["errors"].pluck("message").join)
+        .to include('has unexpected keys: "junk"')
+      expect(smart_playlist.reload.rules).to eq(original)
     end
 
     it "returns 422 for an oversized rule set" do

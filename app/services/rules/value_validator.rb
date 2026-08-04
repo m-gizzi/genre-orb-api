@@ -3,6 +3,7 @@
 module Rules
   class ValueValidator
     SCALARS = [String, Numeric, TrueClass, FalseClass].freeze
+    RELATIVE_KEYS = %w[count unit].freeze
 
     ARITY_CHECKS = {
       one: :scalar_errors,
@@ -38,12 +39,12 @@ module Rules
 
     def pair_errors
       return translate(:not_a_pair) unless pair?(value)
+      return translate(:entry_shape) unless all_scalars?(value)
 
       typed = typing_errors(value)
       return typed if typed.any?
 
-      lower, upper = value
-      translate(:inverted_range) if (lower <=> upper).positive?
+      order_error(*value)
     end
 
     def list_errors
@@ -51,6 +52,7 @@ module Rules
 
       max = FieldCatalog::MAX_LIST_SIZE
       return translate(:list_too_long, max: max) if value.size > max
+      return translate(:entry_shape) unless all_scalars?(value)
 
       typing_errors(value)
     end
@@ -58,14 +60,33 @@ module Rules
     def relative_errors
       return translate(:relative_shape) unless value.is_a?(Hash)
 
-      count = value["count"]
-      collected = []
-      collected << translate(:relative_count) unless count.is_a?(Integer) && count.positive?
+      [count_error, unit_error, unknown_keys_error].compact
+    end
 
+    def order_error(lower, upper)
+      order = lower <=> upper
+      return translate(:incomparable_range) if order.nil?
+
+      translate(:inverted_range) if order.positive?
+    end
+
+    def count_error
+      count = value["count"]
+      translate(:relative_count) unless count.is_a?(Integer) && count.positive?
+    end
+
+    def unit_error
       units = FieldCatalog::RELATIVE_UNITS
-      collected << translate(:relative_unit, units: units.join(", ")) unless
-        units.include?(value["unit"])
-      collected
+      return if units.include?(value["unit"])
+
+      translate(:relative_unit, units: units.join(", "))
+    end
+
+    def unknown_keys_error
+      unknown = value.keys - RELATIVE_KEYS
+      return if unknown.empty?
+
+      translate(:unknown_keys, keys: Excerpt.list(unknown))
     end
 
     def typing_errors(values)
@@ -76,12 +97,16 @@ module Rules
       SCALARS.any? { |type| item.is_a?(type) }
     end
 
+    def all_scalars?(items)
+      items.all? { |entry| scalar?(entry) }
+    end
+
     def pair?(item)
-      item.is_a?(Array) && item.size == 2 && item.all? { |entry| scalar?(entry) }
+      item.is_a?(Array) && item.size == 2
     end
 
     def list?(item)
-      item.is_a?(Array) && item.any? && item.all? { |entry| scalar?(entry) }
+      item.is_a?(Array) && !item.empty?
     end
 
     def translate(key, **)

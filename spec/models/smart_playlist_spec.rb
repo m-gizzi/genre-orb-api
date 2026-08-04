@@ -370,6 +370,54 @@ RSpec.describe SmartPlaylist do
       end
     end
 
+    describe "unexpected keys" do
+      it "rejects a rule carrying keys the schema does not describe" do
+        smart_playlist = with_rules([{ "field" => "genre", "operator" => "equals", "value" => "rock",
+                                       "junk" => "smuggled", }])
+
+        expect(smart_playlist).not_to be_valid
+        expect(smart_playlist.errors[:rules]).to include('has unexpected keys: "junk" at rule 1')
+      end
+
+      it "rejects a group carrying keys the schema does not describe" do
+        smart_playlist = build(:smart_playlist,
+                               rules: { "match" => "all", "junk" => "smuggled", "rules" => [] },)
+
+        expect(smart_playlist).not_to be_valid
+        expect(smart_playlist.errors[:rules]).to include('has unexpected keys: "junk"')
+      end
+
+      it "accepts the keys a group is allowed to carry" do
+        expect(
+          build(:smart_playlist, rules: { "match" => "any", "not" => true, "rules" => [
+                  { "field" => "genre", "operator" => "equals", "value" => "rock" },
+                ], },),
+        ).to be_valid
+      end
+    end
+
+    describe "echoing what the client sent" do
+      it "truncates an oversized field name rather than quoting it in full" do
+        smart_playlist = with_rules([{ "field" => "b" * 300, "operator" => "equals", "value" => "x" }])
+
+        expect(smart_playlist).not_to be_valid
+        expect(smart_playlist.errors[:rules].first.length)
+          .to be < Rules::Excerpt::MAX_LENGTH + 40
+      end
+
+      it "reports only the first few unexpected keys" do
+        junk = Array.new(Rules::Excerpt::MAX_ENTRIES + 3) { |index| ["junk#{index}", 1] }.to_h
+        smart_playlist = with_rules([
+                                      { "field" => "genre", "operator" => "equals",
+                                        "value" => "rock", }.merge(junk),
+                                    ])
+
+        expect(smart_playlist).not_to be_valid
+        expect(smart_playlist.errors[:rules].first.scan("junk").size)
+          .to eq(Rules::Excerpt::MAX_ENTRIES)
+      end
+    end
+
     describe "locating failures" do
       it "reports each failing rule separately rather than collapsing them" do
         smart_playlist = with_rules([

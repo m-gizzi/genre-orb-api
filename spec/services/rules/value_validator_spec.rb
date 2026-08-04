@@ -55,6 +55,18 @@ RSpec.describe Rules::ValueValidator do
       expect(errors_for(["a", 2020], field: "year", operator: "between"))
         .to eq(["must be a whole number"])
     end
+
+    it "rejects a bound that is not a single value" do
+      expect(errors_for([2020, nil], field: "year", operator: "between"))
+        .to eq(["must contain only single values"])
+      expect(errors_for([2020, [2024]], field: "year", operator: "between"))
+        .to eq(["must contain only single values"])
+    end
+
+    it "reports bounds it cannot order rather than raising" do
+      expect(errors_for([true, false], field: "explicit", operator: "between"))
+        .to eq(["must have two bounds of the same kind"])
+    end
   end
 
   describe "arity :many" do
@@ -89,6 +101,13 @@ RSpec.describe Rules::ValueValidator do
     it "type-checks every entry" do
       expect(errors_for(["Gojira", 7], field: "artist", operator: "in")).to eq(["must be text"])
     end
+
+    it "rejects an entry that is not a single value, rather than calling the list empty" do
+      expect(errors_for(["Gojira", nil], field: "artist", operator: "in"))
+        .to eq(["must contain only single values"])
+      expect(errors_for([nil], field: "artist", operator: "in"))
+        .to eq(["must contain only single values"])
+    end
   end
 
   describe "arity :relative" do
@@ -119,6 +138,12 @@ RSpec.describe Rules::ValueValidator do
     it "reports both halves when both are wrong" do
       expect(errors_for({ "count" => -1, "unit" => "fortnights" },
                         field: "date_added", operator: "in_the_last",).size).to eq(2)
+    end
+
+    it "rejects keys it does not recognise" do
+      expect(errors_for({ "count" => 30, "unit" => "days", "junk" => 1 },
+                        field: "date_added", operator: "in_the_last",))
+        .to eq(['has unexpected keys: "junk"'])
     end
   end
 

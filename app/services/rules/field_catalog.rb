@@ -132,7 +132,8 @@ module Rules
       end
 
       def operators_for(key)
-        field(key)&.fetch(:operators)&.keys || []
+        vocabulary = field(key)&.fetch(:operators)
+        vocabulary ? vocabulary.keys : []
       end
 
       def supports?(key, operator)
@@ -148,7 +149,7 @@ module Rules
       end
 
       def to_h
-        {
+        @to_h ||= {
           max_depth: MAX_DEPTH,
           max_nodes: MAX_NODES,
           max_string_length: MAX_STRING_LENGTH,
@@ -157,7 +158,11 @@ module Rules
           relative_units: RELATIVE_UNITS,
           operators: OPERATORS.transform_values { |arity| { arity: arity } },
           fields: FIELDS.map { |field| serialize_field(field) },
-        }
+        }.freeze
+      end
+
+      def digest
+        @digest ||= ActiveSupport::Digest.hexdigest(to_h.to_json)
       end
 
       private

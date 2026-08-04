@@ -41,6 +41,7 @@ detectors:
   NilCheck:
     exclude:
       - BaseController#render_data
+      - Rules::ValueValidator#order_error
       - ServiceConnection#token_expired?
       - ServiceConnection#token_expiring_soon?
       - Spotify::PlaylistSyncStrategy#snapshot_unchanged?

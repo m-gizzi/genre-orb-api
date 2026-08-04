@@ -1,12 +1,7 @@
 # frozen_string_literal: true
 
 class RuleSetValidator < ActiveModel::EachValidator
-  def validate_each(record, attribute, value)
-    return if value.blank?
-
-    Inspection.new(value).messages.each { |message| record.errors.add(attribute, message) }
-  end
-
+  # Where in the tree a message belongs, as 1-based indexes from the root.
   Location = Data.define(:path, :kind) do
     def child(index, kind)
       Location.new(path: path + [index + 1], kind: kind)
@@ -29,8 +24,16 @@ class RuleSetValidator < ActiveModel::EachValidator
 
   ROOT = Location.new(path: [].freeze, kind: :group)
 
+  def validate_each(record, attribute, value)
+    return if value.blank?
+
+    Inspection.new(value).messages.each { |message| record.errors.add(attribute, message) }
+  end
+
   class Inspection
     Catalog = Rules::FieldCatalog
+    GROUP_KEYS = %w[match rules not].freeze
+    CONDITION_KEYS = %w[field operator value].freeze
 
     def initialize(root)
       @root = root
@@ -55,6 +58,7 @@ class RuleSetValidator < ActiveModel::EachValidator
 
       validate_match(group["match"], location)
       validate_negation(group["not"], location)
+      validate_keys(group, GROUP_KEYS, location)
       inspect_children(group["rules"], location)
     end
 
@@ -76,6 +80,8 @@ class RuleSetValidator < ActiveModel::EachValidator
     def inspect_condition(condition, location)
       return add(location, :condition_shape) unless condition.is_a?(Hash)
       return unless within_node_limit?
+
+      validate_keys(condition, CONDITION_KEYS, location)
       return unless known_pairing?(condition, location)
       return add(location, :missing_value) unless condition.key?("value")
 
@@ -102,24 +108,32 @@ class RuleSetValidator < ActiveModel::EachValidator
       add(location, :invalid_negation) unless [nil, true, false].include?(negation)
     end
 
+    def validate_keys(node, allowed, location)
+      unknown = node.keys - allowed
+      return if unknown.empty?
+
+      add(location, :unknown_keys, keys: Rules::Excerpt.list(unknown))
+    end
+
     def known_field?(field, location)
       return true if Catalog.field?(field)
 
-      add(location, :unknown_field, field: field.inspect)
+      add(location, :unknown_field, field: Rules::Excerpt.of(field))
       false
     end
 
     def known_operator?(operator, location)
       return true if Catalog.operator?(operator)
 
-      add(location, :unknown_operator, operator: operator.inspect)
+      add(location, :unknown_operator, operator: Rules::Excerpt.of(operator))
       false
     end
 
     def supported_pairing?(field, operator, location)
       return true if Catalog.supports?(field, operator)
 
-      add(location, :unsupported_pairing, operator: operator.inspect, field: field.inspect)
+      add(location, :unsupported_pairing,
+          operator: Rules::Excerpt.of(operator), field: Rules::Excerpt.of(field),)
       false
     end
 
@@ -129,9 +143,10 @@ class RuleSetValidator < ActiveModel::EachValidator
 
     def within_node_limit?
       @nodes += 1
-      return true if @nodes <= Catalog::MAX_NODES
+      max = Catalog::MAX_NODES
+      return true if @nodes <= max
 
-      add(ROOT, :too_many_nodes, max: Catalog::MAX_NODES) if @nodes == Catalog::MAX_NODES + 1
+      add(ROOT, :too_many_nodes, max: max) if @nodes == max + 1
       false
     end
 

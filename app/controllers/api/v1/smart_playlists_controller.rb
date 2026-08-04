@@ -8,7 +8,8 @@ module Api
       rescue_from SmartPlaylists::Creator::MissingTargetError, with: :render_missing_target
 
       def schema
-        render_data(Rules::FieldCatalog.to_h)
+        expires_in 0, must_revalidate: true
+        render_data(Rules::FieldCatalog.to_h) if stale?(etag: Rules::FieldCatalog.digest)
       end
 
       def index
