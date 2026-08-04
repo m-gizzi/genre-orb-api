@@ -4,8 +4,16 @@ module Rules
   class FieldCatalog
     MAX_DEPTH = 5
     MAX_NODES = 100
+    MAX_STRING_LENGTH = 200
+    MAX_LIST_SIZE = 25
     MATCH_TYPES = %w[all any].freeze
     RELATIVE_UNITS = %w[days weeks months years].freeze
+
+    TEXT_LIMITS = { max_length: MAX_STRING_LENGTH }.freeze
+    YEAR_LIMITS = { min: 1900, max: 2100 }.freeze
+    DURATION_LIMITS = { min: 0, max: 86_400_000 }.freeze # milliseconds; 24h outer bound
+    POPULARITY_LIMITS = { min: 0, max: 100 }.freeze      # Spotify's documented range
+    NO_LIMITS = {}.freeze
 
     # Arity decides how `value` is shaped, and which widget the builder renders.
     #   one      → a scalar
@@ -76,24 +84,24 @@ module Rules
     # Entity fields match on name, not id, so a rule stays readable and keeps
     # working when a record is pruned and re-synced.
     FIELDS = [
-      { key: "genre", label: "Genre", value_type: "text",
-        suggest: "genres", operators: VOCABULARIES[:entity], },
-      { key: "artist", label: "Artist", value_type: "text",
-        suggest: "artists", operators: VOCABULARIES[:entity], },
-      { key: "album", label: "Album", value_type: "text",
-        suggest: "albums", operators: VOCABULARIES[:entity], },
-      { key: "title", label: "Title", value_type: "text",
-        suggest: nil, operators: VOCABULARIES[:title], },
-      { key: "year", label: "Release year", value_type: "number",
-        suggest: nil, operators: VOCABULARIES[:year], },
-      { key: "duration", label: "Duration", value_type: "duration",
-        suggest: nil, operators: VOCABULARIES[:duration], },
-      { key: "popularity", label: "Popularity", value_type: "number",
-        suggest: nil, operators: VOCABULARIES[:popularity], },
-      { key: "explicit", label: "Explicit", value_type: "boolean",
-        suggest: nil, operators: VOCABULARIES[:boolean], },
-      { key: "date_added", label: "Date added", value_type: "date",
-        suggest: nil, operators: VOCABULARIES[:date], },
+      { key: "genre", label: "Genre", value_type: "text", suggest: "genres",
+        constraints: TEXT_LIMITS, operators: VOCABULARIES[:entity], },
+      { key: "artist", label: "Artist", value_type: "text", suggest: "artists",
+        constraints: TEXT_LIMITS, operators: VOCABULARIES[:entity], },
+      { key: "album", label: "Album", value_type: "text", suggest: "albums",
+        constraints: TEXT_LIMITS, operators: VOCABULARIES[:entity], },
+      { key: "title", label: "Title", value_type: "text", suggest: nil,
+        constraints: TEXT_LIMITS, operators: VOCABULARIES[:title], },
+      { key: "year", label: "Release year", value_type: "number", suggest: nil,
+        constraints: YEAR_LIMITS, operators: VOCABULARIES[:year], },
+      { key: "duration", label: "Duration", value_type: "duration", suggest: nil,
+        constraints: DURATION_LIMITS, operators: VOCABULARIES[:duration], },
+      { key: "popularity", label: "Popularity", value_type: "number", suggest: nil,
+        constraints: POPULARITY_LIMITS, operators: VOCABULARIES[:popularity], },
+      { key: "explicit", label: "Explicit", value_type: "boolean", suggest: nil,
+        constraints: NO_LIMITS, operators: VOCABULARIES[:boolean], },
+      { key: "date_added", label: "Date added", value_type: "date", suggest: nil,
+        constraints: NO_LIMITS, operators: VOCABULARIES[:date], },
     ].freeze
 
     BY_KEY = FIELDS.index_by { |field| field[:key] }.freeze
@@ -131,10 +139,20 @@ module Rules
         operators_for(key).include?(operator)
       end
 
+      def value_type_for(key)
+        field(key)&.fetch(:value_type)
+      end
+
+      def constraints_for(key)
+        field(key)&.fetch(:constraints) || NO_LIMITS
+      end
+
       def to_h
         {
           max_depth: MAX_DEPTH,
           max_nodes: MAX_NODES,
+          max_string_length: MAX_STRING_LENGTH,
+          max_list_size: MAX_LIST_SIZE,
           match_types: MATCH_TYPES,
           relative_units: RELATIVE_UNITS,
           operators: OPERATORS.transform_values { |arity| { arity: arity } },
@@ -145,7 +163,7 @@ module Rules
       private
 
       def serialize_field(field)
-        field.slice(:key, :label, :value_type, :suggest).merge(
+        field.slice(:key, :label, :value_type, :suggest, :constraints).merge(
           operators: field[:operators].map { |key, label| { key: key, label: label } },
         )
       end

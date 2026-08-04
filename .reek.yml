@@ -34,7 +34,6 @@ detectors:
     exclude:
       - Auth::SessionsController#respond_to_on_destroy
       - Spotify::RateLimitError#initialize
-      - RuleSetValidator::Inspection#validate_value
 
   FeatureEnvy:
     enabled: false

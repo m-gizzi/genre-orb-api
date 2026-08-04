@@ -36,6 +36,25 @@ RSpec.describe Rules::FieldCatalog do
     end
   end
 
+  describe ".constraints_for" do
+    it "bounds a number field to what the data can hold" do
+      expect(described_class.constraints_for("popularity")).to eq(min: 0, max: 100)
+    end
+
+    it "caps the length of a text field" do
+      expect(described_class.constraints_for("genre"))
+        .to eq(max_length: described_class::MAX_STRING_LENGTH)
+    end
+
+    it "returns no limits for a field that needs none" do
+      expect(described_class.constraints_for("explicit")).to be_empty
+    end
+
+    it "returns no limits for a field it does not know" do
+      expect(described_class.constraints_for("bpm")).to be_empty
+    end
+  end
+
   describe ".to_h" do
     subject(:payload) { described_class.to_h }
 
@@ -43,9 +62,17 @@ RSpec.describe Rules::FieldCatalog do
       expect(payload).to include(
         max_depth: described_class::MAX_DEPTH,
         max_nodes: described_class::MAX_NODES,
+        max_string_length: described_class::MAX_STRING_LENGTH,
+        max_list_size: described_class::MAX_LIST_SIZE,
         match_types: %w[all any],
         relative_units: described_class::RELATIVE_UNITS,
       )
+    end
+
+    it "serves each field's value constraints so the inputs can mirror them" do
+      year = payload[:fields].find { |field| field[:key] == "year" }
+
+      expect(year[:constraints]).to eq(min: 1900, max: 2100)
     end
 
     it "describes every operator's arity" do
@@ -67,6 +94,26 @@ RSpec.describe Rules::FieldCatalog do
           expect(described_class).to be_supports(field[:key], operator[:key])
         end
       end
+    end
+
+    it "serves a stable shape for every field" do
+      expect(payload[:fields].map { |field| field.slice(:key, :value_type, :suggest) }).to eq(
+        [
+          { key: "genre", value_type: "text", suggest: "genres" },
+          { key: "artist", value_type: "text", suggest: "artists" },
+          { key: "album", value_type: "text", suggest: "albums" },
+          { key: "title", value_type: "text", suggest: nil },
+          { key: "year", value_type: "number", suggest: nil },
+          { key: "duration", value_type: "duration", suggest: nil },
+          { key: "popularity", value_type: "number", suggest: nil },
+          { key: "explicit", value_type: "boolean", suggest: nil },
+          { key: "date_added", value_type: "date", suggest: nil },
+        ],
+      )
+    end
+
+    it "gives every field a constraints key, even when empty" do
+      expect(payload[:fields]).to all(include(:constraints))
     end
   end
 end

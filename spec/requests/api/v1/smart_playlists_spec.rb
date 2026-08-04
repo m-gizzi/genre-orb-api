@@ -27,6 +27,8 @@ RSpec.describe "Api::V1::SmartPlaylists" do
         expect(response.parsed_body["data"]).to include(
           "max_depth" => Rules::FieldCatalog::MAX_DEPTH,
           "max_nodes" => Rules::FieldCatalog::MAX_NODES,
+          "max_string_length" => Rules::FieldCatalog::MAX_STRING_LENGTH,
+          "max_list_size" => Rules::FieldCatalog::MAX_LIST_SIZE,
           "match_types" => %w[all any],
         )
       end
@@ -40,6 +42,15 @@ RSpec.describe "Api::V1::SmartPlaylists" do
         expect(fields.pluck("key")).to match_array(Rules::FieldCatalog.field_keys)
         expect(genre["suggest"]).to eq("genres")
         expect(genre["operators"]).to include("key" => "in", "label" => "is any of")
+      end
+
+      it "carries the value constraints the builder's inputs mirror" do
+        get "/api/v1/smart_playlists/schema"
+
+        fields = response.parsed_body.dig("data", "fields")
+        popularity = fields.find { |field| field["key"] == "popularity" }
+
+        expect(popularity["constraints"]).to eq("min" => 0, "max" => 100)
       end
     end
   end
@@ -376,11 +387,44 @@ RSpec.describe "Api::V1::SmartPlaylists" do
 
     it "returns 422 for an oversized rule set" do
       condition = { "field" => "genre", "operator" => "equals", "value" => "rock" }
-      rules = { "match" => "all", "rules" => Array.new(RuleSetValidator::MAX_NODES + 1) { condition } }
+      rules = { "match" => "all",
+                "rules" => Array.new(Rules::FieldCatalog::MAX_NODES + 1) { condition }, }
 
       patch "/api/v1/smart_playlists/#{smart_playlist.id}", params: { smart_playlist: { rules: rules } }
 
       expect(response).to have_http_status(:unprocessable_content)
+    end
+
+    it "returns 422 naming the rule that failed" do
+      rules = { "match" => "all",
+                "rules" => [
+                  { "field" => "genre", "operator" => "equals", "value" => "rock" },
+                  { "field" => "year", "operator" => "greater_than", "value" => "banana" },
+                ], }
+
+      patch "/api/v1/smart_playlists/#{smart_playlist.id}",
+            params: { smart_playlist: { rules: rules } }, as: :json
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["errors"].pluck("message"))
+        .to contain_exactly("Rules must be a whole number at rule 2")
+    end
+
+    it "returns every failing rule, not just the first" do
+      rules = { "match" => "all",
+                "rules" => [
+                  { "field" => "year", "operator" => "greater_than", "value" => "banana" },
+                  { "field" => "popularity", "operator" => "equals", "value" => 500 },
+                ], }
+
+      patch "/api/v1/smart_playlists/#{smart_playlist.id}",
+            params: { smart_playlist: { rules: rules } }, as: :json
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["errors"].pluck("message")).to contain_exactly(
+        "Rules must be a whole number at rule 1",
+        "Rules must be between 0 and 100 at rule 2",
+      )
     end
 
     it "returns 400 when smart_playlist is not an object" do
