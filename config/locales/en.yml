@@ -20,7 +20,6 @@ en:
       no_playlists_selected: "No playlists selected for sync"
     smart_playlists:
       target_required: "A target playlist is required"
-      not_ready: "Add at least one rule before evaluating"
       evaluation_timeout: "These rules took too long to evaluate. Try simplifying them."
     artists:
       sync_in_progress: "Artist metadata sync already in progress"

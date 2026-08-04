@@ -6,7 +6,6 @@ module Api
       include SpotifyErrorRendering
 
       rescue_from SmartPlaylists::Creator::MissingTargetError, with: :render_missing_target
-      rescue_from SmartPlaylists::EvaluationRecorder::NotReadyError, with: :render_not_ready
       rescue_from ActiveRecord::QueryCanceled, with: :render_evaluation_timeout
 
       def schema
@@ -47,7 +46,7 @@ module Api
         head :no_content
       end
 
-      def preview
+      def evaluate
         smart_playlist = find_smart_playlist
         evaluator = SmartPlaylists::Evaluator.new(smart_playlist, **submitted_rules(smart_playlist))
 
@@ -55,18 +54,18 @@ module Api
           paginate(evaluator.matches, count: evaluator.count)
         end
 
-        render_data(
-          TrackSerializer.new(tracks).serializable_hash,
-          meta: pagy_meta(pagy).merge(source_track_count: evaluator.source_track_count),
-        )
-      end
-
-      def evaluate
-        smart_playlist = SmartPlaylists::EvaluationRecorder.new(find_smart_playlist).call
-        render_data(SmartPlaylistDetailSerializer.new(smart_playlist).serializable_hash)
+        render_data(TrackSerializer.new(tracks).serializable_hash,
+                    meta: evaluation_meta(pagy, evaluator, evaluator.record!),)
       end
 
       private
+
+      def evaluation_meta(pagy, evaluator, evaluated_at)
+        pagy_meta(pagy).merge(
+          source_track_count: evaluator.source_track_count,
+          evaluated_at: evaluated_at&.iso8601,
+        )
+      end
 
       def submitted_rules(smart_playlist)
         return {} if smart_playlist_params[:rules].blank?
@@ -119,10 +118,6 @@ module Api
 
       def render_missing_target
         render_validation_error(I18n.t("api.smart_playlists.target_required"))
-      end
-
-      def render_not_ready
-        render_validation_error(I18n.t("api.smart_playlists.not_ready"))
       end
 
       def render_evaluation_timeout

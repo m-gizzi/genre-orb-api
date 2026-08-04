@@ -260,4 +260,76 @@ RSpec.describe SmartPlaylists::Evaluator do
       expect(matches(smart_playlist)).to contain_exactly(track)
     end
   end
+
+  describe "recording" do
+    let(:metal_rules) do
+      { "match" => "all", "rules" => [{ "field" => "genre", "operator" => "equals", "value" => "metal" }] }
+    end
+
+    def evaluator_for(rules_override = nil)
+      track = create(:track, :with_genres, genre_names: ["metal"])
+      smart_playlist = smart_playlist_for([track, create(:track)], rules: metal_rules)
+      args = rules_override ? { rules: rules_override } : {}
+
+      [smart_playlist, described_class.new(smart_playlist, **args)]
+    end
+
+    it "records the count and the time when it evaluated the saved rules" do
+      smart_playlist, evaluator = evaluator_for
+
+      expect(evaluator.record!).to be_within(5.seconds).of(Time.current)
+      expect(smart_playlist.reload.match_count).to eq(1)
+      expect(smart_playlist.last_evaluated_at).to be_present
+    end
+
+    it "records a drop to zero matches" do
+      smart_playlist = smart_playlist_for([create(:track)], rules: metal_rules)
+      smart_playlist.update_column(:match_count, 7)
+
+      described_class.new(smart_playlist).record!
+
+      expect(smart_playlist.reload.match_count).to eq(0)
+    end
+
+    it "does not record a draft the record does not hold" do
+      draft = { "match" => "all", "rules" => [{ "field" => "genre", "operator" => "equals", "value" => "rock" }] }
+      smart_playlist, evaluator = evaluator_for(draft)
+
+      expect(evaluator).not_to be_records
+      expect(evaluator.record!).to be_nil
+      expect(smart_playlist.reload.last_evaluated_at).to be_nil
+    end
+
+    it "records a draft that is the saved rules under a different key order" do
+      reordered = { "rules" => metal_rules["rules"], "match" => "all" }
+      _smart_playlist, evaluator = evaluator_for(reordered)
+
+      expect(evaluator).to be_records
+    end
+
+    it "does not record an empty rule set, which matches the whole pool" do
+      smart_playlist = smart_playlist_for(create_list(:track, 2),
+                                          rules: SmartPlaylist::EMPTY_RULES.deep_dup,)
+      evaluator = described_class.new(smart_playlist)
+
+      expect(evaluator.count).to eq(2)
+      expect(evaluator).not_to be_records
+      expect(evaluator.record!).to be_nil
+      expect(smart_playlist.reload.last_evaluated_at).to be_nil
+    end
+
+    it "writes no PlaylistVersion — the target still holds what Spotify holds" do
+      smart_playlist, evaluator = evaluator_for
+
+      expect { evaluator.record! }.not_to change(PlaylistVersion, :count)
+      expect(smart_playlist.target_playlist.reload.current_version_id).to be_nil
+    end
+
+    it "counts once even when the count is read again" do
+      _smart_playlist, evaluator = evaluator_for
+      evaluator.count
+
+      expect { evaluator.record! }.not_to change(evaluator, :count)
+    end
+  end
 end

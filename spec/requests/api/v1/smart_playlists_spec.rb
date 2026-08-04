@@ -517,20 +517,34 @@ RSpec.describe "Api::V1::SmartPlaylists" do
     end
   end
 
-  describe "POST /api/v1/smart_playlists/:id/preview" do
+  describe "POST /api/v1/smart_playlists/:id/evaluate" do
     let(:metal) { create(:track, :with_genres, genre_names: ["metal"], title: "Flying Whales") }
     let(:rock) { create(:track, :with_genres, genre_names: ["rock"], title: "Paranoid") }
     let(:source) { create(:playlist, :holding, user: user, tracks: [metal, rock]) }
+    let(:metal_rules) do
+      { "match" => "all",
+        "rules" => [{ "field" => "genre", "operator" => "equals", "value" => "metal" }], }
+    end
+    let(:rock_rules) do
+      { "match" => "all",
+        "rules" => [{ "field" => "genre", "operator" => "equals", "value" => "rock" }], }
+    end
     let(:smart_playlist) do
       create(:smart_playlist, target_playlist: create(:playlist, :with_spotify, user: user),
-                              source_playlists: [source],
-                              rules: { "match" => "all",
-                                       "rules" => [{ "field" => "genre", "operator" => "equals",
-                                                     "value" => "metal", }], },)
+                              source_playlists: [source], rules: metal_rules,)
+    end
+
+    def evaluate(id, rules: nil, query: "")
+      if rules
+        post "/api/v1/smart_playlists/#{id}/evaluate#{query}",
+             params: { smart_playlist: { rules: rules } }, as: :json
+      else
+        post "/api/v1/smart_playlists/#{id}/evaluate#{query}"
+      end
     end
 
     it "returns 401 when not authenticated" do
-      post "/api/v1/smart_playlists/#{smart_playlist.id}/preview"
+      evaluate(smart_playlist.id)
 
       expect(response).to have_http_status(:unauthorized)
     end
@@ -538,44 +552,73 @@ RSpec.describe "Api::V1::SmartPlaylists" do
     context "when authenticated" do
       before { sign_in user }
 
-      it "returns the matching tracks for the saved rules" do
-        post "/api/v1/smart_playlists/#{smart_playlist.id}/preview"
+      it "returns the tracks matching the saved rules" do
+        evaluate(smart_playlist.id)
 
         expect(response).to have_http_status(:ok)
         expect(response.parsed_body["data"].pluck("title")).to eq(["Flying Whales"])
       end
 
       it "reports the match count as meta.total and the pool as source_track_count" do
-        post "/api/v1/smart_playlists/#{smart_playlist.id}/preview"
+        evaluate(smart_playlist.id)
 
         expect(response.parsed_body["meta"]).to include("total" => 1, "source_track_count" => 2)
       end
 
-      it "evaluates a submitted draft instead of the saved rules" do
-        draft = { "match" => "all",
-                  "rules" => [{ "field" => "genre", "operator" => "equals", "value" => "rock" }], }
+      it "records the run and says so via meta.evaluated_at" do
+        evaluate(smart_playlist.id)
 
-        post "/api/v1/smart_playlists/#{smart_playlist.id}/preview",
-             params: { smart_playlist: { rules: draft } }, as: :json
+        expect(response.parsed_body["meta"]["evaluated_at"]).to be_present
+        expect(smart_playlist.reload.match_count).to eq(1)
+        expect(smart_playlist.last_evaluated_at).to be_within(5.seconds).of(Time.current)
+      end
+
+      it "evaluates a submitted draft instead of the saved rules" do
+        evaluate(smart_playlist.id, rules: rock_rules)
 
         expect(response.parsed_body["data"].pluck("title")).to eq(["Paranoid"])
       end
 
       it "does not persist a submitted draft" do
-        draft = { "match" => "all",
-                  "rules" => [{ "field" => "genre", "operator" => "equals", "value" => "rock" }], }
-
-        expect do
-          post "/api/v1/smart_playlists/#{smart_playlist.id}/preview",
-               params: { smart_playlist: { rules: draft } }, as: :json
-        end.not_to(change { smart_playlist.reload.rules })
+        expect { evaluate(smart_playlist.id, rules: rock_rules) }
+          .not_to(change { smart_playlist.reload.rules })
       end
 
-      it "leaves the evaluation counters alone" do
-        post "/api/v1/smart_playlists/#{smart_playlist.id}/preview"
+      it "does not record a draft, which describes rules the record does not hold" do
+        evaluate(smart_playlist.id, rules: rock_rules)
 
+        expect(response.parsed_body["meta"]["evaluated_at"]).to be_nil
         expect(smart_playlist.reload.last_evaluated_at).to be_nil
         expect(smart_playlist.match_count).to eq(0)
+      end
+
+      it "records a draft that happens to be the saved rules" do
+        evaluate(smart_playlist.id, rules: metal_rules)
+
+        expect(response.parsed_body["meta"]["evaluated_at"]).to be_present
+        expect(smart_playlist.reload.match_count).to eq(1)
+      end
+
+      it "returns the whole pool for an empty rule set, and records nothing" do
+        draft = create(:smart_playlist, source_playlists: [source],
+                                        target_playlist: create(:playlist, :with_spotify, user: user),)
+
+        evaluate(draft.id)
+
+        expect(response.parsed_body["meta"]).to include("total" => 2, "evaluated_at" => nil)
+        expect(draft.reload.last_evaluated_at).to be_nil
+      end
+
+      it "does not touch the target playlist's track set" do
+        target = smart_playlist.target_playlist
+
+        expect { evaluate(smart_playlist.id) }.not_to(change { target.reload.current_version_id })
+      end
+
+      it "writes no PlaylistVersion" do
+        id = smart_playlist.id
+
+        expect { evaluate(id) }.not_to change(PlaylistVersion, :count)
       end
 
       it "rejects an invalid draft with the validator's located message" do
@@ -583,8 +626,7 @@ RSpec.describe "Api::V1::SmartPlaylists" do
                   "rules" => [{ "match" => "all",
                                 "rules" => [{ "field" => "nope", "operator" => "equals", "value" => "x" }], }], }
 
-        post "/api/v1/smart_playlists/#{smart_playlist.id}/preview",
-             params: { smart_playlist: { rules: draft } }, as: :json
+        evaluate(smart_playlist.id, rules: draft)
 
         expect(response).to have_http_status(:unprocessable_content)
         expect(response.parsed_body["errors"].first).to include("code" => "validation_error")
@@ -601,77 +643,16 @@ RSpec.describe "Api::V1::SmartPlaylists" do
                                                                                     [newer, 1.day.ago],],)],
                        rules: SmartPlaylist::EMPTY_RULES.deep_dup,)
 
-        post "/api/v1/smart_playlists/#{paged.id}/preview?per_page=1"
+        evaluate(paged.id, query: "?per_page=1")
 
         expect(response.parsed_body["data"].pluck("title")).to eq(["Newer"])
         expect(response.parsed_body["meta"]).to include("total" => 2, "total_pages" => 2, "per_page" => 1)
       end
 
       it "returns 404 for another user's smart playlist" do
-        other = create(:smart_playlist)
-
-        post "/api/v1/smart_playlists/#{other.id}/preview"
-
-        expect(response).to have_http_status(:not_found)
-      end
-    end
-  end
-
-  describe "POST /api/v1/smart_playlists/:id/evaluate" do
-    let(:metal) { create(:track, :with_genres, genre_names: ["metal"]) }
-    let(:smart_playlist) do
-      create(:smart_playlist, target_playlist: create(:playlist, :with_spotify, user: user),
-                              source_playlists: [create(:playlist, :holding, user: user,
-                                                                             tracks: [metal, create(:track)],)],
-                              rules: { "match" => "all",
-                                       "rules" => [{ "field" => "genre", "operator" => "equals",
-                                                     "value" => "metal", }], },)
-    end
-
-    it "returns 401 when not authenticated" do
-      post "/api/v1/smart_playlists/#{smart_playlist.id}/evaluate"
-
-      expect(response).to have_http_status(:unauthorized)
-    end
-
-    context "when authenticated" do
-      before { sign_in user }
-
-      it "records the match count and evaluation time" do
-        post "/api/v1/smart_playlists/#{smart_playlist.id}/evaluate"
-
-        expect(response).to have_http_status(:ok)
-        expect(smart_playlist.reload.match_count).to eq(1)
-        expect(smart_playlist.last_evaluated_at).to be_present
-      end
-
-      it "returns the updated smart playlist" do
-        post "/api/v1/smart_playlists/#{smart_playlist.id}/evaluate"
-
-        expect(response.parsed_body["data"]).to include("match_count" => 1)
-        expect(response.parsed_body["data"]["last_evaluated_at"]).to be_present
-      end
-
-      it "does not touch the target playlist's track set" do
-        target = smart_playlist.target_playlist
-
-        expect { post "/api/v1/smart_playlists/#{smart_playlist.id}/evaluate" }
-          .not_to(change { target.reload.current_version_id })
-      end
-
-      it "refuses a rule set with no rules" do
-        draft = create(:smart_playlist, target_playlist: create(:playlist, :with_spotify, user: user))
-
-        post "/api/v1/smart_playlists/#{draft.id}/evaluate"
-
-        expect(response).to have_http_status(:unprocessable_content)
-        expect(response.parsed_body["errors"].first["message"]).to eq(I18n.t("api.smart_playlists.not_ready"))
-      end
-
-      it "returns 404 for another user's smart playlist" do
         other = create(:smart_playlist, :with_rules)
 
-        post "/api/v1/smart_playlists/#{other.id}/evaluate"
+        evaluate(other.id)
 
         expect(response).to have_http_status(:not_found)
       end

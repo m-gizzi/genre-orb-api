@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
 module SmartPlaylists
-  # Runs a rule set against its source pool.
+  # Runs a rule set against its source pool, and remembers the result when the
+  # rule set is the one the playlist actually holds.
   #
-  # Pass `rules:` to evaluate a set the record does not hold yet — that is how
-  # the builder previews an unsaved draft.
+  # Pass `rules:` to evaluate a set the record does not hold yet — that is how the
+  # builder evaluates an unsaved draft, and why such a run is not recorded.
   #
   # #matches is lazy; callers materialize it inside QueryTimeout.guard.
   class Evaluator
@@ -22,10 +23,24 @@ module SmartPlaylists
             .order(Arel.sql(ORDER), Track.arel_table[:id].asc)
     end
 
-    delegate :count, to: :scoped
+    def count
+      @count ||= scoped.count
+    end
 
     def source_track_count
       source.count
+    end
+
+    def records?
+      smart_playlist.ready? && rules.as_json == smart_playlist.rules.as_json
+    end
+
+    def record!
+      return unless records?
+
+      now = Time.current
+      smart_playlist.update_columns(match_count: count, last_evaluated_at: now, updated_at: now)
+      now
     end
 
     private
