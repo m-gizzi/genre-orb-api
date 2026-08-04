@@ -1,15 +1,28 @@
 # frozen_string_literal: true
 
 class RuleSetValidator < ActiveModel::EachValidator
-  MATCH_TYPES = %w[all any].freeze
-  FIELDS = %w[genre artist album title year date_added duration play_count last_played].freeze
-  OPERATORS = %w[
-    equals not_equals contains starts_with ends_with
-    greater_than less_than between in not_in
-  ].freeze
+  # Where in the tree a message belongs, as 1-based indexes from the root.
+  Location = Data.define(:path, :kind) do
+    def child(index, kind)
+      Location.new(path: path + [index + 1], kind: kind)
+    end
 
-  MAX_NODES = 100
-  MAX_DEPTH = 5
+    def root?
+      path.empty?
+    end
+
+    def depth
+      path.length + 1
+    end
+
+    def apply(message)
+      return message if root?
+
+      I18n.t("rules.locators.#{kind}", message: message, path: path.join("."))
+    end
+  end
+
+  ROOT = Location.new(path: [].freeze, kind: :group)
 
   def validate_each(record, attribute, value)
     return if value.blank?
@@ -18,6 +31,10 @@ class RuleSetValidator < ActiveModel::EachValidator
   end
 
   class Inspection
+    Catalog = Rules::FieldCatalog
+    GROUP_KEYS = %w[match rules not].freeze
+    CONDITION_KEYS = %w[field operator value].freeze
+
     def initialize(root)
       @root = root
       @collected = []
@@ -26,58 +43,98 @@ class RuleSetValidator < ActiveModel::EachValidator
 
     def messages
       @messages ||= begin
-        inspect_group(@root, depth: 1)
-        @collected.uniq
+        inspect_group(@root, ROOT)
+        @collected
       end
     end
 
     private
 
-    def inspect_group(group, depth:)
-      return add("must have 'match' and 'rules' keys") unless group_shaped?(group)
-      return add("is nested more than #{MAX_DEPTH} levels deep") if depth > MAX_DEPTH
+    def inspect_group(group, location)
+      return add(location, :group_shape) unless group_shaped?(group)
+      return add(location, :too_deep, max: Catalog::MAX_DEPTH) if
+        location.depth > Catalog::MAX_DEPTH
       return unless within_node_limit?
 
-      validate_match(group["match"])
-      validate_negation(group["not"])
-
-      children = group["rules"]
-      return add("'rules' must be a list") unless children.is_a?(Array)
-
-      children.each { |child| inspect_child(child, depth: depth) }
+      validate_match(group["match"], location)
+      validate_negation(group["not"], location)
+      validate_keys(group, GROUP_KEYS, location)
+      inspect_children(group["rules"], location)
     end
 
-    def inspect_child(child, depth:)
+    def inspect_children(children, location)
+      return add(location, :rules_not_a_list) unless children.is_a?(Array)
+      return add(location, :empty_group) if children.empty? && !location.root?
+
+      children.each_with_index { |child, index| inspect_child(child, index, location) }
+    end
+
+    def inspect_child(child, index, location)
       if group_shaped?(child)
-        inspect_group(child, depth: depth + 1)
+        inspect_group(child, location.child(index, :group))
       else
-        inspect_condition(child)
+        inspect_condition(child, location.child(index, :rule))
       end
     end
 
-    def inspect_condition(condition)
-      return add("each rule must be an object") unless condition.is_a?(Hash)
+    def inspect_condition(condition, location)
+      return add(location, :condition_shape) unless condition.is_a?(Hash)
       return unless within_node_limit?
 
-      validate_field(condition["field"])
-      validate_operator(condition["operator"])
-      add("each rule must have a value") unless condition.key?("value")
+      validate_keys(condition, CONDITION_KEYS, location)
+      return unless known_pairing?(condition, location)
+      return add(location, :missing_value) unless condition.key?("value")
+
+      Rules::ValueValidator
+        .call(condition["value"], field: condition["field"], operator: condition["operator"])
+        .each { |message| add_message(location, message) }
     end
 
-    def validate_match(match)
-      add("'match' must be one of: #{MATCH_TYPES.join(", ")}") unless MATCH_TYPES.include?(match)
+    def known_pairing?(condition, location)
+      field = condition["field"]
+      operator = condition["operator"]
+
+      known_field?(field, location) && known_operator?(operator, location) &&
+        supported_pairing?(field, operator, location)
     end
 
-    def validate_negation(negation)
-      add("'not' must be true or false") unless [nil, true, false].include?(negation)
+    def validate_match(match, location)
+      return if Catalog::MATCH_TYPES.include?(match)
+
+      add(location, :unknown_match, match_types: Catalog::MATCH_TYPES.join(", "))
     end
 
-    def validate_field(field)
-      add("has an unknown field: #{field.inspect}") unless FIELDS.include?(field)
+    def validate_negation(negation, location)
+      add(location, :invalid_negation) unless [nil, true, false].include?(negation)
     end
 
-    def validate_operator(operator)
-      add("has an unknown operator: #{operator.inspect}") unless OPERATORS.include?(operator)
+    def validate_keys(node, allowed, location)
+      unknown = node.keys - allowed
+      return if unknown.empty?
+
+      add(location, :unknown_keys, keys: Rules::Excerpt.list(unknown))
+    end
+
+    def known_field?(field, location)
+      return true if Catalog.field?(field)
+
+      add(location, :unknown_field, field: Rules::Excerpt.of(field))
+      false
+    end
+
+    def known_operator?(operator, location)
+      return true if Catalog.operator?(operator)
+
+      add(location, :unknown_operator, operator: Rules::Excerpt.of(operator))
+      false
+    end
+
+    def supported_pairing?(field, operator, location)
+      return true if Catalog.supports?(field, operator)
+
+      add(location, :unsupported_pairing,
+          operator: Rules::Excerpt.of(operator), field: Rules::Excerpt.of(field),)
+      false
     end
 
     def group_shaped?(node)
@@ -86,14 +143,19 @@ class RuleSetValidator < ActiveModel::EachValidator
 
     def within_node_limit?
       @nodes += 1
-      return true if @nodes <= MAX_NODES
+      max = Catalog::MAX_NODES
+      return true if @nodes <= max
 
-      add("cannot contain more than #{MAX_NODES} rules")
+      add(ROOT, :too_many_nodes, max: max) if @nodes == max + 1
       false
     end
 
-    def add(message)
-      @collected << message
+    def add(location, key, **)
+      add_message(location, I18n.t("rules.errors.#{key}", **))
+    end
+
+    def add_message(location, message)
+      @collected << location.apply(message)
     end
   end
 end

@@ -11,6 +11,74 @@ RSpec.describe "Api::V1::SmartPlaylists" do
                                 access_token: "test_token", token_expires_at: 1.hour.from_now,)
   end
 
+  describe "GET /api/v1/smart_playlists/schema" do
+    it "returns 401 when not authenticated" do
+      get "/api/v1/smart_playlists/schema"
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    context "when authenticated" do
+      before { sign_in user }
+
+      it "returns the rule catalog rather than resolving as a show" do
+        get "/api/v1/smart_playlists/schema"
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body["data"]).to include(
+          "max_depth" => Rules::FieldCatalog::MAX_DEPTH,
+          "max_nodes" => Rules::FieldCatalog::MAX_NODES,
+          "max_string_length" => Rules::FieldCatalog::MAX_STRING_LENGTH,
+          "max_list_size" => Rules::FieldCatalog::MAX_LIST_SIZE,
+          "match_types" => %w[all any],
+        )
+      end
+
+      it "describes each field's operators" do
+        get "/api/v1/smart_playlists/schema"
+
+        fields = response.parsed_body.dig("data", "fields")
+        genre = fields.find { |field| field["key"] == "genre" }
+
+        expect(fields.pluck("key")).to match_array(Rules::FieldCatalog.field_keys)
+        expect(genre["suggest"]).to eq("genres")
+        expect(genre["operators"]).to include("key" => "in", "label" => "is any of")
+      end
+
+      it "carries the value constraints the builder's inputs mirror" do
+        get "/api/v1/smart_playlists/schema"
+
+        fields = response.parsed_body.dig("data", "fields")
+        popularity = fields.find { |field| field["key"] == "popularity" }
+
+        expect(popularity["constraints"]).to eq("min" => 0, "max" => 100)
+      end
+
+      it "asks clients to revalidate rather than trust a cached catalog" do
+        get "/api/v1/smart_playlists/schema"
+
+        expect(response.headers["Cache-Control"]).to include("must-revalidate", "private")
+        expect(response.headers["ETag"]).to be_present
+      end
+
+      it "answers 304 without a body when the client already has this catalog" do
+        get "/api/v1/smart_playlists/schema"
+        etag = response.headers["ETag"]
+
+        sign_in user
+        get "/api/v1/smart_playlists/schema", headers: { "If-None-Match" => etag }
+
+        expect(response).to have_http_status(:not_modified)
+        expect(response.body).to be_empty
+      end
+
+      it "answers 200 when the catalog has moved on since the client's copy" do
+        get "/api/v1/smart_playlists/schema", headers: { "If-None-Match" => 'W/"stale"' }
+
+        expect(response).to have_http_status(:ok)
+      end
+    end
+  end
+
   describe "GET /api/v1/smart_playlists" do
     context "when not authenticated" do
       it "returns 401 unauthorized" do
@@ -310,13 +378,92 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       expect(smart_playlist.reload.rules).to eq(original)
     end
 
+    it "accepts a nested rule set with list and relative values" do
+      rules = {
+        "match" => "all",
+        "rules" => [
+          { "field" => "artist", "operator" => "in", "value" => %w[Gojira Meshuggah] },
+          { "field" => "date_added", "operator" => "in_the_last",
+            "value" => { "count" => 30, "unit" => "days" }, },
+          { "match" => "any", "not" => true,
+            "rules" => [{ "field" => "year", "operator" => "between", "value" => [2020, 2024] }], },
+        ],
+      }
+
+      patch "/api/v1/smart_playlists/#{smart_playlist.id}",
+            params: { smart_playlist: { rules: rules } }, as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(smart_playlist.reload.rules).to eq(rules)
+    end
+
+    it "returns 422 for an operator the field does not support" do
+      rules = { "match" => "all",
+                "rules" => [{ "field" => "genre", "operator" => "greater_than", "value" => "rock" }], }
+
+      patch "/api/v1/smart_playlists/#{smart_playlist.id}",
+            params: { smart_playlist: { rules: rules } }, as: :json
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["errors"].pluck("message").join)
+        .to include('does not support the operator "greater_than"')
+    end
+
+    it "refuses to store keys outside the schema rather than round-tripping them" do
+      original = smart_playlist.rules
+      rules = { "match" => "all", "rules" => [
+        { "field" => "genre", "operator" => "equals", "value" => "rock", "junk" => "x" * 500 },
+      ], }
+
+      patch "/api/v1/smart_playlists/#{smart_playlist.id}",
+            params: { smart_playlist: { rules: rules } }, as: :json
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["errors"].pluck("message").join)
+        .to include('has unexpected keys: "junk"')
+      expect(smart_playlist.reload.rules).to eq(original)
+    end
+
     it "returns 422 for an oversized rule set" do
       condition = { "field" => "genre", "operator" => "equals", "value" => "rock" }
-      rules = { "match" => "all", "rules" => Array.new(RuleSetValidator::MAX_NODES + 1) { condition } }
+      rules = { "match" => "all",
+                "rules" => Array.new(Rules::FieldCatalog::MAX_NODES + 1) { condition }, }
 
       patch "/api/v1/smart_playlists/#{smart_playlist.id}", params: { smart_playlist: { rules: rules } }
 
       expect(response).to have_http_status(:unprocessable_content)
+    end
+
+    it "returns 422 naming the rule that failed" do
+      rules = { "match" => "all",
+                "rules" => [
+                  { "field" => "genre", "operator" => "equals", "value" => "rock" },
+                  { "field" => "year", "operator" => "greater_than", "value" => "banana" },
+                ], }
+
+      patch "/api/v1/smart_playlists/#{smart_playlist.id}",
+            params: { smart_playlist: { rules: rules } }, as: :json
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["errors"].pluck("message"))
+        .to contain_exactly("Rules must be a whole number at rule 2")
+    end
+
+    it "returns every failing rule, not just the first" do
+      rules = { "match" => "all",
+                "rules" => [
+                  { "field" => "year", "operator" => "greater_than", "value" => "banana" },
+                  { "field" => "popularity", "operator" => "equals", "value" => 500 },
+                ], }
+
+      patch "/api/v1/smart_playlists/#{smart_playlist.id}",
+            params: { smart_playlist: { rules: rules } }, as: :json
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["errors"].pluck("message")).to contain_exactly(
+        "Rules must be a whole number at rule 1",
+        "Rules must be between 0 and 100 at rule 2",
+      )
     end
 
     it "returns 400 when smart_playlist is not an object" do
