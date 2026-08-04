@@ -18,6 +18,7 @@ class SmartPlaylist < ApplicationRecord
   validate :target_must_exist_on_spotify
   validate :sources_must_be_present
   validate :sources_must_belong_to_owner
+  validate :sources_must_not_create_a_cycle
   validate :rules_must_be_present_when_enabled
 
   after_create :enable_target_sync
@@ -65,6 +66,29 @@ class SmartPlaylist < ApplicationRecord
 
   def live_sources
     smart_playlist_sources.reject(&:marked_for_destruction?)
+  end
+
+  def sources_must_not_create_a_cycle
+    return unless target_playlist
+
+    looping = live_sources.map(&:playlist_id).select { |source_id| cycles_back?(source_id) }
+    return if looping.empty?
+
+    errors.add(:source_playlists, cycle_message(looping))
+  end
+
+  def cycles_back?(source_id)
+    dependency_graph.reaches?(target_playlist_id, source_id)
+  end
+
+  def dependency_graph
+    @dependency_graph ||= SmartPlaylists::DependencyGraph.new(target_playlist.user, excluding: id)
+  end
+
+  def cycle_message(looping)
+    names = Playlist.where(id: looping).pluck(:name).sort
+    "cannot include #{names.to_sentence} — this smart playlist already fills #{'it'.pluralize(names.size)}, " \
+      "directly or through a chain"
   end
 
   def rules_must_be_present_when_enabled
