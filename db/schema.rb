@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_04_214025) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_05_005546) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -103,10 +103,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_04_214025) do
   create_table "playlist_versions", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "playlist_id", null: false
+    t.integer "source", default: 0, null: false
+    t.string "spotify_snapshot_id"
     t.integer "status", default: 0, null: false
     t.integer "track_count", default: 0, null: false
     t.datetime "updated_at", null: false
     t.integer "version_number", null: false
+    t.index ["playlist_id", "source"], name: "index_playlist_versions_on_playlist_id_and_source"
     t.index ["playlist_id", "version_number"], name: "index_playlist_versions_on_playlist_id_and_version_number", unique: true
     t.index ["playlist_id"], name: "index_playlist_versions_on_playlist_id"
     t.index ["status"], name: "index_playlist_versions_on_status"
@@ -134,6 +137,32 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_04_214025) do
     t.index ["user_id", "spotify_id"], name: "idx_playlists_user_spotify_unique", unique: true, where: "(spotify_id IS NOT NULL)"
     t.index ["user_id"], name: "idx_playlists_liked_songs_per_user", unique: true, where: "((type)::text = 'LikedSongsPlaylist'::text)"
     t.index ["user_id"], name: "index_playlists_on_user_id"
+  end
+
+  create_table "push_sessions", force: :cascade do |t|
+    t.integer "completed_add_batches", default: 0, null: false
+    t.datetime "completed_at"
+    t.integer "completed_remove_batches", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.string "error_message"
+    t.integer "match_count", default: 0, null: false
+    t.bigint "playlist_version_id"
+    t.boolean "sampled", default: false, null: false
+    t.bigint "smart_playlist_id", null: false
+    t.string "spotify_snapshot_id"
+    t.datetime "started_at"
+    t.integer "status", default: 0, null: false
+    t.integer "strategy", default: 0, null: false
+    t.integer "total_add_batches", default: 0, null: false
+    t.integer "total_remove_batches", default: 0, null: false
+    t.integer "tracks_added", default: 0, null: false
+    t.integer "tracks_removed", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["playlist_version_id"], name: "index_push_sessions_on_playlist_version_id"
+    t.index ["smart_playlist_id", "status"], name: "index_push_sessions_on_smart_playlist_id_and_status"
+    t.index ["smart_playlist_id"], name: "idx_unique_active_push_session_per_smart_playlist", unique: true, where: "(status = ANY (ARRAY[0, 1]))"
+    t.index ["smart_playlist_id"], name: "index_push_sessions_on_smart_playlist_id"
+    t.index ["status"], name: "index_push_sessions_on_status"
   end
 
   create_table "service_connections", force: :cascade do |t|
@@ -282,6 +311,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_04_214025) do
   add_foreign_key "playlist_versions", "playlists"
   add_foreign_key "playlists", "playlist_versions", column: "current_version_id"
   add_foreign_key "playlists", "users"
+  add_foreign_key "push_sessions", "playlist_versions"
+  add_foreign_key "push_sessions", "smart_playlists"
   add_foreign_key "service_connections", "users"
   add_foreign_key "smart_playlist_sources", "playlists"
   add_foreign_key "smart_playlist_sources", "smart_playlists"

@@ -17,5 +17,23 @@ RSpec.describe PlaylistVersion do
       version = described_class.create_for_sync!(playlist)
       expect(version.version_number).to eq(2)
     end
+
+    it "attributes the version to the sync" do
+      expect(described_class.create_for_sync!(playlist)).to be_source_spotify_sync
+    end
+  end
+
+  describe ".create_for_push!" do
+    let(:playlist) { create(:playlist) }
+
+    it "attributes the version to rule evaluation" do
+      expect(described_class.create_for_push!(playlist)).to be_source_rule_evaluation
+    end
+
+    it "shares the version sequence with sync-built versions" do
+      described_class.create_for_sync!(playlist)
+
+      expect(described_class.create_for_push!(playlist).version_number).to eq(2)
+    end
   end
 end
