@@ -25,8 +25,8 @@ module Api
         render json: { errors: errors }, status: status
       end
 
-      def paginate(scope)
-        pagy(scope)
+      def paginate(scope, **vars)
+        pagy(scope, **vars)
       end
 
       def nested_params(key)

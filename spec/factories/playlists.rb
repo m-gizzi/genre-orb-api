@@ -14,6 +14,29 @@ FactoryBot.define do
       sync_enabled { true }
     end
 
+    # A current version holding exactly the given tracks. Pass `memberships`
+    # ([[track, added_at], ...]) when a spec cares about individual added_at
+    # values, `tracks` when it does not.
+    trait :holding do
+      transient do
+        tracks { [] }
+        added_at { Time.current }
+        memberships { nil }
+      end
+
+      after(:create) do |playlist, evaluator|
+        rows = evaluator.memberships || evaluator.tracks.map { |track| [track, evaluator.added_at] }
+        version = create(:playlist_version, playlist: playlist, status: :complete, track_count: rows.size)
+
+        rows.each_with_index do |(track, added), index|
+          create(:playlist_version_track,
+                 playlist_version: version, track: track, position: index, added_at: added,)
+        end
+
+        playlist.update!(current_version: version)
+      end
+    end
+
     trait :with_tracks do
       transient do
         tracks_count { 5 }

@@ -34,6 +34,7 @@ detectors:
     exclude:
       - Auth::SessionsController#respond_to_on_destroy
       - Spotify::RateLimitError#initialize
+      - SmartPlaylists::DependencyGraph#reaches?
 
   FeatureEnvy:
     enabled: false

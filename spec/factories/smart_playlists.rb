@@ -5,6 +5,7 @@ FactoryBot.define do
     transient do
       user { association :user }
       source_count { 1 }
+      source_playlists { [] }
     end
 
     target_playlist { association :playlist, :with_spotify, user: user }
@@ -16,9 +17,10 @@ FactoryBot.define do
       next if smart_playlist.smart_playlist_sources.any?
 
       owner = smart_playlist.target_playlist.user
-      evaluator.source_count.times do
-        smart_playlist.smart_playlist_sources.build(playlist: build(:playlist, user: owner))
-      end
+      playlists = evaluator.source_playlists.presence ||
+                  Array.new(evaluator.source_count) { build(:playlist, user: owner) }
+
+      playlists.each { |playlist| smart_playlist.smart_playlist_sources.build(playlist: playlist) }
     end
 
     trait :with_rules do

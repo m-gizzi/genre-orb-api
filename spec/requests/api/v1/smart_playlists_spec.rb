@@ -516,4 +516,200 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       expect(response).to have_http_status(:not_found)
     end
   end
+
+  describe "POST /api/v1/smart_playlists/:id/evaluate" do
+    let(:metal) { create(:track, :with_genres, genre_names: ["metal"], title: "Flying Whales") }
+    let(:rock) { create(:track, :with_genres, genre_names: ["rock"], title: "Paranoid") }
+    let(:source) { create(:playlist, :holding, user: user, tracks: [metal, rock]) }
+    let(:metal_rules) do
+      { "match" => "all",
+        "rules" => [{ "field" => "genre", "operator" => "equals", "value" => "metal" }], }
+    end
+    let(:rock_rules) do
+      { "match" => "all",
+        "rules" => [{ "field" => "genre", "operator" => "equals", "value" => "rock" }], }
+    end
+    let(:smart_playlist) do
+      create(:smart_playlist, target_playlist: create(:playlist, :with_spotify, user: user),
+                              source_playlists: [source], rules: metal_rules,)
+    end
+
+    def evaluate(id, rules: nil, query: "")
+      if rules
+        post "/api/v1/smart_playlists/#{id}/evaluate#{query}",
+             params: { smart_playlist: { rules: rules } }, as: :json
+      else
+        post "/api/v1/smart_playlists/#{id}/evaluate#{query}"
+      end
+    end
+
+    it "returns 401 when not authenticated" do
+      evaluate(smart_playlist.id)
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    context "when authenticated" do
+      before { sign_in user }
+
+      it "returns the tracks matching the saved rules" do
+        evaluate(smart_playlist.id)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body["data"].pluck("title")).to eq(["Flying Whales"])
+      end
+
+      it "reports the match count as meta.total and the pool as source_track_count" do
+        evaluate(smart_playlist.id)
+
+        expect(response.parsed_body["meta"]).to include("total" => 1, "source_track_count" => 2)
+      end
+
+      it "records the run and says so via meta.evaluated_at" do
+        evaluate(smart_playlist.id)
+
+        expect(response.parsed_body["meta"]["evaluated_at"]).to be_present
+        expect(smart_playlist.reload.match_count).to eq(1)
+        expect(smart_playlist.last_evaluated_at).to be_within(5.seconds).of(Time.current)
+      end
+
+      it "evaluates a submitted draft instead of the saved rules" do
+        evaluate(smart_playlist.id, rules: rock_rules)
+
+        expect(response.parsed_body["data"].pluck("title")).to eq(["Paranoid"])
+      end
+
+      it "does not persist a submitted draft" do
+        expect { evaluate(smart_playlist.id, rules: rock_rules) }
+          .not_to(change { smart_playlist.reload.rules })
+      end
+
+      it "does not record a draft, which describes rules the record does not hold" do
+        evaluate(smart_playlist.id, rules: rock_rules)
+
+        expect(response.parsed_body["meta"]["evaluated_at"]).to be_nil
+        expect(smart_playlist.reload.last_evaluated_at).to be_nil
+        expect(smart_playlist.match_count).to eq(0)
+      end
+
+      it "records a draft that happens to be the saved rules" do
+        evaluate(smart_playlist.id, rules: metal_rules)
+
+        expect(response.parsed_body["meta"]["evaluated_at"]).to be_present
+        expect(smart_playlist.reload.match_count).to eq(1)
+      end
+
+      it "returns the whole pool for an empty rule set, and records nothing" do
+        draft = create(:smart_playlist, source_playlists: [source],
+                                        target_playlist: create(:playlist, :with_spotify, user: user),)
+
+        evaluate(draft.id)
+
+        expect(response.parsed_body["meta"]).to include("total" => 2, "evaluated_at" => nil)
+        expect(draft.reload.last_evaluated_at).to be_nil
+      end
+
+      it "does not touch the target playlist's track set" do
+        target = smart_playlist.target_playlist
+
+        expect { evaluate(smart_playlist.id) }.not_to(change { target.reload.current_version_id })
+      end
+
+      it "writes no PlaylistVersion" do
+        id = smart_playlist.id
+
+        expect { evaluate(id) }.not_to change(PlaylistVersion, :count)
+      end
+
+      it "rejects an invalid draft with the validator's located message" do
+        draft = { "match" => "all",
+                  "rules" => [{ "match" => "all",
+                                "rules" => [{ "field" => "nope", "operator" => "equals", "value" => "x" }], }], }
+
+        evaluate(smart_playlist.id, rules: draft)
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body["errors"].first).to include("code" => "validation_error")
+        expect(response.parsed_body["errors"].first["message"]).to include("at rule 1.1")
+      end
+
+      it "paginates, newest-added first" do
+        older = create(:track, title: "Older")
+        newer = create(:track, title: "Newer")
+        paged = create(:smart_playlist,
+                       target_playlist: create(:playlist, :with_spotify, user: user),
+                       source_playlists: [create(:playlist, :holding, user: user,
+                                                                      memberships: [[older, 10.days.ago],
+                                                                                    [newer, 1.day.ago],],)],
+                       rules: SmartPlaylist::EMPTY_RULES.deep_dup,)
+
+        evaluate(paged.id, query: "?per_page=1")
+
+        expect(response.parsed_body["data"].pluck("title")).to eq(["Newer"])
+        expect(response.parsed_body["meta"]).to include("total" => 2, "total_pages" => 2, "per_page" => 1)
+      end
+
+      it "records on the first page only, so paging does not rewrite the count" do
+        both_genres = { "match" => "all",
+                        "rules" => [{ "field" => "genre", "operator" => "in", "value" => %w[metal rock] }], }
+        paged = create(:smart_playlist,
+                       target_playlist: create(:playlist, :with_spotify, user: user),
+                       source_playlists: [create(:playlist, :holding, user: user, tracks: [metal, rock])],
+                       rules: both_genres,)
+
+        evaluate(paged.id, query: "?per_page=1&page=2")
+
+        expect(response.parsed_body["meta"]).to include("page" => 2, "evaluated_at" => nil)
+        expect(paged.reload.last_evaluated_at).to be_nil
+        expect(paged.match_count).to eq(0)
+      end
+
+      it "returns 404 for another user's smart playlist" do
+        other = create(:smart_playlist, :with_rules)
+
+        evaluate(other.id)
+
+        expect(response).to have_http_status(:not_found)
+      end
+
+      it "reports a rule set that is not an object as a validation error" do
+        evaluate(smart_playlist.id, rules: "not a rule set")
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body["errors"].first["message"])
+          .to eq("Rules #{I18n.t("rules.errors.group_shape")}")
+      end
+
+      it "reports a rule set that is a list as a validation error" do
+        evaluate(smart_playlist.id, rules: [{ "field" => "genre" }])
+
+        expect(response).to have_http_status(:unprocessable_content)
+      end
+
+      it "reports an empty rule set object as a validation error, not as the saved rules" do
+        evaluate(smart_playlist.id, rules: {})
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body["data"]).to be_nil
+      end
+
+      it "renders a validation error when evaluation hits the statement timeout" do
+        allow(SmartPlaylists::QueryTimeout).to receive(:guard).and_raise(ActiveRecord::QueryCanceled)
+
+        evaluate(smart_playlist.id)
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body["errors"].first).to include(
+          "code" => "validation_error",
+          "message" => I18n.t("api.smart_playlists.evaluation_timeout"),
+        )
+      end
+
+      it "does not dress a timeout in another action up as an evaluation timeout" do
+        allow(SmartPlaylists::Filter).to receive(:new).and_raise(ActiveRecord::QueryCanceled)
+
+        expect { get "/api/v1/smart_playlists" }.to raise_error(ActiveRecord::QueryCanceled)
+      end
+    end
+  end
 end

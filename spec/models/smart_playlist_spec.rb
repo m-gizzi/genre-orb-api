@@ -457,6 +457,94 @@ RSpec.describe SmartPlaylist do
     end
   end
 
+  describe "circular dependencies" do
+    let(:user) { create(:user) }
+
+    def playlist
+      create(:playlist, :with_spotify, user: user)
+    end
+
+    it "rejects a target used as its own source" do
+      target = playlist
+      smart_playlist = build(:smart_playlist, target_playlist: target, source_playlists: [target])
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:source_playlists].join).to include("already fills it")
+    end
+
+    it "rejects a two-playlist loop" do
+      first = playlist
+      second = playlist
+      create(:smart_playlist, target_playlist: second, source_playlists: [first])
+
+      looping = build(:smart_playlist, target_playlist: first, source_playlists: [second])
+
+      expect(looping).not_to be_valid
+      expect(looping.errors[:source_playlists].join).to include("circular").or include("already fills")
+    end
+
+    it "rejects a loop closed through a third playlist" do
+      first = playlist
+      second = playlist
+      third = playlist
+      create(:smart_playlist, target_playlist: second, source_playlists: [first])
+      create(:smart_playlist, target_playlist: third, source_playlists: [second])
+
+      looping = build(:smart_playlist, target_playlist: first, source_playlists: [third])
+
+      expect(looping).not_to be_valid
+    end
+
+    it "allows a chain that does not close" do
+      first = playlist
+      second = playlist
+      create(:smart_playlist, target_playlist: second, source_playlists: [first])
+
+      downstream = build(:smart_playlist, target_playlist: playlist, source_playlists: [second])
+
+      expect(downstream).to be_valid
+    end
+
+    it "allows two smart playlists drawing from the same source" do
+      source = playlist
+      create(:smart_playlist, target_playlist: playlist, source_playlists: [source])
+
+      sibling = build(:smart_playlist, target_playlist: playlist, source_playlists: [source])
+
+      expect(sibling).to be_valid
+    end
+
+    it "lets an existing smart playlist be re-saved without tripping on its own edges" do
+      smart_playlist = create(:smart_playlist, target_playlist: playlist, source_playlists: [playlist])
+
+      expect(smart_playlist.reload).to be_valid
+    end
+
+    it "re-reads the graph on each validation rather than reusing the first answer" do
+      first = playlist
+      second = playlist
+      looping = build(:smart_playlist, target_playlist: first, source_playlists: [second])
+
+      expect(looping).to be_valid
+
+      create(:smart_playlist, target_playlist: Playlist.find(second.id),
+                              source_playlists: [Playlist.find(first.id)],)
+
+      expect(looping).not_to be_valid
+    end
+
+    it "names the offending source so the error is actionable" do
+      target = playlist
+      source = create(:playlist, :with_spotify, user: user, name: "Upstream Mix")
+      create(:smart_playlist, target_playlist: source, source_playlists: [target])
+
+      looping = build(:smart_playlist, target_playlist: target, source_playlists: [source])
+      looping.valid?
+
+      expect(looping.errors[:source_playlists].join).to include("Upstream Mix")
+    end
+  end
+
   describe "ownership" do
     it "derives the user and name from the target playlist" do
       target = create(:playlist, :with_spotify, name: "Metal Mix")

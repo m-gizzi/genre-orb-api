@@ -5,7 +5,7 @@ module Rules
     MAX_DEPTH = 5
     MAX_NODES = 100
     MAX_STRING_LENGTH = 200
-    MAX_LIST_SIZE = 25
+    MAX_LIST_SIZE = 30
     MATCH_TYPES = %w[all any].freeze
     RELATIVE_UNITS = %w[days weeks months years].freeze
 
