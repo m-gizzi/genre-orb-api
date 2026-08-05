@@ -649,12 +649,66 @@ RSpec.describe "Api::V1::SmartPlaylists" do
         expect(response.parsed_body["meta"]).to include("total" => 2, "total_pages" => 2, "per_page" => 1)
       end
 
+      it "records on the first page only, so paging does not rewrite the count" do
+        both_genres = { "match" => "all",
+                        "rules" => [{ "field" => "genre", "operator" => "in", "value" => %w[metal rock] }], }
+        paged = create(:smart_playlist,
+                       target_playlist: create(:playlist, :with_spotify, user: user),
+                       source_playlists: [create(:playlist, :holding, user: user, tracks: [metal, rock])],
+                       rules: both_genres,)
+
+        evaluate(paged.id, query: "?per_page=1&page=2")
+
+        expect(response.parsed_body["meta"]).to include("page" => 2, "evaluated_at" => nil)
+        expect(paged.reload.last_evaluated_at).to be_nil
+        expect(paged.match_count).to eq(0)
+      end
+
       it "returns 404 for another user's smart playlist" do
         other = create(:smart_playlist, :with_rules)
 
         evaluate(other.id)
 
         expect(response).to have_http_status(:not_found)
+      end
+
+      it "reports a rule set that is not an object as a validation error" do
+        evaluate(smart_playlist.id, rules: "not a rule set")
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body["errors"].first["message"])
+          .to eq("Rules #{I18n.t("rules.errors.group_shape")}")
+      end
+
+      it "reports a rule set that is a list as a validation error" do
+        evaluate(smart_playlist.id, rules: [{ "field" => "genre" }])
+
+        expect(response).to have_http_status(:unprocessable_content)
+      end
+
+      it "reports an empty rule set object as a validation error, not as the saved rules" do
+        evaluate(smart_playlist.id, rules: {})
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body["data"]).to be_nil
+      end
+
+      it "renders a validation error when evaluation hits the statement timeout" do
+        allow(SmartPlaylists::QueryTimeout).to receive(:guard).and_raise(ActiveRecord::QueryCanceled)
+
+        evaluate(smart_playlist.id)
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body["errors"].first).to include(
+          "code" => "validation_error",
+          "message" => I18n.t("api.smart_playlists.evaluation_timeout"),
+        )
+      end
+
+      it "does not dress a timeout in another action up as an evaluation timeout" do
+        allow(SmartPlaylists::Filter).to receive(:new).and_raise(ActiveRecord::QueryCanceled)
+
+        expect { get "/api/v1/smart_playlists" }.to raise_error(ActiveRecord::QueryCanceled)
       end
     end
   end

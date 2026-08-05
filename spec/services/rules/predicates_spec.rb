@@ -84,6 +84,11 @@ RSpec.describe Rules::Predicates do
       expect { date_sql("in_the_last", { "count" => 1, "unit" => "fortnights" }) }
         .to raise_error(ArgumentError, /unsupported relative unit/)
     end
+
+    it "refuses an operator it has no branch for" do
+      expect { date_sql("equals", "2024-01-01") }
+        .to raise_error(ArgumentError, /unsupported date operator/)
+    end
   end
 
   describe "booleans" do

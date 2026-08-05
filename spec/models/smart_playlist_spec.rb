@@ -520,6 +520,19 @@ RSpec.describe SmartPlaylist do
       expect(smart_playlist.reload).to be_valid
     end
 
+    it "re-reads the graph on each validation rather than reusing the first answer" do
+      first = playlist
+      second = playlist
+      looping = build(:smart_playlist, target_playlist: first, source_playlists: [second])
+
+      expect(looping).to be_valid
+
+      create(:smart_playlist, target_playlist: Playlist.find(second.id),
+                              source_playlists: [Playlist.find(first.id)],)
+
+      expect(looping).not_to be_valid
+    end
+
     it "names the offending source so the error is actionable" do
       target = playlist
       source = create(:playlist, :with_spotify, user: user, name: "Upstream Mix")

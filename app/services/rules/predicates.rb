@@ -25,6 +25,13 @@ module Rules
 
     COMPARISONS = { "equals" => :eq, "greater_than" => :gt, "less_than" => :lt }.freeze
 
+    DATE_BUILDERS = {
+      "in_the_last" => :since_cutoff,
+      "greater_than" => :after_day,
+      "less_than" => :before_day,
+      "between" => :within_days,
+    }.freeze
+
     def self.call(condition, attribute)
       new(condition, attribute).call
     end
@@ -64,12 +71,23 @@ module Rules
     # per-user timezone is stored, so "2024-01-01" means that whole UTC day.
     # "is after" therefore starts at the following midnight.
     def date
-      case operator
-      when "in_the_last" then attribute.gteq(relative_cutoff)
-      when "greater_than" then attribute.gteq(midnight(days_after(value, 1)))
-      when "less_than" then attribute.lt(midnight(value))
-      when "between" then within_days
+      builder = DATE_BUILDERS.fetch(operator) do
+        raise ArgumentError, "unsupported date operator: #{operator.inspect}"
       end
+
+      send(builder)
+    end
+
+    def since_cutoff
+      attribute.gteq(relative_cutoff)
+    end
+
+    def after_day
+      attribute.gteq(midnight(days_after(value, 1)))
+    end
+
+    def before_day
+      attribute.lt(midnight(value))
     end
 
     def within_days

@@ -71,20 +71,17 @@ class SmartPlaylist < ApplicationRecord
   def sources_must_not_create_a_cycle
     return unless target_playlist
 
-    looping = live_sources.map(&:playlist_id).select { |source_id| cycles_back?(source_id) }
+    graph = SmartPlaylists::DependencyGraph.new(target_playlist.user, excluding: id)
+    looping = live_sources.map(&:playlist_id).select { |source_id| cycles_back?(graph, source_id) }
     return if looping.empty?
 
     errors.add(:source_playlists, cycle_message(looping))
   end
 
-  def cycles_back?(source_id)
+  def cycles_back?(graph, source_id)
     return false unless source_id && target_playlist_id
 
-    dependency_graph.reaches?(target_playlist_id, source_id)
-  end
-
-  def dependency_graph
-    @dependency_graph ||= SmartPlaylists::DependencyGraph.new(target_playlist.user, excluding: id)
+    graph.reaches?(target_playlist_id, source_id)
   end
 
   def cycle_message(looping)

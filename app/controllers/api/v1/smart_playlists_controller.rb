@@ -6,7 +6,6 @@ module Api
       include SpotifyErrorRendering
 
       rescue_from SmartPlaylists::Creator::MissingTargetError, with: :render_missing_target
-      rescue_from ActiveRecord::QueryCanceled, with: :render_evaluation_timeout
 
       def schema
         expires_in 0, must_revalidate: true
@@ -50,17 +49,21 @@ module Api
         smart_playlist = find_smart_playlist
         evaluator = SmartPlaylists::Evaluator.new(smart_playlist, **submitted_rules(smart_playlist))
 
-        pagy, tracks = SmartPlaylists::QueryTimeout.guard do
-          paginate(evaluator.matches, count: evaluator.count)
+        tracks, meta = SmartPlaylists::QueryTimeout.guard do
+          pagy, page = paginate(evaluator.matches, count: evaluator.count)
+          [page, evaluation_meta(pagy, evaluator)]
         end
 
-        render_data(TrackSerializer.new(tracks).serializable_hash,
-                    meta: evaluation_meta(pagy, evaluator, evaluator.record!),)
+        render_data(TrackSerializer.new(tracks).serializable_hash, meta: meta)
+      rescue ActiveRecord::QueryCanceled
+        render_validation_error(I18n.t("api.smart_playlists.evaluation_timeout"))
       end
 
       private
 
-      def evaluation_meta(pagy, evaluator, evaluated_at)
+      def evaluation_meta(pagy, evaluator)
+        evaluated_at = evaluator.record! if pagy.page == 1
+
         pagy_meta(pagy).merge(
           source_track_count: evaluator.source_track_count,
           evaluated_at: evaluated_at&.iso8601,
@@ -68,13 +71,25 @@ module Api
       end
 
       def submitted_rules(smart_playlist)
-        return {} if smart_playlist_params[:rules].blank?
+        return {} unless smart_playlist_params.key?(:rules)
 
-        rules = update_params[:rules].to_h
-        RuleSetValidator.new(attributes: [:rules]).validate_each(smart_playlist, :rules, rules)
-        raise ActiveRecord::RecordInvalid, smart_playlist if smart_playlist.errors[:rules].any?
+        rules = update_params[:rules]&.to_h
+        validate_rules!(smart_playlist, rules)
 
         { rules: rules }
+      end
+
+      # `permit(rules: {})` drops a value that is not a hash, so a submitted
+      # string or list arrives here as nil — a shape the tree walker would read
+      # as "nothing to check" rather than as the malformed input it is.
+      def validate_rules!(smart_playlist, rules)
+        if rules.blank?
+          smart_playlist.errors.add(:rules, I18n.t("rules.errors.group_shape"))
+        else
+          RuleSetValidator.new(attributes: [:rules]).validate_each(smart_playlist, :rules, rules)
+        end
+
+        raise ActiveRecord::RecordInvalid, smart_playlist if smart_playlist.errors[:rules].any?
       end
 
       def find_smart_playlist
@@ -118,10 +133,6 @@ module Api
 
       def render_missing_target
         render_validation_error(I18n.t("api.smart_playlists.target_required"))
-      end
-
-      def render_evaluation_timeout
-        render_validation_error(I18n.t("api.smart_playlists.evaluation_timeout"))
       end
 
       def render_validation_error(message)
