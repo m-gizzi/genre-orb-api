@@ -2,6 +2,8 @@
 
 class SpotifyAdapter
   ARTIST_BATCH_LIMIT = 50
+  TRACK_BATCH_LIMIT = 100
+  PLAYLIST_TRACK_LIMIT = 10_000
 
   def initialize(service_connection)
     @client = Spotify::Client.new(service_connection)
@@ -52,7 +54,38 @@ class SpotifyAdapter
     client.get("artists", params: { ids: spotify_ids.join(",") })
   end
 
+  def playlist_snapshot_id(playlist_id)
+    client.get("playlists/#{playlist_id}", params: { fields: "snapshot_id" })&.fetch("snapshot_id", nil)
+  end
+
+  def add_tracks_to_playlist(playlist_id, spotify_ids)
+    guard_track_batch!(spotify_ids, "add")
+
+    client.post("playlists/#{playlist_id}/tracks", body: { uris: track_uris(spotify_ids) })
+  end
+
+  def remove_tracks_from_playlist(playlist_id, spotify_ids)
+    guard_track_batch!(spotify_ids, "remove")
+
+    body = { tracks: track_uris(spotify_ids).map { |uri| { uri: uri } } }
+    client.delete("playlists/#{playlist_id}/tracks", body: body)
+  end
+
+  def clear_playlist(playlist_id)
+    client.put("playlists/#{playlist_id}/tracks", body: { uris: [] })
+  end
+
   private
 
   attr_reader :client
+
+  def guard_track_batch!(spotify_ids, verb)
+    return if spotify_ids.size <= TRACK_BATCH_LIMIT
+
+    raise ArgumentError, "Cannot #{verb} more than #{TRACK_BATCH_LIMIT} tracks at once"
+  end
+
+  def track_uris(spotify_ids)
+    spotify_ids.map { |id| "spotify:track:#{id}" }
+  end
 end
