@@ -153,6 +153,18 @@ RSpec.describe SmartPlaylists::PushPlanner do
       expect(session.tracks_removed).to eq(0)
     end
 
+    it "reports the net change even when the whole playlist is rewritten" do
+      stub_const("SmartPlaylists::PushBatches::BATCH_SIZE", 1)
+      rewritten = build_target(holding: desired_tracks.take(2), snapshot: "snap_1")
+      stub_snapshot(rewritten, "snap_2")
+
+      session = plan(smart_playlist_for(rewritten))
+
+      expect(session).to be_strategy_replace
+      expect(session.tracks_added).to eq(1)
+      expect(session.tracks_removed).to eq(0)
+    end
+
     it "enqueues one addition job per batch" do
       smart_playlist = smart_playlist_for(target)
 

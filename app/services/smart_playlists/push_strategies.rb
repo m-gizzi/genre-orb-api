@@ -27,14 +27,6 @@ module SmartPlaylists
         batches.slices(batches.diff.to_add)
       end
 
-      def tracks_added
-        batches.diff.to_add.size
-      end
-
-      def tracks_removed
-        batches.diff.to_remove.size
-      end
-
       private
 
       attr_reader :batches
@@ -63,14 +55,6 @@ module SmartPlaylists
 
       def add_slices
         batches.slices(batches.desired).drop(1)
-      end
-
-      def tracks_added
-        batches.desired.size
-      end
-
-      def tracks_removed
-        batches.current.size
       end
 
       private

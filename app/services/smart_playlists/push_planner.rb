@@ -77,8 +77,8 @@ module SmartPlaylists
       {
         match_count: track_set.total_match_count,
         sampled: track_set.sampled?,
-        tracks_added: strategy.tracks_added,
-        tracks_removed: strategy.tracks_removed,
+        tracks_added: batches.diff.to_add.size,
+        tracks_removed: batches.diff.to_remove.size,
         total_remove_batches: strategy.remove_batch_count,
         total_add_batches: strategy.add_slices.size,
       }
