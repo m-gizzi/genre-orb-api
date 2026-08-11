@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class SyncSessionPlaylist < ApplicationRecord
+  include FanInCounter
+
   belongs_to :sync_session, inverse_of: :sync_session_playlists
   belongs_to :playlist, inverse_of: :sync_session_playlists
   belongs_to :playlist_version, optional: true
@@ -18,9 +20,6 @@ class SyncSessionPlaylist < ApplicationRecord
   end
 
   def page_completed!
-    with_lock do
-      increment!(:completed_pages)
-      completed_pages >= total_pages
-    end
+    advance_counter!(:completed_pages, :total_pages)
   end
 end

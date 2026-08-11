@@ -14,9 +14,10 @@ module Spotify
     def call
       return Result.new(skipped?: true) if playlist_session.completed? || playlist_session.failed? ||
                                            playlist_session.skipped?
+      return skip_playlist if push_in_flight?
 
       first_page_response, current_snapshot_id = fetch_first_page_with_snapshot
-      return skip_unchanged if strategy.snapshot_unchanged?(current_snapshot_id)
+      return skip_playlist if strategy.snapshot_unchanged?(current_snapshot_id)
 
       process_sync(first_page_response)
     end
@@ -31,9 +32,16 @@ module Spotify
       @strategy ||= PlaylistSyncStrategy.new(playlist)
     end
 
-    def skip_unchanged
+    def skip_playlist
       PlaylistSyncFinalizer.new(playlist_session).mark_as_skipped!
       Result.new(skipped?: true)
+    end
+
+    def push_in_flight?
+      smart_playlist = playlist.smart_playlist_as_target
+      return false unless smart_playlist
+
+      smart_playlist.push_sessions.active.exists?
     end
 
     def process_sync(first_page_response)

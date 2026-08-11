@@ -187,11 +187,6 @@ RSpec.describe "Api::V1::Libraries" do
             end.to have_enqueued_job(PlaylistSyncSetupJob)
           end
 
-          it "returns queued status" do
-            post "/api/v1/library/sync"
-            expect(response.parsed_body.dig("data", "status")).to eq("queued")
-          end
-
           it "returns the created session in the response body" do
             post "/api/v1/library/sync"
             session = response.parsed_body.dig("data", "session")

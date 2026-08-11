@@ -38,7 +38,11 @@ class PlaylistSyncFinalizer
 
   def complete_version!
     version = playlist_session.playlist_version
-    version.update!(track_count: version.playlist_version_tracks.count, status: :complete)
+    version.update!(
+      track_count: version.playlist_version_tracks.count,
+      status: :complete,
+      spotify_snapshot_id: playlist_session.playlist.last_seen_snapshot_id,
+    )
   end
 
   def complete_playlist!

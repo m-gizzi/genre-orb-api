@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class SyncSession < ApplicationRecord
+  include Sessionable
+
   belongs_to :user, inverse_of: :sync_sessions
   has_many :sync_session_playlists, dependent: :destroy, inverse_of: :sync_session
   has_many :playlists, through: :sync_session_playlists
@@ -12,9 +14,6 @@ class SyncSession < ApplicationRecord
     failed: 3,
     completed_with_errors: 4,
   }
-
-  scope :active, -> { where(status: %i[pending running]) }
-  scope :recent, -> { order(created_at: :desc) }
 
   def progress
     done = completed_playlists + skipped_playlists + failed_playlists
@@ -46,10 +45,6 @@ class SyncSession < ApplicationRecord
 
       update!(status: terminal_status, completed_at: Time.current)
     end
-  end
-
-  def active?
-    pending? || running?
   end
 
   private

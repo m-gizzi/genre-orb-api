@@ -71,8 +71,10 @@ class SpotifyAdapter
     client.delete("playlists/#{playlist_id}/tracks", body: body)
   end
 
-  def clear_playlist(playlist_id)
-    client.put("playlists/#{playlist_id}/tracks", body: { uris: [] })
+  def replace_playlist_tracks(playlist_id, spotify_ids)
+    guard_track_batch!(spotify_ids, "replace")
+
+    client.put("playlists/#{playlist_id}/tracks", body: { uris: track_uris(spotify_ids) })
   end
 
   private

@@ -21,6 +21,9 @@ en:
     smart_playlists:
       target_required: "A target playlist is required"
       evaluation_timeout: "These rules took too long to evaluate. Try simplifying them."
+      push_in_progress: "This smart playlist is already being pushed"
+      push_not_ready: "Add at least one rule before pushing"
+      push_no_matches: "These rules match no tracks, so there is nothing to push."
     artists:
       sync_in_progress: "Artist metadata sync already in progress"
       no_artists_need_sync: "No artists need metadata sync"

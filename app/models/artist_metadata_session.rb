@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class ArtistMetadataSession < ApplicationRecord
+  include Sessionable
+
   belongs_to :user, inverse_of: :artist_metadata_sessions
 
   enum :status, {
@@ -10,9 +12,6 @@ class ArtistMetadataSession < ApplicationRecord
     failed: 3,
   }
 
-  scope :active, -> { where(status: %i[pending running]) }
-  scope :recent, -> { order(created_at: :desc) }
-
   def progress
     return { total: 0, completed: 0, percent: 100 } if total_batches.zero?
 
@@ -20,13 +19,6 @@ class ArtistMetadataSession < ApplicationRecord
   end
 
   def batch_completed!
-    with_lock do
-      increment!(:completed_batches)
-      completed_batches >= total_batches
-    end
-  end
-
-  def active?
-    pending? || running?
+    advance_counter!(:completed_batches, :total_batches)
   end
 end

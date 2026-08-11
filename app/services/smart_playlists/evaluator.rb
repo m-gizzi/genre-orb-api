@@ -18,13 +18,21 @@ module SmartPlaylists
     end
 
     def matches
-      scoped.with_catalog_associations
-            .joins(memberships_join)
-            .order(Arel.sql(ORDER), Track.arel_table[:id].asc)
+      scope.with_catalog_associations
+           .joins(memberships_join)
+           .order(Arel.sql(ORDER), Track.arel_table[:id].asc)
+    end
+
+    def scope
+      Track.where(id: source.track_ids).where(predicate)
+    end
+
+    def in_canonical_order(relation)
+      relation.joins(memberships_join).order(Arel.sql(ORDER), Track.arel_table[:id].asc)
     end
 
     def count
-      @count ||= scoped.count
+      @count ||= scope.count
     end
 
     def source_track_count
@@ -46,10 +54,6 @@ module SmartPlaylists
     private
 
     attr_reader :smart_playlist, :rules
-
-    def scoped
-      Track.where(id: source.track_ids).where(predicate)
-    end
 
     def predicate
       Rules::Compiler.new(source.memberships).call(rules)

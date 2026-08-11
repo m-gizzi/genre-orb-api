@@ -59,37 +59,11 @@ RSpec.describe PushSession do
     end
   end
 
-  describe "#remove_batch_completed!" do
-    it "returns false until the last batch of the phase" do
-      session = create(:push_session, :with_batches, remove_batches: 2)
-
-      expect(session.remove_batch_completed!("snap_1")).to be(false)
-      expect(session.remove_batch_completed!("snap_2")).to be(true)
-      expect(session.reload.completed_remove_batches).to eq(2)
-    end
-
-    it "records the snapshot from the response" do
-      session = create(:push_session, :with_batches, remove_batches: 1)
-
-      session.remove_batch_completed!("snap_1")
-
-      expect(session.reload.spotify_snapshot_id).to eq("snap_1")
-    end
-
-    it "keeps the previous snapshot when a response carries none" do
-      session = create(:push_session, :with_batches, remove_batches: 2, spotify_snapshot_id: "snap_1")
-
-      session.remove_batch_completed!(nil)
-
-      expect(session.reload.spotify_snapshot_id).to eq("snap_1")
-    end
-  end
-
-  describe "#add_batch_completed!" do
+  describe "counting the two phases" do
     it "counts the add phase independently of the remove phase" do
       session = create(:push_session, :with_batches, remove_batches: 2, add_batches: 1)
 
-      expect(session.add_batch_completed!("snap_1")).to be(true)
+      expect(session.advance_counter!(:completed_add_batches, :total_add_batches)).to be(true)
       expect(session.reload.completed_remove_batches).to eq(0)
     end
   end

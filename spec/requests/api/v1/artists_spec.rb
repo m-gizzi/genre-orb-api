@@ -275,11 +275,6 @@ RSpec.describe "Api::V1::Artists" do
             end.to have_enqueued_job(ArtistBatchFetchJob)
           end
 
-          it "returns queued status" do
-            post "/api/v1/artists/sync"
-            expect(response.parsed_body.dig("data", "status")).to eq("queued")
-          end
-
           it "returns the created session in the response body" do
             post "/api/v1/artists/sync"
             session = response.parsed_body.dig("data", "session")

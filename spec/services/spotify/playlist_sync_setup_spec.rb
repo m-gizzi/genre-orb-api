@@ -127,6 +127,28 @@ RSpec.describe Spotify::PlaylistSyncSetup do
       end
     end
 
+    context "when a push is in flight for this playlist" do
+      let(:smart_playlist) { create(:smart_playlist, :with_rules, target_playlist: playlist) }
+
+      before { create(:push_session, :running, smart_playlist: smart_playlist) }
+
+      it "skips the playlist rather than reading a half-written track set" do
+        expect(service.call.skipped?).to be(true)
+        expect(playlist_session.reload.status).to eq("skipped")
+      end
+
+      it "does not call Spotify at all" do
+        service.call
+        expect(adapter).not_to have_received(:playlist)
+      end
+
+      it "syncs normally once the push has finished" do
+        smart_playlist.push_sessions.update_all(status: PushSession.statuses[:completed])
+
+        expect(service.call.skipped?).to be(false)
+      end
+    end
+
     context "when playlist is single page" do
       let(:playlist_response) do
         {
@@ -152,6 +174,12 @@ RSpec.describe Spotify::PlaylistSyncSetup do
         service.call
         playlist_session.reload
         expect(playlist_session.completed_pages).to eq(playlist_session.total_pages)
+      end
+
+      it "records the snapshot the version is a picture of" do
+        service.call
+
+        expect(playlist_session.reload.playlist_version.spotify_snapshot_id).to eq("new_snapshot")
       end
     end
 
