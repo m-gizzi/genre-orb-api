@@ -126,6 +126,26 @@ RSpec.describe "Api::V1::SmartPlaylists" do
         expect(response.parsed_body["data"].pluck("name")).to eq(%w[Alpha Zebra])
       end
 
+      it "sorts by when each was last pushed, newest first" do
+        target = ->(name) { create(:playlist, :with_spotify, user: user, name: name) }
+        create(:smart_playlist, :with_rules, target_playlist: target.call("Older"), last_pushed_at: 2.days.ago)
+        create(:smart_playlist, :with_rules, target_playlist: target.call("Newer"), last_pushed_at: 1.hour.ago)
+
+        get "/api/v1/smart_playlists", params: { sort: "last_pushed_at", order: "desc" }
+
+        expect(response.parsed_body["data"].pluck("name")).to eq(%w[Newer Older])
+      end
+
+      it "puts a never-pushed smart playlist last when sorting by last pushed" do
+        target = ->(name) { create(:playlist, :with_spotify, user: user, name: name) }
+        create(:smart_playlist, :with_rules, target_playlist: target.call("Never"))
+        create(:smart_playlist, :with_rules, target_playlist: target.call("Pushed"), last_pushed_at: 1.hour.ago)
+
+        get "/api/v1/smart_playlists", params: { sort: "last_pushed_at", order: "desc" }
+
+        expect(response.parsed_body["data"].pluck("name")).to eq(%w[Pushed Never])
+      end
+
       it "filters by target playlist name" do
         create(:smart_playlist, user: user, target_playlist: create(:playlist, :with_spotify, user: user,
                                                                                               name: "Metal Mix",),)

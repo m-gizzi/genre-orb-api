@@ -7,6 +7,7 @@ module SmartPlaylists
         "name" => -> { Playlist.arel_table[:name] },
         "created_at" => -> { SmartPlaylist.arel_table[:created_at] },
         "last_evaluated_at" => -> { SmartPlaylist.arel_table[:last_evaluated_at] },
+        "last_pushed_at" => -> { SmartPlaylist.arel_table[:last_pushed_at] },
       },
       default: "name",
     )
