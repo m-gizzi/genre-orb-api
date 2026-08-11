@@ -19,7 +19,7 @@ class PushPlanJob < PushJob
 
   private
 
-  def adapter_for(user)                                                                                                                                                  
-    SpotifyAdapter.new(user.spotify_connection)                                                                                                                          
+  def adapter_for(user)
+    SpotifyAdapter.new(user.spotify_connection)
   end
 end
