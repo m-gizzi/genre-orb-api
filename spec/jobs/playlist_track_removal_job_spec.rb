@@ -24,13 +24,7 @@ RSpec.describe PlaylistTrackRemovalJob do
 
   let(:remove_url) { "#{Spotify::Client::BASE_URL}/playlists/#{target.spotify_id}/tracks" }
 
-  before do
-    create(:service_connection, user: user)
-    stub_request(:get, "#{Spotify::Client::BASE_URL}/playlists/#{target.spotify_id}")
-      .with(query: { fields: "snapshot_id" })
-      .to_return(status: 200, body: { "snapshot_id" => "snap_final" }.to_json,
-                 headers: { "Content-Type" => "application/json" },)
-  end
+  before { create(:service_connection, user: user) }
 
   def stub_remove
     stub_request(:delete, remove_url)

@@ -16,6 +16,7 @@ module SmartPlaylists
 
       return fail_no_matches! if nothing_to_push
 
+      build_version!(track_set)
       strategy = commit_plan(track_set)
       start_remove_phase(strategy)
     end
@@ -49,21 +50,19 @@ module SmartPlaylists
       PushFailureHandler.fail_session(push_session, error_message: I18n.t("api.smart_playlists.push_no_matches"))
     end
 
-    def commit_plan(track_set)
+    def build_version!(track_set)
       ActiveRecord::Base.transaction do
-        build_version!(track_set)
-        push_session.update!(strategy: chosen_strategy)
-
-        PushStrategies.for(push_session, batches: batches).tap do |strategy|
-          push_session.update!(plan_attributes(track_set, strategy))
-        end
+        version = PlaylistVersion.create_for_push!(target)
+        PushVersionTrackBuilder.new(version).call(track_set.entries)
+        push_session.update!(playlist_version: version)
       end
     end
 
-    def build_version!(track_set)
-      version = PlaylistVersion.create_for_push!(target)
-      PushVersionTrackBuilder.new(version).call(track_set.entries)
-      push_session.update!(playlist_version: version)
+    def commit_plan(track_set)
+      push_session.strategy = chosen_strategy
+      strategy = PushStrategies.for(push_session, batches: batches)
+      push_session.update!(plan_attributes(track_set, strategy))
+      strategy
     end
 
     def batches
@@ -71,7 +70,7 @@ module SmartPlaylists
     end
 
     def advancer
-      PushPhaseAdvancer.new(push_session, adapter: adapter)
+      PushPhaseAdvancer.new(push_session)
     end
 
     def plan_attributes(track_set, strategy)

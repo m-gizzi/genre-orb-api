@@ -2,28 +2,26 @@
 
 module SmartPlaylists
   class PushFinalizer
-    def initialize(push_session, adapter:)
+    def initialize(push_session)
       @push_session = push_session
-      @adapter = adapter
     end
 
     def call
       return if push_session.completed?
 
-      snapshot_id = authoritative_snapshot_id
+      snapshot_id = settled_snapshot_id
 
       ActiveRecord::Base.transaction do
         complete_version!(snapshot_id)
         swap_current_version!
+        record_push!
         push_session.update!(status: :completed, completed_at: Time.current)
       end
-
-      record_push!
     end
 
     private
 
-    attr_reader :push_session, :adapter
+    attr_reader :push_session
 
     def version
       @version ||= push_session.playlist_version
@@ -33,11 +31,8 @@ module SmartPlaylists
       @target ||= push_session.smart_playlist.target_playlist
     end
 
-    def authoritative_snapshot_id
-      adapter.playlist_snapshot_id(target.spotify_id)
-    rescue Spotify::ApiError => e
-      Rails.logger.warn("Could not re-read snapshot after push #{push_session.id}: #{e.message}")
-      nil
+    def settled_snapshot_id
+      push_session.spotify_snapshot_id.presence || target.current_version&.spotify_snapshot_id
     end
 
     def complete_version!(snapshot_id)

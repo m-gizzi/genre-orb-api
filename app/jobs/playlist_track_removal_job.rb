@@ -13,7 +13,7 @@ class PlaylistTrackRemovalJob < PushJob
 
   private
 
-  def advance(push_session, adapter, snapshot_id)
-    SmartPlaylists::PushPhaseAdvancer.new(push_session, adapter: adapter).remove_batch_done(snapshot_id)
+  def advance(push_session, snapshot_id)
+    SmartPlaylists::PushPhaseAdvancer.new(push_session).remove_batch_done(snapshot_id)
   end
 end

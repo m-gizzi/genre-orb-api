@@ -13,7 +13,7 @@ class PlaylistTrackAdditionJob < PushJob
 
   private
 
-  def advance(push_session, adapter, snapshot_id)
-    SmartPlaylists::PushPhaseAdvancer.new(push_session, adapter: adapter).add_batch_done(snapshot_id)
+  def advance(push_session, snapshot_id)
+    SmartPlaylists::PushPhaseAdvancer.new(push_session).add_batch_done(snapshot_id)
   end
 end

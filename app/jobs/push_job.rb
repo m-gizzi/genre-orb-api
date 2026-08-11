@@ -22,7 +22,7 @@ class PushJob < SpotifyJob
     adapter = SpotifyAdapter.new(user.spotify_connection)
     response = yield(adapter, push_session.smart_playlist.target_playlist.spotify_id)
 
-    advance(push_session, adapter, response&.dig("snapshot_id"))
+    advance(push_session, response&.dig("snapshot_id"))
   end
 
   def load_session(push_session_id)

@@ -2,9 +2,8 @@
 
 module SmartPlaylists
   class PushPhaseAdvancer
-    def initialize(push_session, adapter:)
+    def initialize(push_session)
       @push_session = push_session
-      @adapter = adapter
     end
 
     def remove_batch_done(snapshot_id)
@@ -31,14 +30,14 @@ module SmartPlaylists
 
     private
 
-    attr_reader :push_session, :adapter
+    attr_reader :push_session
 
     def advance(completed_column, total_column, snapshot_id)
       push_session.advance_counter!(completed_column, total_column, spotify_snapshot_id: snapshot_id)
     end
 
     def finalize
-      PushFinalizer.new(push_session, adapter: adapter).call
+      PushFinalizer.new(push_session).call
     end
   end
 end
