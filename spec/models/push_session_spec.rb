@@ -54,8 +54,8 @@ RSpec.describe PushSession do
       expect(session.progress).to eq(total: 5, completed: 3, percent: 60)
     end
 
-    it "reports complete when there is nothing to do" do
-      expect(create(:push_session).progress).to eq(total: 0, completed: 0, percent: 100)
+    it "reports no progress before the planner has sized the push" do
+      expect(create(:push_session).progress).to eq(total: 0, completed: 0, percent: 0)
     end
   end
 

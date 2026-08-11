@@ -22,7 +22,7 @@ class PushSession < ApplicationRecord
 
   def progress
     total = total_remove_batches + total_add_batches
-    return { total: 0, completed: 0, percent: 100 } if total.zero?
+    return { total: 0, completed: 0, percent: 0 } if total.zero?
 
     completed = completed_remove_batches + completed_add_batches
     { total: total, completed: completed, percent: (completed * 100 / total) }
