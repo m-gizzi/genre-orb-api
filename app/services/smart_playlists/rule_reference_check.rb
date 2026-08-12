@@ -2,13 +2,14 @@
 
 module SmartPlaylists
   class RuleReferenceCheck
-    def self.call(smart_playlist, rules)
-      new(smart_playlist, rules).errors
+    def self.call(smart_playlist, rules, graph: nil)
+      new(smart_playlist, rules, graph).errors
     end
 
-    def initialize(smart_playlist, rules)
+    def initialize(smart_playlist, rules, graph = nil)
       @smart_playlist = smart_playlist
       @rules = rules
+      @graph = graph
     end
 
     def errors

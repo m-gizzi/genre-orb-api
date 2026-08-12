@@ -88,6 +88,14 @@ RSpec.describe SmartPlaylist do
       expect(smart_playlist.errors[:rules]).to include("each rule must have a value at rule 1")
     end
 
+    it "accepts a rule with no value key where the operator asks only whether a field is set" do
+      expect(with_rules([{ "field" => "genre", "operator" => "is_not_set" }])).to be_valid
+    end
+
+    it "accepts the same rule with an explicit null value" do
+      expect(with_rules([{ "field" => "genre", "operator" => "is_not_set", "value" => nil }])).to be_valid
+    end
+
     it "accepts a false value where the field is boolean" do
       expect(with_rules([{ "field" => "explicit", "operator" => "equals", "value" => false }])).to be_valid
     end
@@ -611,6 +619,15 @@ RSpec.describe SmartPlaylist do
       smart_playlist.save!
 
       expect(smart_playlist.reload).to be_valid
+    end
+
+    it "builds one dependency graph for the source and reference checks together" do
+      smart_playlist = referencing(playlist, [playlist.id])
+      allow(SmartPlaylists::DependencyGraph).to receive(:new).and_call_original
+
+      smart_playlist.valid?
+
+      expect(SmartPlaylists::DependencyGraph).to have_received(:new).once
     end
 
     it "says nothing about references when the rule set is malformed" do

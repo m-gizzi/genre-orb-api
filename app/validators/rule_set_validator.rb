@@ -83,11 +83,15 @@ class RuleSetValidator < ActiveModel::EachValidator
 
       validate_keys(condition, CONDITION_KEYS, location)
       return unless known_pairing?(condition, location)
-      return add(location, :missing_value) unless condition.key?("value")
+      return add(location, :missing_value) unless value_given?(condition)
 
       Rules::ValueValidator
         .call(condition["value"], field: condition["field"], operator: condition["operator"])
         .each { |message| add_message(location, message) }
+    end
+
+    def value_given?(condition)
+      condition.key?("value") || Catalog.arity(condition["operator"]) == :none
     end
 
     def known_pairing?(condition, location)

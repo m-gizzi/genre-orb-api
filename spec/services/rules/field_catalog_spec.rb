@@ -25,6 +25,12 @@ RSpec.describe Rules::FieldCatalog do
       expect(described_class).not_to be_supports("genre", "greater_than")
       expect(described_class).not_to be_supports("duration", "contains")
     end
+
+    it "offers presence operators only for the fields a track can lack" do
+      offering = described_class.field_keys.select { |key| described_class.supports?(key, "is_not_set") }
+
+      expect(offering).to eq(%w[genre artist])
+    end
   end
 
   describe ".arity" do

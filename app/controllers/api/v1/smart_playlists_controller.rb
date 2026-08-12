@@ -103,7 +103,7 @@ module Api
 
       def find_smart_playlist
         current_user.smart_playlists
-                    .includes(:source_playlists, target_playlist: :current_version)
+                    .includes(source_playlists: :current_version, target_playlist: :current_version)
                     .find(params.expect(:id))
       end
 

@@ -183,6 +183,26 @@ RSpec.describe "Api::V1::SmartPlaylists" do
         .to contain_exactly(hash_including("id" => excluded.id, "name" => "Already Heard"))
     end
 
+    it "reports that a referenced playlist has nothing to match on yet" do
+      excluded = create(:playlist, :with_spotify, user: user)
+      smart_playlist = create(:smart_playlist, :playlist_rule, user: user, excluded_playlist: excluded)
+
+      get "/api/v1/smart_playlists/#{smart_playlist.id}"
+
+      expect(response.parsed_body["data"]["rule_playlists"].first)
+        .to include("sync_enabled" => false, "track_count" => 0)
+    end
+
+    it "reports the tracks a synced reference holds" do
+      excluded = create(:playlist, :with_spotify, :sync_enabled, :holding, user: user, tracks: [create(:track)])
+      smart_playlist = create(:smart_playlist, :playlist_rule, user: user, excluded_playlist: excluded)
+
+      get "/api/v1/smart_playlists/#{smart_playlist.id}"
+
+      expect(response.parsed_body["data"]["rule_playlists"].first)
+        .to include("sync_enabled" => true, "track_count" => 1)
+    end
+
     it "returns 404 for another user's smart playlist" do
       get "/api/v1/smart_playlists/#{create(:smart_playlist).id}"
 

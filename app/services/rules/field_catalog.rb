@@ -38,18 +38,24 @@ module Rules
       "is_not_set" => :none,
     }.freeze
 
+    ENTITY_OPERATORS = {
+      "equals" => "is",
+      "not_equals" => "is not",
+      "contains" => "contains",
+      "in" => "is any of",
+      "not_in" => "is none of",
+    }.freeze
+
+    PRESENCE_OPERATORS = {
+      "is_set" => "is set",
+      "is_not_set" => "is not set",
+    }.freeze
+
     # Operator vocabularies, each mapping an operator to how it reads for that
     # kind of field — "is after" for a year, "is longer than" for a duration.
     VOCABULARIES = {
-      entity: {
-        "equals" => "is",
-        "not_equals" => "is not",
-        "contains" => "contains",
-        "in" => "is any of",
-        "not_in" => "is none of",
-        "is_set" => "is set",
-        "is_not_set" => "is not set",
-      },
+      entity: ENTITY_OPERATORS,
+      optional_entity: ENTITY_OPERATORS.merge(PRESENCE_OPERATORS).freeze,
       playlist: {
         "in" => "is any of",
         "not_in" => "is none of",
@@ -95,9 +101,9 @@ module Rules
     # names are neither unique nor stable, so it references the local record.
     FIELDS = [
       { key: "genre", label: "Genre", value_type: "text", suggest: "genres",
-        constraints: TEXT_LIMITS, operators: VOCABULARIES[:entity], },
+        constraints: TEXT_LIMITS, operators: VOCABULARIES[:optional_entity], },
       { key: "artist", label: "Artist", value_type: "text", suggest: "artists",
-        constraints: TEXT_LIMITS, operators: VOCABULARIES[:entity], },
+        constraints: TEXT_LIMITS, operators: VOCABULARIES[:optional_entity], },
       { key: "album", label: "Album", value_type: "text", suggest: "albums",
         constraints: TEXT_LIMITS, operators: VOCABULARIES[:entity], },
       { key: "title", label: "Title", value_type: "text", suggest: nil,

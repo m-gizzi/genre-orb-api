@@ -66,12 +66,22 @@ RSpec.describe Rules::ConditionCompiler do
   end
 
   describe "presence operators" do
-    it "asks for every track the source has a row for, unfiltered" do
+    it "asks for every track the source has a row for" do
       sql = compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }).to_sql
 
-      expect(sql).to start_with('"tracks"."id" IN')
-      expect(sql).to include('INNER JOIN "genres"')
-      expect(sql).not_to include("WHERE")
+      expect(sql).to start_with('"tracks"."id" IN (SELECT "track_genres"."track_id"')
+    end
+
+    it "does not reach the named entity it has no value to compare against" do
+      sql = compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }).to_sql
+
+      expect(sql).not_to include('INNER JOIN "genres"')
+    end
+
+    it "bounds the set by the same pool the outer query draws from" do
+      sql = compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }).to_sql
+
+      expect(sql).to include('"track_genres"."track_id" IN (SELECT "playlist_version_tracks"."track_id"')
     end
 
     it "reads is_not_set as having no value at all" do

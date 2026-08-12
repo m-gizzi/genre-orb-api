@@ -164,14 +164,6 @@
         {
           "key": "not_in",
           "label": "is none of"
-        },
-        {
-          "key": "is_set",
-          "label": "is set"
-        },
-        {
-          "key": "is_not_set",
-          "label": "is not set"
         }
       ]
     },
