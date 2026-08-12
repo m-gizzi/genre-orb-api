@@ -16,7 +16,7 @@ module SmartPlaylists
       end
 
       def remove_slices
-        batches.slices(batches.diff.to_remove)
+        @remove_slices ||= batches.slices(batches.diff.to_remove)
       end
 
       def remove_batch_count
@@ -24,7 +24,11 @@ module SmartPlaylists
       end
 
       def add_slices
-        batches.slices(batches.diff.to_add)
+        @add_slices ||= batches.slices(batches.diff.to_add)
+      end
+
+      def total_batches
+        remove_batch_count + add_slices.size
       end
 
       private
@@ -42,7 +46,7 @@ module SmartPlaylists
       end
 
       def seed_slice
-        batches.slices(batches.desired).first || []
+        desired_slices.first || []
       end
 
       def remove_slices
@@ -54,12 +58,20 @@ module SmartPlaylists
       end
 
       def add_slices
-        batches.slices(batches.desired).drop(1)
+        desired_slices.drop(1)
+      end
+
+      def total_batches
+        remove_batch_count + add_slices.size
       end
 
       private
 
       attr_reader :batches
+
+      def desired_slices
+        @desired_slices ||= batches.slices(batches.desired)
+      end
     end
   end
 end

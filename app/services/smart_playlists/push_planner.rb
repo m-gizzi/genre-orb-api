@@ -9,6 +9,7 @@ module SmartPlaylists
 
     def call
       discard_previous_attempt!
+      pin_baseline!
 
       track_set = PushTrackSet.new(evaluator)
       nothing_to_push = track_set.entries.empty?
@@ -42,8 +43,12 @@ module SmartPlaylists
       return unless version
 
       push_session.update!(playlist_version: nil, total_remove_batches: 0, completed_remove_batches: 0,
-                           total_add_batches: 0, completed_add_batches: 0,)
+                           total_add_batches: 0, completed_add_batches: 0, add_phase_started_at: nil,)
       version.destroy!
+    end
+
+    def pin_baseline!
+      push_session.update!(baseline_version_id: target.current_version_id)
     end
 
     def fail_no_matches!
@@ -87,11 +92,13 @@ module SmartPlaylists
     def chosen_strategy
       return :replace unless baseline_trusted?
 
-      batches.diff_cost <= batches.replace_cost ? :diff : :replace
+      diff_batches = PushStrategies::Diff.new(batches).total_batches
+      replace_batches = PushStrategies::Replace.new(batches).total_batches
+      diff_batches <= replace_batches ? :diff : :replace
     end
 
     def baseline_trusted?
-      known = target.current_version&.spotify_snapshot_id
+      known = push_session.baseline_version&.spotify_snapshot_id
       return false if known.blank?
 
       adapter.playlist_snapshot_id(target.spotify_id) == known

@@ -24,6 +24,10 @@ FactoryBot.define do
       error_message { "Push failed after retries" }
     end
 
+    trait :pinned do
+      baseline_version { smart_playlist.target_playlist.current_version }
+    end
+
     trait :with_batches do
       transient do
         remove_batches { 2 }

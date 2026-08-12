@@ -39,7 +39,10 @@ class PlaylistSyncSetupJob < SpotifyJob
   end
 
   def log_skipped(playlist_session)
-    Rails.logger.info("PlaylistSyncSetupJob: playlist=#{playlist_session.playlist.id} skipped - snapshot unchanged")
+    Rails.logger.info(
+      "PlaylistSyncSetupJob: playlist=#{playlist_session.playlist.id} " \
+      "skipped - #{playlist_session.skip_reason}",
+    )
   end
 
   def enqueue_remaining_pages(playlist_session, remaining_pages)

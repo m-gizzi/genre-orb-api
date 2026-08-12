@@ -13,16 +13,22 @@ class PushJob < SpotifyJob
 
   private
 
-  def perform_push(push_session_id)
+  def with_push_session(push_session_id)
     push_session = load_session(push_session_id)
-    user = push_session.user
+    return unless push_session.active?
 
+    user = push_session.user
     return defer_for_rate_limit(user.id) if rate_limited?(user.id)
 
-    adapter = SpotifyAdapter.new(user.spotify_connection)
-    response = yield(adapter, push_session.smart_playlist.target_playlist.spotify_id)
+    yield(push_session, SpotifyAdapter.new(user.spotify_connection))
+  end
 
-    advance(push_session, response&.dig("snapshot_id"))
+  def perform_push(push_session_id)
+    with_push_session(push_session_id) do |push_session, adapter|
+      response = yield(adapter, push_session.smart_playlist.target_playlist.spotify_id)
+
+      advance(push_session, response&.dig("snapshot_id"))
+    end
   end
 
   def load_session(push_session_id)

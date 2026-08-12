@@ -107,6 +107,21 @@ RSpec.describe Spotify::PlaylistSyncSetup do
       expect(playlist.reload.last_seen_snapshot_id).to eq("new_snapshot")
     end
 
+    it "stamps the version with the snapshot it was read at, not a later one" do
+      service.call
+      playlist.update!(last_seen_snapshot_id: "moved_since")
+
+      expect(playlist_session.reload.playlist_version.spotify_snapshot_id).to eq("new_snapshot")
+    end
+
+    it "records the version this sync is allowed to replace" do
+      baseline = create(:playlist_version, :current, playlist: playlist)
+
+      service.call
+
+      expect(playlist_session.reload.baseline_version_id).to eq(baseline.id)
+    end
+
     context "when snapshot is unchanged" do
       let(:playlist) do
         create(:playlist, user: user, spotify_id: "playlist_123", last_synced_snapshot_id: "new_snapshot")
@@ -125,6 +140,11 @@ RSpec.describe Spotify::PlaylistSyncSetup do
         service.call
         expect(playlist_session.reload.status).to eq("skipped")
       end
+
+      it "records why it was skipped" do
+        service.call
+        expect(playlist_session.reload.skip_reason).to eq("snapshot_unchanged")
+      end
     end
 
     context "when a push is in flight for this playlist" do
@@ -140,6 +160,11 @@ RSpec.describe Spotify::PlaylistSyncSetup do
       it "does not call Spotify at all" do
         service.call
         expect(adapter).not_to have_received(:playlist)
+      end
+
+      it "is distinguishable from a playlist skipped because nothing changed" do
+        service.call
+        expect(playlist_session.reload.skip_reason).to eq("push_in_flight")
       end
 
       it "syncs normally once the push has finished" do

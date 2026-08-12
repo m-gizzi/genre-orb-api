@@ -7,7 +7,8 @@ module SmartPlaylists
     end
 
     def call
-      return if push_session.completed?
+      return if push_session.completed? || push_session.failed?
+      return unless version
 
       snapshot_id = settled_snapshot_id
 

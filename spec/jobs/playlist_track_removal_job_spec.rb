@@ -82,6 +82,24 @@ RSpec.describe PlaylistTrackRemovalJob do
     end
   end
 
+  describe "a batch left over from a session that already went terminal" do
+    it "does not write to the playlist a replacement push may already own" do
+      stub = stub_remove
+      session.update!(status: :failed, error_message: "Removing tracks failed after retries")
+
+      run
+
+      expect(stub).not_to have_been_requested
+    end
+
+    it "does not advance the dead session's counters" do
+      stub_remove
+      session.update!(status: :failed, error_message: "boom")
+
+      expect { run }.not_to(change { session.reload.completed_remove_batches })
+    end
+  end
+
   describe "rate-limit deferral" do
     before { allow(SyncRateLimitState).to receive(:wait_time_for_user).with(user.id).and_return(30) }
 

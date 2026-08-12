@@ -2,11 +2,7 @@
 
 module SmartPlaylists
   class PushInitializer
-    Result = Struct.new(:outcome, :session, keyword_init: true) do
-      def started?
-        outcome == :started
-      end
-    end
+    Result = Struct.new(:outcome, :session, keyword_init: true) { include StartableResult }
 
     def initialize(smart_playlist)
       @smart_playlist = smart_playlist

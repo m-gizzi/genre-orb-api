@@ -14,12 +14,12 @@ module Spotify
     def call
       return Result.new(skipped?: true) if playlist_session.completed? || playlist_session.failed? ||
                                            playlist_session.skipped?
-      return skip_playlist if push_in_flight?
+      return skip_playlist(:push_in_flight) if push_in_flight?
 
       first_page_response, current_snapshot_id = fetch_first_page_with_snapshot
-      return skip_playlist if strategy.snapshot_unchanged?(current_snapshot_id)
+      return skip_playlist(:snapshot_unchanged) if strategy.snapshot_unchanged?(current_snapshot_id)
 
-      process_sync(first_page_response)
+      process_sync(first_page_response, current_snapshot_id)
     end
 
     private
@@ -32,8 +32,8 @@ module Spotify
       @strategy ||= PlaylistSyncStrategy.new(playlist)
     end
 
-    def skip_playlist
-      PlaylistSyncFinalizer.new(playlist_session).mark_as_skipped!
+    def skip_playlist(reason)
+      PlaylistSyncFinalizer.new(playlist_session).mark_as_skipped!(reason)
       Result.new(skipped?: true)
     end
 
@@ -44,14 +44,14 @@ module Spotify
       smart_playlist.push_sessions.active.exists?
     end
 
-    def process_sync(first_page_response)
+    def process_sync(first_page_response, current_snapshot_id)
       first_page_items = first_page_response["items"] || []
       total_tracks = first_page_response["total"] || 0
 
-      return complete_empty_playlist if total_tracks.zero?
+      return complete_empty_playlist(current_snapshot_id) if total_tracks.zero?
 
       total_pages = calculate_total_pages(total_tracks)
-      version = playlist_session.playlist_version || PlaylistVersion.create_for_sync!(playlist)
+      version = playlist_session.playlist_version || version_for(current_snapshot_id)
 
       persist_first_page(first_page_items, version: version, total_pages: total_pages)
       remaining_pages = calculate_remaining_pages(first_page_items, total_pages: total_pages)
@@ -60,16 +60,21 @@ module Spotify
       Result.new(skipped?: false, version: version, remaining_pages: remaining_pages)
     end
 
-    def complete_empty_playlist
-      version = playlist_session.playlist_version || PlaylistVersion.create_for_sync!(playlist)
+    def complete_empty_playlist(current_snapshot_id)
+      version = playlist_session.playlist_version || version_for(current_snapshot_id)
       playlist_session.update!(
         playlist_version: version,
+        baseline_version_id: playlist.current_version_id,
         total_pages: 0,
         completed_pages: 0,
         started_at: Time.current,
       )
       PlaylistSyncFinalizer.new(playlist_session).complete!
       Result.new(skipped?: false, version: version, remaining_pages: [])
+    end
+
+    def version_for(current_snapshot_id)
+      PlaylistVersion.create_for_sync!(playlist, spotify_snapshot_id: current_snapshot_id)
     end
 
     def calculate_total_pages(total_tracks)
@@ -108,6 +113,7 @@ module Spotify
       playlist_session.update!(
         status: :fetching_pages,
         playlist_version: version,
+        baseline_version_id: playlist.current_version_id,
         total_pages: total_pages,
         completed_pages: initial_completed,
         started_at: Time.current,

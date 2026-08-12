@@ -4,11 +4,7 @@ module Spotify
   class ArtistMetadataSyncInitializer
     BATCH_SIZE = SpotifyAdapter::ARTIST_BATCH_LIMIT
 
-    Result = Struct.new(:outcome, :session, :batches, keyword_init: true) do
-      def started?
-        outcome == :started
-      end
-    end
+    Result = Struct.new(:outcome, :session, :batches, keyword_init: true) { include StartableResult }
 
     attr_reader :user, :sync_all
 

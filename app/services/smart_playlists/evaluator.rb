@@ -18,9 +18,7 @@ module SmartPlaylists
     end
 
     def matches
-      scope.with_catalog_associations
-           .joins(memberships_join)
-           .order(Arel.sql(ORDER), Track.arel_table[:id].asc)
+      in_canonical_order(scope.with_catalog_associations)
     end
 
     def scope

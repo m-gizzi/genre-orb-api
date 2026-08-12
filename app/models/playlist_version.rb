@@ -20,18 +20,19 @@ class PlaylistVersion < ApplicationRecord
   validates :version_number, uniqueness: { scope: :playlist_id }
   validates :track_count, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
 
-  def self.create_for_sync!(playlist)
-    create_next!(playlist, source: :spotify_sync)
+  def self.create_for_sync!(playlist, spotify_snapshot_id: nil)
+    create_next!(playlist, source: :spotify_sync, spotify_snapshot_id: spotify_snapshot_id)
   end
 
   def self.create_for_push!(playlist)
     create_next!(playlist, source: :rule_evaluation)
   end
 
-  def self.create_next!(playlist, source:)
+  def self.create_next!(playlist, source:, spotify_snapshot_id: nil)
     playlist.with_lock do
       next_version = (playlist.versions.maximum(:version_number) || 0) + 1
-      create!(playlist: playlist, version_number: next_version, track_count: 0, source: source)
+      create!(playlist: playlist, version_number: next_version, track_count: 0, source: source,
+              spotify_snapshot_id: spotify_snapshot_id,)
     end
   end
   private_class_method :create_next!

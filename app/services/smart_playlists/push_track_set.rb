@@ -2,7 +2,7 @@
 
 module SmartPlaylists
   class PushTrackSet
-    PUSH_LIMIT = 10_000
+    PUSH_LIMIT = SpotifyAdapter::PLAYLIST_TRACK_LIMIT
 
     Entry = Struct.new(:track_id, :added_at, keyword_init: true)
 

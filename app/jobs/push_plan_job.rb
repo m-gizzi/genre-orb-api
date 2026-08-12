@@ -6,20 +6,21 @@ class PushPlanJob < PushJob
   end
 
   def perform(push_session_id:)
-    push_session = load_session(push_session_id)
-    user = push_session.user
-
-    if rate_limited?(user.id)
-      defer_for_rate_limit(user.id)
-      return
+    with_push_session(push_session_id) do |push_session, adapter|
+      plan(push_session, adapter)
     end
-
-    SmartPlaylists::PushPlanner.new(push_session, adapter: adapter_for(user)).call
   end
 
   private
 
-  def adapter_for(user)
-    SpotifyAdapter.new(user.spotify_connection)
+  # A rule set too slow for the planner's statement timeout is slow on every retry,
+  # so it fails here rather than through five more 30s scans.
+  def plan(push_session, adapter)
+    SmartPlaylists::PushPlanner.new(push_session, adapter: adapter).call
+  rescue ActiveRecord::QueryCanceled
+    PushFailureHandler.fail_session(
+      push_session,
+      error_message: I18n.t("api.smart_playlists.evaluation_timeout"),
+    )
   end
 end

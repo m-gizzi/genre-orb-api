@@ -5,6 +5,7 @@ class PushSession < ApplicationRecord
 
   belongs_to :smart_playlist, inverse_of: :push_sessions
   belongs_to :playlist_version, optional: true
+  belongs_to :baseline_version, class_name: "PlaylistVersion", optional: true
 
   enum :status, {
     pending: 0,
@@ -26,5 +27,19 @@ class PushSession < ApplicationRecord
 
     completed = completed_remove_batches + completed_add_batches
     { total: total, completed: completed, percent: (completed * 100 / total) }
+  end
+
+  def with_claimed_add_phase
+    claimed = self.class.where(id: id, add_phase_started_at: nil)
+                  .update_all(add_phase_started_at: Time.current, updated_at: Time.current)
+    return if claimed.zero?
+
+    reload
+    begin
+      yield
+    rescue StandardError
+      update_columns(add_phase_started_at: nil, updated_at: Time.current)
+      raise
+    end
   end
 end

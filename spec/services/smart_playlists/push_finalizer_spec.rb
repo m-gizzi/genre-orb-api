@@ -64,6 +64,32 @@ RSpec.describe SmartPlaylists::PushFinalizer do
     expect(smart_playlist.reload.last_pushed_at).to eq(first_pushed_at)
   end
 
+  describe "sessions it must not complete" do
+    it "leaves a failed session failed when a sibling batch finishes afterwards" do
+      PushFailureHandler.fail_session(session, error_message: "Removing tracks failed after retries")
+
+      finalize
+
+      expect(session).to be_failed
+      expect(session.error_message).to include("Removing tracks failed after retries")
+    end
+
+    it "does not swap in a version for a failed session" do
+      PushFailureHandler.fail_session(session, error_message: "boom")
+
+      expect { finalize }.not_to(change { target.reload.current_version_id })
+    end
+
+    it "stands down when the planner has discarded the version it would complete" do
+      session.update!(playlist_version: nil)
+
+      finalize
+
+      expect(session).to be_running
+      expect(smart_playlist.reload.last_pushed_at).to be_nil
+    end
+  end
+
   describe "the snapshot the next push will trust" do
     it "takes it from the last write response, never from a fresh read" do
       finalize

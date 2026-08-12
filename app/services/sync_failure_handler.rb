@@ -21,7 +21,7 @@ class SyncFailureHandler
         ps.update!(status: :failed, error_message: error_message, completed_at: Time.current)
       end
 
-      sync_session.update!(status: :failed, error_message: error_message, completed_at: Time.current)
+      sync_session.fail!(error_message: error_message)
     end
   end
 end

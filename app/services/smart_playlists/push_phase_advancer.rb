@@ -19,18 +19,25 @@ module SmartPlaylists
     end
 
     def start_add_phase
-      slices = PushStrategies.for(push_session).add_slices
-      return finalize if slices.empty?
-
-      jobs = slices.map do |spotify_ids|
-        PlaylistTrackAdditionJob.new(push_session_id: push_session.id, spotify_ids: spotify_ids)
+      push_session.with_claimed_add_phase do
+        slices = PushStrategies.for(push_session).add_slices
+        # Committed here rather than at plan time so the total can never disagree
+        # with the batches actually enqueued.
+        push_session.update!(total_add_batches: slices.size)
+        slices.empty? ? finalize : enqueue_add_batches(slices)
       end
-      ActiveJob.perform_all_later(jobs)
     end
 
     private
 
     attr_reader :push_session
+
+    def enqueue_add_batches(slices)
+      jobs = slices.map do |spotify_ids|
+        PlaylistTrackAdditionJob.new(push_session_id: push_session.id, spotify_ids: spotify_ids)
+      end
+      ActiveJob.perform_all_later(jobs)
+    end
 
     def advance(completed_column, total_column, snapshot_id)
       push_session.advance_counter!(completed_column, total_column, spotify_snapshot_id: snapshot_id)

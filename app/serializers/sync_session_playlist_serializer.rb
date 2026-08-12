@@ -3,13 +3,9 @@
 class SyncSessionPlaylistSerializer
   include Alba::Resource
 
-  attributes :status, :error_message
-
-  attribute :playlist_id, &:playlist_id
+  attributes :status, :error_message, :playlist_id, :page_progress
 
   attribute :playlist_name do |playlist_session|
     playlist_session.playlist.name
   end
-
-  attribute :page_progress, &:page_progress
 end

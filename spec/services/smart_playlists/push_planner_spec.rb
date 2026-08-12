@@ -128,6 +128,22 @@ RSpec.describe SmartPlaylists::PushPlanner do
       expect(version.tracks).to match_array(desired_tracks)
     end
 
+    it "pins the version the whole plan is measured against" do
+      session = plan(smart_playlist_for(target))
+
+      expect(session.baseline_version_id).to eq(target.current_version_id)
+    end
+
+    it "keeps its batch counts when a sync swaps current_version mid-push" do
+      session = plan(smart_playlist_for(target))
+      planned_add_batches = session.total_add_batches
+
+      create(:playlist_version, :current, playlist: target)
+      SmartPlaylists::PushPhaseAdvancer.new(session.reload).start_add_phase
+
+      expect(session.reload.total_add_batches).to eq(planned_add_batches)
+    end
+
     it "does not swap the new version in before the push lands" do
       smart_playlist = smart_playlist_for(target)
       previous_version_id = target.current_version_id

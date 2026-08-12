@@ -6,6 +6,7 @@ class SyncSessionPlaylist < ApplicationRecord
   belongs_to :sync_session, inverse_of: :sync_session_playlists
   belongs_to :playlist, inverse_of: :sync_session_playlists
   belongs_to :playlist_version, optional: true
+  belongs_to :baseline_version, class_name: "PlaylistVersion", optional: true
 
   enum :status, {
     pending: 0,
@@ -14,6 +15,11 @@ class SyncSessionPlaylist < ApplicationRecord
     failed: 3,
     skipped: 4,
   }
+
+  enum :skip_reason, {
+    snapshot_unchanged: 0,
+    push_in_flight: 1,
+  }, prefix: true
 
   def page_progress
     { total: total_pages, completed: completed_pages }

@@ -12,4 +12,10 @@ module Sessionable
   def active?
     pending? || running?
   end
+
+  def fail!(error_message:)
+    return if failed?
+
+    update!(status: :failed, error_message: error_message, completed_at: Time.current)
+  end
 end
