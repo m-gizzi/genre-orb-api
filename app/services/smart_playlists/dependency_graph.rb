@@ -48,10 +48,25 @@ module SmartPlaylists
     end
 
     def pairs
-      scope = SmartPlaylist.joins(:target_playlist, :smart_playlist_sources)
-                           .where(playlists: { user_id: user.id })
-      scope = scope.where.not(id: excluding) if excluding
-      scope.pluck("smart_playlist_sources.playlist_id", :target_playlist_id)
+      source_pairs + rule_pairs
+    end
+
+    def source_pairs
+      smart_playlists.joins(:smart_playlist_sources)
+                     .pluck("smart_playlist_sources.playlist_id", :target_playlist_id)
+    end
+
+    def rule_pairs
+      smart_playlists.pluck(:rules, :target_playlist_id).flat_map { |rules, target_id| rule_edges(rules, target_id) }
+    end
+
+    def rule_edges(rules, target_id)
+      Rules::PlaylistReferences.extract(rules).map { |playlist_id| [playlist_id, target_id] }
+    end
+
+    def smart_playlists
+      scope = SmartPlaylist.joins(:target_playlist).where(playlists: { user_id: user.id })
+      excluding ? scope.where.not(id: excluding) : scope
     end
   end
 end

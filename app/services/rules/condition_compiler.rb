@@ -39,6 +39,9 @@ module Rules
       "explicit" => { scope: -> { Track.all },
                       column: -> { Track.arel_table[:explicit] },
                       id: :id, },
+      "playlist" => { scope: -> { PlaylistVersionTrack.joins(playlist_version: :playlist_as_current) },
+                      column: -> { Playlist.arel_table[:id] },
+                      id: :track_id, },
     }.freeze
 
     def initialize(memberships)
@@ -61,9 +64,14 @@ module Rules
       return date_added_ids(condition) if condition.field == DATE_ADDED
 
       source = SOURCES.fetch(condition.field)
-      source[:scope].call
-                    .where(Predicates.call(condition, source[:column].call))
-                    .select(source[:id])
+      matching(source, condition).select(source[:id])
+    end
+
+    def matching(source, condition)
+      scope = source[:scope].call
+      return scope if condition.presence_check?
+
+      scope.where(Predicates.call(condition, source[:column].call))
     end
 
     # date_added is the one field that is not a track attribute — `added_at`

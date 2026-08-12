@@ -12,6 +12,7 @@ module Rules
       "not_equals" => "equals",
       "not_in" => "in",
       "not_in_the_last" => "in_the_last",
+      "is_not_set" => "is_set",
     }.freeze
 
     # Genre names are stored normalized, so a rule's value has to be normalized
@@ -32,6 +33,10 @@ module Rules
 
     def negated?
       COMPLEMENTS.key?(raw_operator)
+    end
+
+    def presence_check?
+      FieldCatalog.arity(operator) == :none
     end
 
     def value_type

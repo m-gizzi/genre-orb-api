@@ -6,6 +6,12 @@ class PlaylistVersion < ApplicationRecord
   has_many :playlist_version_tracks, dependent: :destroy, inverse_of: :playlist_version
   has_many :tracks, through: :playlist_version_tracks
 
+  has_one :playlist_as_current,
+          class_name: "Playlist",
+          foreign_key: :current_version_id,
+          dependent: nil,
+          inverse_of: :current_version
+
   enum :status, {
     building: 0,
     complete: 1,

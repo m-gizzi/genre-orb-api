@@ -43,6 +43,7 @@ detectors:
     exclude:
       - BaseController#render_data
       - Rules::ValueValidator#order_error
+      - Rules::ValueValidator#empty_errors
       - ServiceConnection#token_expired?
       - ServiceConnection#token_expiring_soon?
       - Spotify::PlaylistSyncStrategy#snapshot_unchanged?
@@ -73,6 +74,7 @@ detectors:
 
   DataClump:
     exclude:
+      - Rules::ValueChecker
       - SpotifyAdapter
       - Spotify::Client
       - Spotify::PlaylistSyncSetup

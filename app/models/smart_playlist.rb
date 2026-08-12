@@ -21,6 +21,7 @@ class SmartPlaylist < ApplicationRecord
   validate :sources_must_be_present
   validate :sources_must_belong_to_owner
   validate :sources_must_not_create_a_cycle
+  validate :rule_playlists_must_be_usable
   validate :rules_must_be_present_when_enabled
 
   after_create :enable_target_sync
@@ -32,6 +33,13 @@ class SmartPlaylist < ApplicationRecord
 
   def ready?
     rules.is_a?(Hash) && rules["rules"].present?
+  end
+
+  def rule_playlists
+    ids = Rules::PlaylistReferences.extract(rules)
+    return Playlist.none if ids.empty?
+
+    user.playlists.where(id: ids).order(:name)
   end
 
   private
@@ -91,6 +99,14 @@ class SmartPlaylist < ApplicationRecord
     subject = names.one? ? "it" : "them"
     "cannot include #{names.to_sentence} — this smart playlist already fills #{subject}, " \
       "directly or through a chain"
+  end
+
+  # Only worth asking once the tree itself is well formed — a rule set the shape
+  # validator rejected has no references worth resolving.
+  def rule_playlists_must_be_usable
+    return if errors[:rules].any?
+
+    SmartPlaylists::RuleReferenceCheck.call(self, rules).each { |message| errors.add(:rules, message) }
   end
 
   def rules_must_be_present_when_enabled
