@@ -108,6 +108,7 @@ RSpec.describe Rules::FieldCatalog do
           { key: "popularity", value_type: "number", suggest: nil },
           { key: "explicit", value_type: "boolean", suggest: nil },
           { key: "date_added", value_type: "date", suggest: nil },
+          { key: "playlist", value_type: "playlist", suggest: "playlists" },
         ],
       )
     end

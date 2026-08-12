@@ -173,6 +173,16 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       expect(response.parsed_body["data"]["target_playlist"]["id"]).to eq(smart_playlist.target_playlist_id)
     end
 
+    it "names the playlists the rules refer to by id" do
+      excluded = create(:playlist, :with_spotify, user: user, name: "Already Heard")
+      smart_playlist = create(:smart_playlist, :playlist_rule, user: user, excluded_playlist: excluded)
+
+      get "/api/v1/smart_playlists/#{smart_playlist.id}"
+
+      expect(response.parsed_body["data"]["rule_playlists"])
+        .to contain_exactly(hash_including("id" => excluded.id, "name" => "Already Heard"))
+    end
+
     it "returns 404 for another user's smart playlist" do
       get "/api/v1/smart_playlists/#{create(:smart_playlist).id}"
 
@@ -386,6 +396,39 @@ RSpec.describe "Api::V1::SmartPlaylists" do
 
       expect(response).to have_http_status(:ok)
       expect(smart_playlist.reload.source_playlists).to contain_exactly(mine)
+    end
+
+    it "saves a rule that excludes another of the caller's playlists" do
+      excluded = create(:playlist, :with_spotify, user: user)
+      rules = { "match" => "all",
+                "rules" => [{ "field" => "playlist", "operator" => "not_in", "value" => [excluded.id] }], }
+
+      patch "/api/v1/smart_playlists/#{smart_playlist.id}", params: { smart_playlist: { rules: rules } }, as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["data"]["rule_playlists"].pluck("id")).to contain_exactly(excluded.id)
+    end
+
+    it "returns 422 for a playlist id that arrived as text rather than a number" do
+      excluded = create(:playlist, :with_spotify, user: user)
+      rules = { "match" => "all",
+                "rules" => [{ "field" => "playlist", "operator" => "not_in", "value" => [excluded.id.to_s] }], }
+
+      patch "/api/v1/smart_playlists/#{smart_playlist.id}", params: { smart_playlist: { rules: rules } }, as: :json
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["errors"].first["message"]).to include("must refer to a playlist")
+    end
+
+    it "returns 422 for a rule naming another user's playlist" do
+      rules = { "match" => "all",
+                "rules" => [{ "field" => "playlist", "operator" => "not_in", "value" => [create(:playlist).id] }], }
+      original = smart_playlist.rules
+
+      patch "/api/v1/smart_playlists/#{smart_playlist.id}", params: { smart_playlist: { rules: rules } }, as: :json
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(smart_playlist.reload.rules).to eq(original)
     end
 
     it "returns 422 for rules the query builder does not support" do
@@ -651,6 +694,28 @@ RSpec.describe "Api::V1::SmartPlaylists" do
         expect(response).to have_http_status(:unprocessable_content)
         expect(response.parsed_body["errors"].first).to include("code" => "validation_error")
         expect(response.parsed_body["errors"].first["message"]).to include("at rule 1.1")
+      end
+
+      it "refuses to preview a draft naming another user's playlist" do
+        draft = { "match" => "all",
+                  "rules" => [{ "field" => "playlist", "operator" => "not_in",
+                                "value" => [create(:playlist).id], }], }
+
+        evaluate(smart_playlist.id, rules: draft)
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body["errors"].first["message"]).to include("not yours")
+      end
+
+      it "previews a draft that excludes one of the caller's own playlists" do
+        excluded = create(:playlist, :holding, user: user, tracks: [metal])
+        draft = { "match" => "all",
+                  "rules" => [{ "field" => "playlist", "operator" => "not_in", "value" => [excluded.id] }], }
+
+        evaluate(smart_playlist.id, rules: draft)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body["data"].pluck("title")).to eq(["Paranoid"])
       end
 
       it "paginates, newest-added first" do

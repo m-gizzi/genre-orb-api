@@ -545,6 +545,100 @@ RSpec.describe SmartPlaylist do
     end
   end
 
+  describe "playlist references in rules" do
+    let(:user) { create(:user) }
+
+    def playlist(**)
+      create(:playlist, :with_spotify, user: user, **)
+    end
+
+    def referencing(target, ids, source: nil)
+      build(:smart_playlist, target_playlist: target, user: user,
+                             source_playlists: [source || playlist],
+                             rules: { "match" => "all",
+                                      "rules" => [{ "field" => "playlist", "operator" => "not_in",
+                                                    "value" => ids, }], },)
+    end
+
+    it "accepts a playlist the user owns" do
+      expect(referencing(playlist, [playlist.id])).to be_valid
+    end
+
+    it "rejects a playlist belonging to someone else" do
+      stranger = create(:playlist, :with_spotify, user: create(:user))
+
+      smart_playlist = referencing(playlist, [stranger.id])
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:rules].join).to include("not yours")
+    end
+
+    it "rejects an id that names no playlist at all" do
+      expect(referencing(playlist, [0xdead])).not_to be_valid
+    end
+
+    it "rejects a reference to its own target" do
+      target = playlist(name: "Filled By Rules")
+
+      smart_playlist = referencing(target, [target.id])
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:rules].join).to include("Filled By Rules").and include("fills it")
+    end
+
+    it "rejects a reference to a playlist this one already fills through a chain" do
+      target = playlist
+      downstream = playlist(name: "Downstream Mix")
+      create(:smart_playlist, target_playlist: downstream, source_playlists: [target])
+
+      smart_playlist = referencing(target, [downstream.id])
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:rules].join).to include("Downstream Mix").and include("already fills")
+    end
+
+    it "allows a reference to a playlist that feeds this one" do
+      upstream = playlist
+      smart_playlist = referencing(playlist, [upstream.id], source: upstream)
+
+      expect(smart_playlist).to be_valid
+    end
+
+    it "lets an existing smart playlist be re-saved without tripping on its own edges" do
+      target = playlist
+      referenced = playlist
+      smart_playlist = referencing(target, [referenced.id])
+      smart_playlist.save!
+
+      expect(smart_playlist.reload).to be_valid
+    end
+
+    it "says nothing about references when the rule set is malformed" do
+      smart_playlist = build(:smart_playlist, rules: { "match" => "all", "rules" => [{ "field" => "playlist" }] })
+
+      expect(smart_playlist).not_to be_valid
+      expect(smart_playlist.errors[:rules].join).not_to include("not yours")
+    end
+  end
+
+  describe "#rule_playlists" do
+    it "resolves the playlists the rules name, in name order" do
+      user = create(:user)
+      first = create(:playlist, :with_spotify, user: user, name: "Aardvark")
+      second = create(:playlist, :with_spotify, user: user, name: "Zebra")
+      smart_playlist = create(:smart_playlist, user: user,
+                                               rules: { "match" => "all",
+                                                        "rules" => [{ "field" => "playlist", "operator" => "in",
+                                                                      "value" => [second.id, first.id], }], },)
+
+      expect(smart_playlist.rule_playlists).to eq([first, second])
+    end
+
+    it "is empty when no rule names a playlist" do
+      expect(create(:smart_playlist, :with_rules).rule_playlists).to be_empty
+    end
+  end
+
   describe "ownership" do
     it "derives the user and name from the target playlist" do
       target = create(:playlist, :with_spotify, name: "Metal Mix")

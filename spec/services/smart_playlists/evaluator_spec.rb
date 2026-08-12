@@ -142,6 +142,77 @@ RSpec.describe SmartPlaylists::Evaluator do
     end
   end
 
+  describe "presence operators" do
+    it "matches only the tracks carrying no genre at all" do
+      tagged = create(:track, :with_genres, genre_names: ["metal"])
+      untagged = create(:track)
+
+      smart_playlist = smart_playlist_for([tagged, untagged], rules: condition("genre", "is_not_set", nil))
+
+      expect(matches(smart_playlist)).to contain_exactly(untagged)
+    end
+
+    it "matches the tracks carrying any genre for is_set" do
+      tagged = create(:track, :with_genres, genre_names: ["metal"])
+      untagged = create(:track)
+
+      smart_playlist = smart_playlist_for([tagged, untagged], rules: condition("genre", "is_set", nil))
+
+      expect(matches(smart_playlist)).to contain_exactly(tagged)
+    end
+
+    it "does not care which genre a track carries" do
+      metal = create(:track, :with_genres, genre_names: ["metal"])
+      rock = create(:track, :with_genres, genre_names: ["rock"])
+
+      smart_playlist = smart_playlist_for([metal, rock], rules: condition("genre", "is_not_set", nil))
+
+      expect(matches(smart_playlist)).to be_empty
+    end
+  end
+
+  describe "playlist membership" do
+    it "drops tracks held by an excluded playlist" do
+      shared = create(:track)
+      only_source = create(:track)
+      excluded = create(:playlist, :holding, user: user, tracks: [shared])
+
+      smart_playlist = smart_playlist_for([shared, only_source],
+                                          rules: condition("playlist", "not_in", [excluded.id]),)
+
+      expect(matches(smart_playlist)).to contain_exactly(only_source)
+    end
+
+    it "keeps only tracks held by a named playlist" do
+      shared = create(:track)
+      only_source = create(:track)
+      named = create(:playlist, :holding, user: user, tracks: [shared])
+
+      smart_playlist = smart_playlist_for([shared, only_source], rules: condition("playlist", "in", [named.id]))
+
+      expect(matches(smart_playlist)).to contain_exactly(shared)
+    end
+
+    it "excludes nothing for a playlist that has never been synced" do
+      track = create(:track)
+      unsynced = create(:playlist, user: user)
+
+      smart_playlist = smart_playlist_for([track], rules: condition("playlist", "not_in", [unsynced.id]))
+
+      expect(matches(smart_playlist)).to contain_exactly(track)
+    end
+
+    it "reads membership from the current version only" do
+      track = create(:track)
+      stale = create(:playlist, :holding, user: user, tracks: [track])
+      stale.update!(current_version: create(:playlist_version, playlist: stale, version_number: 99))
+
+      smart_playlist = smart_playlist_for([track], rules: condition("playlist", "not_in", [stale.id]))
+
+      expect(matches(smart_playlist)).to contain_exactly(track)
+    end
+  end
+
   describe "nested groups" do
     it "intersects an all group and unions an any group" do
       recent_metal = create(:track, :with_genres, genre_names: ["metal"], album: create(:album, release_year: 2021))

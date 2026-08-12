@@ -13,6 +13,13 @@ RSpec.describe SmartPlaylists::DependencyGraph do
     create(:smart_playlist, target_playlist: target, source_playlists: [source])
   end
 
+  def excludes(referenced, target)
+    create(:smart_playlist, target_playlist: target, source_playlists: [playlist],
+                            rules: { "match" => "all",
+                                     "rules" => [{ "field" => "playlist", "operator" => "not_in",
+                                                   "value" => [referenced.id], }], },)
+  end
+
   describe "#reaches?" do
     it "is true for a playlist and itself" do
       only = playlist
@@ -53,6 +60,32 @@ RSpec.describe SmartPlaylists::DependencyGraph do
       smart_playlist = chain(source, target)
 
       expect(described_class.new(user, excluding: smart_playlist.id).reaches?(source.id, target.id)).to be(false)
+    end
+
+    it "counts a playlist a rule refers to as an edge" do
+      referenced = playlist
+      target = playlist
+      excludes(referenced, target)
+
+      expect(described_class.new(user).reaches?(referenced.id, target.id)).to be(true)
+    end
+
+    it "follows a chain that mixes sources and rule references" do
+      referenced = playlist
+      middle = playlist
+      last = playlist
+      excludes(referenced, middle)
+      chain(middle, last)
+
+      expect(described_class.new(user).reaches?(referenced.id, last.id)).to be(true)
+    end
+
+    it "drops the excluded smart playlist's rule edges too" do
+      referenced = playlist
+      target = playlist
+      smart_playlist = excludes(referenced, target)
+
+      expect(described_class.new(user, excluding: smart_playlist.id).reaches?(referenced.id, target.id)).to be(false)
     end
   end
 end

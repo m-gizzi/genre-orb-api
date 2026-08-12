@@ -5,12 +5,13 @@ require "rails_helper"
 # A value of the right primitive type and within bounds for each field, one per
 # arity. RuleSetValidator guarantees these shapes before the compiler runs.
 RULE_VALUES = {
-  "text" => { one: "metal", many: %w[metal rock] },
+  "text" => { one: "metal", many: %w[metal rock], none: nil },
   "number" => { one: 2020, two: [2020, 2024] },
   "duration" => { one: 120_000, two: [60_000, 300_000] },
   "boolean" => { one: true },
   "date" => { one: "2024-01-01", two: %w[2024-01-01 2024-06-30],
               relative: { "count" => 30, "unit" => "days" }, },
+  "playlist" => { many: [1, 2] },
 }.freeze
 
 RSpec.describe Rules::ConditionCompiler do
@@ -61,6 +62,40 @@ RSpec.describe Rules::ConditionCompiler do
 
       expect(sql).to start_with('"tracks"."id" NOT IN')
       expect(sql).to include("ILIKE 'metal' OR").and include("ILIKE 'rock'")
+    end
+  end
+
+  describe "presence operators" do
+    it "asks for every track the source has a row for, unfiltered" do
+      sql = compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }).to_sql
+
+      expect(sql).to start_with('"tracks"."id" IN')
+      expect(sql).to include('INNER JOIN "genres"')
+      expect(sql).not_to include("WHERE")
+    end
+
+    it "reads is_not_set as having no value at all" do
+      positive = compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }).to_sql
+      negative = compiler.call({ "field" => "genre", "operator" => "is_not_set", "value" => nil }).to_sql
+
+      expect(negative).to start_with('"tracks"."id" NOT IN')
+      expect(negative.sub("NOT IN", "IN")).to eq(positive)
+    end
+  end
+
+  describe "playlist membership" do
+    it "counts only each playlist's current version" do
+      sql = compiler.call({ "field" => "playlist", "operator" => "in", "value" => [7] }).to_sql
+
+      expect(sql).to include('"playlists"."current_version_id" = "playlist_versions"."id"')
+      expect(sql).to include('"playlists"."id" IN (7)')
+    end
+
+    it "excludes by complementing the membership set" do
+      sql = compiler.call({ "field" => "playlist", "operator" => "not_in", "value" => [7, 9] }).to_sql
+
+      expect(sql).to start_with('"tracks"."id" NOT IN')
+      expect(sql).to include('"playlists"."id" IN (7, 9)')
     end
   end
 
