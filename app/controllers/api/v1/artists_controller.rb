@@ -32,8 +32,7 @@ module Api
         result = Spotify::ArtistMetadataSyncInitializer.new(current_user, sync_all: sync_all_param).call
         return render_sync_outcome(result.outcome) unless result.started?
 
-        @session = result.session
-        render_data({ status: "queued", session: serialize_session(@session) }, status: :accepted)
+        render_data({ session: serialize_session(result.session) }, status: :accepted)
       end
 
       private
@@ -53,6 +52,10 @@ module Api
           artists_total: artist_counts[:total],
           artists_synced: artist_counts[:synced],
         }.merge(rate_limit_info)
+      end
+
+      def serialize_session(session)
+        ArtistMetadataSessionSerializer.new(session).serializable_hash
       end
 
       def artist_counts

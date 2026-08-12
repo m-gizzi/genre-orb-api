@@ -11,6 +11,8 @@ class SmartPlaylist < ApplicationRecord
   has_many :smart_playlist_sources, dependent: :destroy, inverse_of: :smart_playlist
   has_many :source_playlists, through: :smart_playlist_sources, source: :playlist
 
+  has_many :push_sessions, dependent: :destroy, inverse_of: :smart_playlist
+
   delegate :user, :user_id, :name, to: :target_playlist
 
   validates :target_playlist_id, uniqueness: true

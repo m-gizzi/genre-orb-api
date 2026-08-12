@@ -31,8 +31,7 @@ module Api
         result = Spotify::LibrarySyncInitializer.new(current_user).call
         return render_sync_outcome(result.outcome) unless result.started?
 
-        @session = result.sync_session
-        render_data({ status: "queued", session: serialize_session(@session) }, status: :accepted)
+        render_data({ session: serialize_session(result.sync_session) }, status: :accepted)
       end
 
       private
@@ -51,19 +50,7 @@ module Api
       end
 
       def serialize_session(session)
-        super.merge(
-          playlists: session.sync_session_playlists.sort_by(&:id).map { |ssp| serialize_session_playlist(ssp) },
-        )
-      end
-
-      def serialize_session_playlist(ssp)
-        {
-          playlist_id: ssp.playlist_id,
-          playlist_name: ssp.playlist.name,
-          status: ssp.status,
-          page_progress: ssp.page_progress,
-          error_message: ssp.error_message,
-        }
+        SyncSessionSerializer.new(session).serializable_hash
       end
     end
   end

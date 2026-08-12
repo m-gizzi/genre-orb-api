@@ -25,6 +25,10 @@ module Spotify
       request(:put, path, body: body)
     end
 
+    def delete(path, body: nil)
+      request(:delete, path, body: body)
+    end
+
     private
 
     attr_reader :service_connection

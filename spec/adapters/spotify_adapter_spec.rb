@@ -144,6 +144,89 @@ RSpec.describe SpotifyAdapter do
     end
   end
 
+  describe "#playlist_snapshot_id" do
+    it "asks for only the snapshot_id field" do
+      stub = stub_get("playlists/playlist_123", query: { fields: "snapshot_id" }, body: { "snapshot_id" => "snap_1" })
+
+      expect(adapter.playlist_snapshot_id("playlist_123")).to eq("snap_1")
+      expect(stub).to have_been_requested
+    end
+
+    it "returns nil when Spotify omits the field" do
+      stub_get("playlists/playlist_123", query: { fields: "snapshot_id" }, body: {})
+
+      expect(adapter.playlist_snapshot_id("playlist_123")).to be_nil
+    end
+  end
+
+  describe "#add_tracks_to_playlist" do
+    it "posts track uris built from spotify ids" do
+      stub = stub_request(:post, "#{Spotify::Client::BASE_URL}/playlists/playlist_123/tracks")
+             .with(body: { uris: ["spotify:track:a", "spotify:track:b"] }.to_json)
+             .to_return(status: 201, body: { "snapshot_id" => "snap_2" }.to_json, headers: json_headers)
+
+      result = adapter.add_tracks_to_playlist("playlist_123", %w[a b])
+
+      expect(stub).to have_been_requested
+      expect(result).to eq("snapshot_id" => "snap_2")
+    end
+
+    it "raises ArgumentError when over the batch limit" do
+      too_many = Array.new(described_class::TRACK_BATCH_LIMIT + 1) { |i| "id#{i}" }
+
+      expect { adapter.add_tracks_to_playlist("playlist_123", too_many) }
+        .to raise_error(ArgumentError, /Cannot add more than #{described_class::TRACK_BATCH_LIMIT}/o)
+    end
+  end
+
+  describe "#remove_tracks_from_playlist" do
+    it "sends a DELETE carrying the uris in its body" do
+      stub = stub_request(:delete, "#{Spotify::Client::BASE_URL}/playlists/playlist_123/tracks")
+             .with(body: { tracks: [{ uri: "spotify:track:a" }, { uri: "spotify:track:b" }] }.to_json)
+             .to_return(status: 200, body: { "snapshot_id" => "snap_3" }.to_json, headers: json_headers)
+
+      result = adapter.remove_tracks_from_playlist("playlist_123", %w[a b])
+
+      expect(stub).to have_been_requested
+      expect(result).to eq("snapshot_id" => "snap_3")
+    end
+
+    it "raises ArgumentError when over the batch limit" do
+      too_many = Array.new(described_class::TRACK_BATCH_LIMIT + 1) { |i| "id#{i}" }
+
+      expect { adapter.remove_tracks_from_playlist("playlist_123", too_many) }
+        .to raise_error(ArgumentError, /Cannot remove more than #{described_class::TRACK_BATCH_LIMIT}/o)
+    end
+  end
+
+  describe "#replace_playlist_tracks" do
+    it "clears the playlist when given no uris" do
+      stub = stub_request(:put, "#{Spotify::Client::BASE_URL}/playlists/playlist_123/tracks")
+             .with(body: { uris: [] }.to_json)
+             .to_return(status: 200, body: { "snapshot_id" => "snap_4" }.to_json, headers: json_headers)
+
+      expect(adapter.replace_playlist_tracks("playlist_123", [])).to eq("snapshot_id" => "snap_4")
+      expect(stub).to have_been_requested
+    end
+
+    it "clears and seeds in one call when given uris" do
+      stub = stub_request(:put, "#{Spotify::Client::BASE_URL}/playlists/playlist_123/tracks")
+             .with(body: { uris: ["spotify:track:a", "spotify:track:b"] }.to_json)
+             .to_return(status: 200, body: { "snapshot_id" => "snap_5" }.to_json, headers: json_headers)
+
+      adapter.replace_playlist_tracks("playlist_123", %w[a b])
+
+      expect(stub).to have_been_requested
+    end
+
+    it "raises ArgumentError when over the batch limit" do
+      too_many = Array.new(described_class::TRACK_BATCH_LIMIT + 1) { |i| "id#{i}" }
+
+      expect { adapter.replace_playlist_tracks("playlist_123", too_many) }
+        .to raise_error(ArgumentError, /Cannot replace more than #{described_class::TRACK_BATCH_LIMIT}/o)
+    end
+  end
+
   describe "response handling" do
     it "returns the parsed body on success" do
       stub_get("me", body: { "id" => "abc", "display_name" => "Test" })

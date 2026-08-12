@@ -126,6 +126,26 @@ RSpec.describe "Api::V1::SmartPlaylists" do
         expect(response.parsed_body["data"].pluck("name")).to eq(%w[Alpha Zebra])
       end
 
+      it "sorts by when each was last pushed, newest first" do
+        target = ->(name) { create(:playlist, :with_spotify, user: user, name: name) }
+        create(:smart_playlist, :with_rules, target_playlist: target.call("Older"), last_pushed_at: 2.days.ago)
+        create(:smart_playlist, :with_rules, target_playlist: target.call("Newer"), last_pushed_at: 1.hour.ago)
+
+        get "/api/v1/smart_playlists", params: { sort: "last_pushed_at", order: "desc" }
+
+        expect(response.parsed_body["data"].pluck("name")).to eq(%w[Newer Older])
+      end
+
+      it "puts a never-pushed smart playlist last when sorting by last pushed" do
+        target = ->(name) { create(:playlist, :with_spotify, user: user, name: name) }
+        create(:smart_playlist, :with_rules, target_playlist: target.call("Never"))
+        create(:smart_playlist, :with_rules, target_playlist: target.call("Pushed"), last_pushed_at: 1.hour.ago)
+
+        get "/api/v1/smart_playlists", params: { sort: "last_pushed_at", order: "desc" }
+
+        expect(response.parsed_body["data"].pluck("name")).to eq(%w[Pushed Never])
+      end
+
       it "filters by target playlist name" do
         create(:smart_playlist, user: user, target_playlist: create(:playlist, :with_spotify, user: user,
                                                                                               name: "Metal Mix",),)
@@ -709,6 +729,160 @@ RSpec.describe "Api::V1::SmartPlaylists" do
         allow(SmartPlaylists::Filter).to receive(:new).and_raise(ActiveRecord::QueryCanceled)
 
         expect { get "/api/v1/smart_playlists" }.to raise_error(ActiveRecord::QueryCanceled)
+      end
+    end
+  end
+
+  describe "POST /api/v1/smart_playlists/:id/push" do
+    let(:target) { create(:playlist, :with_spotify, user: user) }
+    let(:smart_playlist) { create(:smart_playlist, :with_rules, target_playlist: target) }
+
+    it "returns 401 when not authenticated" do
+      post "/api/v1/smart_playlists/#{smart_playlist.id}/push"
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    context "when authenticated" do
+      before { sign_in user }
+
+      it "returns 404 for another user's smart playlist" do
+        other = create(:smart_playlist, :with_rules)
+
+        post "/api/v1/smart_playlists/#{other.id}/push"
+
+        expect(response).to have_http_status(:not_found)
+      end
+
+      context "with Spotify connected" do
+        before { connect_spotify }
+
+        it "queues the push and returns the session" do
+          post "/api/v1/smart_playlists/#{smart_playlist.id}/push"
+
+          expect(response).to have_http_status(:accepted)
+          expect(response.parsed_body["data"]["session"]).to include(
+            "status" => "running",
+            "smart_playlist_id" => smart_playlist.id,
+            "smart_playlist_name" => target.name,
+          )
+        end
+
+        it "enqueues the planner" do
+          expect { post "/api/v1/smart_playlists/#{smart_playlist.id}/push" }
+            .to have_enqueued_job(PushPlanJob)
+        end
+
+        it "refuses a smart playlist with no rules" do
+          draft = create(:smart_playlist, target_playlist: create(:playlist, :with_spotify, user: user))
+
+          post "/api/v1/smart_playlists/#{draft.id}/push"
+
+          expect(response).to have_http_status(:unprocessable_content)
+          expect(response.parsed_body["errors"].first["message"])
+            .to eq(I18n.t("api.smart_playlists.push_not_ready"))
+        end
+
+        it "refuses a second concurrent push for the same smart playlist" do
+          create(:push_session, :running, smart_playlist: smart_playlist)
+
+          post "/api/v1/smart_playlists/#{smart_playlist.id}/push"
+
+          expect(response).to have_http_status(:conflict)
+          expect(response.parsed_body["errors"].first["message"])
+            .to eq(I18n.t("api.smart_playlists.push_in_progress"))
+        end
+
+        it "allows a concurrent push for a different smart playlist" do
+          create(:push_session, :running, smart_playlist: create(:smart_playlist, :with_rules, user: user))
+
+          post "/api/v1/smart_playlists/#{smart_playlist.id}/push"
+
+          expect(response).to have_http_status(:accepted)
+        end
+      end
+
+      it "refuses when Spotify is not connected" do
+        post "/api/v1/smart_playlists/#{smart_playlist.id}/push"
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body["errors"].first["message"])
+          .to eq(I18n.t("api.errors.spotify_not_connected"))
+      end
+    end
+  end
+
+  describe "GET /api/v1/smart_playlists/push_status" do
+    it "returns 401 when not authenticated" do
+      get "/api/v1/smart_playlists/push_status"
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    context "when authenticated" do
+      before { sign_in user }
+
+      it "reports nothing in flight when the user has never pushed" do
+        get "/api/v1/smart_playlists/push_status"
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body["data"]).to include(
+          "active_pushes" => [], "recent_pushes" => [], "rate_limited" => false,
+        )
+      end
+
+      it "separates in-flight pushes from finished ones" do
+        running = create(:push_session, :running, smart_playlist: create(:smart_playlist, :with_rules, user: user))
+        done = create(:push_session, :completed, smart_playlist: create(:smart_playlist, :with_rules, user: user))
+
+        get "/api/v1/smart_playlists/push_status"
+
+        data = response.parsed_body["data"]
+        expect(data["active_pushes"].pluck("id")).to eq([running.id])
+        expect(data["recent_pushes"].pluck("id")).to eq([done.id])
+      end
+
+      it "reports several pushes running at once" do
+        2.times { create(:push_session, :running, smart_playlist: create(:smart_playlist, :with_rules, user: user)) }
+
+        get "/api/v1/smart_playlists/push_status"
+
+        expect(response.parsed_body["data"]["active_pushes"].size).to eq(2)
+      end
+
+      it "still reports a finished push when many are in flight" do
+        done = create(:push_session, :completed, smart_playlist: create(:smart_playlist, :with_rules, user: user))
+        10.times { create(:push_session, :running, smart_playlist: create(:smart_playlist, :with_rules, user: user)) }
+
+        get "/api/v1/smart_playlists/push_status"
+
+        data = response.parsed_body["data"]
+        expect(data["active_pushes"].size).to eq(10)
+        expect(data["recent_pushes"].pluck("id")).to eq([done.id])
+      end
+
+      it "carries the progress and diff counts the banner renders" do
+        session = create(:push_session, :with_batches, remove_batches: 1, add_batches: 1,
+                                                       completed_remove_batches: 1, tracks_added: 7, tracks_removed: 2,
+                                                       smart_playlist: create(:smart_playlist, :with_rules,
+                                                                              user: user,),)
+
+        get "/api/v1/smart_playlists/push_status"
+
+        expect(response.parsed_body["data"]["active_pushes"].first).to include(
+          "id" => session.id,
+          "strategy" => "diff",
+          "tracks_added" => 7,
+          "tracks_removed" => 2,
+          "sampled" => false,
+          "progress" => { "total" => 2, "completed" => 1, "percent" => 50 },
+        )
+      end
+
+      it "does not leak another user's pushes" do
+        create(:push_session, :running)
+
+        get "/api/v1/smart_playlists/push_status"
+
+        expect(response.parsed_body["data"]["active_pushes"]).to be_empty
       end
     end
   end

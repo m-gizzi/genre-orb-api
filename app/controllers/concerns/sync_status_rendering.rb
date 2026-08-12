@@ -28,15 +28,4 @@ module SyncStatusRendering
     response = self.class.sync_outcome_responses.fetch(outcome)
     render_error(I18n.t(response[:key]), status: response[:status])
   end
-
-  def serialize_session(session)
-    {
-      id: session.id,
-      status: session.status,
-      progress: session.progress,
-      error_message: session.error_message,
-      started_at: session.started_at&.iso8601,
-      completed_at: session.completed_at&.iso8601,
-    }
-  end
 end

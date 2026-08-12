@@ -45,8 +45,14 @@ Rails.application.routes.draw do
         get :liked, on: :collection
       end
       resources :smart_playlists, only: %i[index show create update destroy] do
-        get :schema, on: :collection
-        post :evaluate, on: :member
+        collection do
+          get :schema
+          get :push_status, to: "smart_playlist_pushes#status"
+        end
+        member do
+          post :evaluate
+          post :push, to: "smart_playlist_pushes#create"
+        end
       end
       resources :artists, only: %i[index show] do
         collection do

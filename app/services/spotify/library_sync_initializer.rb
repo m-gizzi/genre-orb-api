@@ -3,9 +3,7 @@
 module Spotify
   class LibrarySyncInitializer
     Result = Struct.new(:outcome, :sync_session, :playlist_session_ids, keyword_init: true) do
-      def started?
-        outcome == :started
-      end
+      include StartableResult
     end
 
     attr_reader :user

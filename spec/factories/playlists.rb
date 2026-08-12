@@ -22,11 +22,13 @@ FactoryBot.define do
         tracks { [] }
         added_at { Time.current }
         memberships { nil }
+        version_snapshot_id { nil }
       end
 
       after(:create) do |playlist, evaluator|
         rows = evaluator.memberships || evaluator.tracks.map { |track| [track, evaluator.added_at] }
-        version = create(:playlist_version, playlist: playlist, status: :complete, track_count: rows.size)
+        version = create(:playlist_version, playlist: playlist, status: :complete, track_count: rows.size,
+                                            spotify_snapshot_id: evaluator.version_snapshot_id,)
 
         rows.each_with_index do |(track, added), index|
           create(:playlist_version_track,

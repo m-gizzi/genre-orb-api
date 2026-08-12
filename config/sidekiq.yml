@@ -6,6 +6,7 @@
 :queues:
   - default
   - mailers
+  - push
   - sync
   - metadata
 
