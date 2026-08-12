@@ -19,6 +19,8 @@ module SmartPlaylists
     end
 
     def start_add_phase
+      return unless push_session.playlist_version_id
+
       push_session.with_claimed_add_phase do
         slices = PushStrategies.for(push_session).add_slices
         # Committed here rather than at plan time so the total can never disagree

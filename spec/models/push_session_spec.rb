@@ -57,6 +57,10 @@ RSpec.describe PushSession do
     it "reports no progress before the planner has sized the push" do
       expect(create(:push_session).progress).to eq(total: 0, completed: 0, percent: 0)
     end
+
+    it "reports a push that had nothing to do as finished, not stalled" do
+      expect(create(:push_session, :completed).progress).to eq(total: 0, completed: 0, percent: 100)
+    end
   end
 
   describe "counting the two phases" do

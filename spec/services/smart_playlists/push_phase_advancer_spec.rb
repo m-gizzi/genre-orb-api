@@ -67,6 +67,24 @@ RSpec.describe SmartPlaylists::PushPhaseAdvancer do
       end
     end
 
+    context "when the planner has discarded the version this batch was planned against" do
+      before { session.update!(playlist_version: nil) }
+
+      it "leaves the claim unspent" do
+        advancer.start_add_phase
+
+        expect(session.reload.add_phase_started_at).to be_nil
+      end
+
+      it "lets the re-planned push fan out once its version is pinned" do
+        advancer.start_add_phase
+        session.update!(playlist_version: version)
+
+        expect { described_class.new(session.reload).start_add_phase }
+          .to have_enqueued_job(PlaylistTrackAdditionJob)
+      end
+    end
+
     context "when a sync swaps the target's current version mid-push" do
       it "keeps diffing against the pinned baseline" do
         create(:playlist_version, :current, playlist: target)
