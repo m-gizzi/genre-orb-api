@@ -13,11 +13,11 @@ module ScheduledRuns
     end
 
     def settled?
-      run.artist_metadata_sessions.active.none?
+      global_sessions.none?
     end
 
     def abandon!
-      sessions = run.artist_metadata_sessions.active.to_a
+      sessions = global_sessions.to_a
       sessions.each { |session| session.fail!(error_message: TIMEOUT_MESSAGE) }
       run.record_stage_error!(:artist_metadata, "timed out; #{sessions.size} sessions abandoned")
     end
@@ -29,5 +29,9 @@ module ScheduledRuns
     private
 
     attr_reader :run
+
+    def global_sessions
+      ArtistMetadataSession.global.active
+    end
   end
 end

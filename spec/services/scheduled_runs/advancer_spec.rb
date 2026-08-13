@@ -107,6 +107,33 @@ RSpec.describe ScheduledRuns::Advancer do
       expect(session.reload).to be_failed
       expect(run.reload.stage_errors).to have_key("artist_metadata")
     end
+
+    context "when there is nothing to fetch" do
+      let!(:session) { nil }
+
+      it "walks straight through rather than waiting on a session that was never created" do
+        tick
+
+        expect(run.reload.stage).to eq("pushes")
+      end
+    end
+
+    context "with a global session stranded by an earlier run" do
+      let!(:session) { create(:artist_metadata_session, user: nil, status: :running, scheduled_run: nil) }
+
+      it "waits on it rather than sailing past" do
+        tick
+
+        expect(run.reload.stage).to eq("artist_metadata")
+      end
+
+      it "clears it at the timeout so the next night can run" do
+        travel_to(ScheduledRun::STAGE_TIMEOUTS.fetch("artist_metadata").from_now + 1.minute) { tick }
+
+        expect(session.reload).to be_failed
+        expect(ArtistMetadataSession.global.active).to be_empty
+      end
+    end
   end
 
   describe "the push stage" do
