@@ -21,12 +21,15 @@ class ArtistMetadataSource < ApplicationRecord
             attempted_at: Time.current, retry_after: nil, failure_count: 0, last_error: nil,)
   end
 
+  # Anything not supplied keeps its current value, so MusicBrainz (which learned the
+  # mbid in the match phase) can call this with no arguments while Last.fm, which
+  # identifies and answers in one request, supplies both.
   def record_fetch!(external_id: nil, external_url: nil)
     now = Time.current
-    update!(state: :matched, external_id: external_id || self.external_id,
-            external_url: external_url || self.external_url,
-            attempted_at: now, fetched_at: now, retry_after: REFRESH_TTL.from_now,
-            failure_count: 0, last_error: nil,)
+    identity = { external_id: external_id, external_url: external_url }.compact
+
+    update!(identity.merge(state: :matched, attempted_at: now, fetched_at: now,
+                           retry_after: REFRESH_TTL.from_now, failure_count: 0, last_error: nil,))
   end
 
   def record_unmatched!
