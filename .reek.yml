@@ -29,6 +29,8 @@ detectors:
   TooManyConstants:
     exclude:
       - Rules::FieldCatalog
+      # Revisit-interval and backoff policy; it belongs with the state machine it governs.
+      - ArtistMetadataSource
 
   ControlParameter:
     exclude:

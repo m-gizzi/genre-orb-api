@@ -52,6 +52,7 @@ module Api
           current_session: @session ? serialize_session(@session) : nil,
           artists_total: artist_counts[:total],
           artists_synced: artist_counts[:synced],
+          enrichment: Enrichment::Coverage.new(current_user).call,
         }.merge(sync_meta)
       end
 

@@ -22,7 +22,7 @@ module Artists
     )
 
     def call
-      Artist.where(id: filtered_ids).includes(:genres).order(*sort.terms)
+      Artist.where(id: filtered_ids).includes(artist_genres: :genre).order(*sort.terms)
     end
 
     private
