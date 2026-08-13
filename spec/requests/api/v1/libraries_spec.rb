@@ -56,6 +56,36 @@ RSpec.describe "Api::V1::Libraries" do
         expect(playlists.first["status"]).to eq("fetching_pages")
       end
 
+      it "reports whether Spotify needs reconnecting" do
+        create(:service_connection, user: user, needs_reauth: true)
+
+        get "/api/v1/library/status"
+
+        expect(response.parsed_body.dig("data", "needs_reauth")).to be(true)
+      end
+
+      it "reports when the next automatic run is due" do
+        get "/api/v1/library/status"
+
+        expect(response.parsed_body.dig("data", "next_scheduled_run_at")).to be_present
+      end
+
+      it "labels a session the scheduler started" do
+        create(:sync_session, :running, user: user, scheduled_run: create(:scheduled_run))
+
+        get "/api/v1/library/status"
+
+        expect(response.parsed_body.dig("data", "current_session", "trigger")).to eq("scheduled")
+      end
+
+      it "labels a session the user started" do
+        create(:sync_session, :running, user: user)
+
+        get "/api/v1/library/status"
+
+        expect(response.parsed_body.dig("data", "current_session", "trigger")).to eq("manual")
+      end
+
       it "returns rate_limited status" do
         allow(SyncRateLimitState).to receive(:user_paused?).with(user.id).and_return(true)
         allow(SyncRateLimitState).to receive(:user_resume_at)
@@ -145,6 +175,20 @@ RSpec.describe "Api::V1::Libraries" do
         it "returns error message" do
           post "/api/v1/library/sync"
           expect(response.parsed_body["errors"].first["message"]).to eq("Spotify not connected")
+        end
+      end
+
+      context "when the connection needs reauthorizing" do
+        before do
+          create(:service_connection, user: user, needs_reauth: true)
+          create(:playlist, :sync_enabled, user: user)
+        end
+
+        it "returns 422 rather than enqueueing jobs that cannot succeed" do
+          expect { post "/api/v1/library/sync" }.not_to change(user.sync_sessions, :count)
+          expect(response).to have_http_status(:unprocessable_content)
+          expect(response.parsed_body["errors"].first["message"])
+            .to eq(I18n.t("api.errors.spotify_reauth_required"))
         end
       end
 

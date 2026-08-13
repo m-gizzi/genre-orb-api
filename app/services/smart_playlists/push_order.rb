@@ -55,7 +55,7 @@ module SmartPlaylists
     end
 
     def candidate_targets
-      @candidate_targets ||= candidates.map(&:target_playlist_id).to_set
+      @candidate_targets ||= candidates.to_set(&:target_playlist_id)
     end
 
     def prerequisites(smart_playlist)

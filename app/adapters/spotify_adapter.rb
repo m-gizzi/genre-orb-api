@@ -5,6 +5,8 @@ class SpotifyAdapter
   TRACK_BATCH_LIMIT = 100
   PLAYLIST_TRACK_LIMIT = 10_000
 
+  delegate :artists, to: :catalog
+
   def initialize(token_source)
     @client = Spotify::Client.new(token_source)
   end
@@ -43,10 +45,6 @@ class SpotifyAdapter
 
   def update_playlist_details(playlist_id, attributes)
     client.put("playlists/#{playlist_id}", body: attributes)
-  end
-
-  def artists(spotify_ids)
-    catalog.artists(spotify_ids)
   end
 
   def playlist_snapshot_id(playlist_id)

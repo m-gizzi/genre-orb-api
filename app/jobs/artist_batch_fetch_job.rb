@@ -8,7 +8,7 @@ class ArtistBatchFetchJob < SpotifyJob
   end
 
   def self.abandon(arguments, exception)
-    session = ArtistMetadataSession.find_by(id: (arguments || {})[:session_id])
+    session = ArtistMetadataSession.find_by(id: arguments.to_h[:session_id])
     return unless session
 
     session.fail!(error_message: "Batch fetch failed after retries: #{exception.message}")
