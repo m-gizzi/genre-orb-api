@@ -3,10 +3,14 @@
 
 :concurrency: 3
 
+# Strict priority, highest first. `enrichment` sits above `sync` deliberately: the
+# drip is two self-limiting jobs a minute, and below `sync` a nightly library sync
+# would starve it for hours — the same trap `metadata` already suffers from.
 :queues:
   - default
   - mailers
   - push
+  - enrichment
   - sync
   - metadata
 
