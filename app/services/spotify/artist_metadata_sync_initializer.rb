@@ -62,9 +62,7 @@ module Spotify
     end
 
     def enqueue_batch_jobs(session, batches)
-      jobs = batches.map do |batch_ids|
-        ArtistBatchFetchJob.new(session_id: session.id, user_id: user.id, artist_ids: batch_ids)
-      end
+      jobs = batches.map { |batch_ids| ArtistBatchFetchJob.new(session_id: session.id, artist_ids: batch_ids) }
       ActiveJob.perform_all_later(jobs)
     end
   end
