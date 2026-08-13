@@ -16,7 +16,7 @@ class SpotifyAdapter
   def verify_connection
     user_profile
     true
-  rescue Spotify::AuthenticationError
+  rescue Spotify::AuthenticationError, Spotify::TokenRefreshError
     false
   end
 

@@ -43,6 +43,7 @@ module Api
           current_session: @session ? serialize_session(@session) : nil,
           playlists_metadata_fetched_at: current_user.playlists_metadata_fetched_at&.iso8601,
           playlists_metadata_error: current_user.playlists_metadata_error,
+          next_scheduled_run_at: ScheduledRun.next_run_at.iso8601,
         }.merge(sync_meta)
       end
 

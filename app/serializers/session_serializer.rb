@@ -5,6 +5,10 @@ class SessionSerializer
 
   attributes :id, :status, :progress, :error_message
 
+  attribute :trigger do |session|
+    session.scheduled_run_id ? "scheduled" : "manual"
+  end
+
   attribute :started_at do |session|
     session.started_at&.iso8601
   end
