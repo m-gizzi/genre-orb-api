@@ -6,7 +6,7 @@ class PageFetchJob < SpotifyJob
   end
 
   def self.abandon(arguments, exception)
-    args = arguments || {}
+    args = arguments.to_h
     playlist_session = SyncSessionPlaylist.find_by(id: args[:sync_session_playlist_id])
     return unless playlist_session
 

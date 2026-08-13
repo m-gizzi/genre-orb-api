@@ -4,7 +4,7 @@ class PushJob < SpotifyJob
   queue_as :push
 
   def self.abandon(arguments, exception)
-    push_session = PushSession.find_by(id: (arguments || {})[:push_session_id])
+    push_session = PushSession.find_by(id: arguments.to_h[:push_session_id])
     return unless push_session
 
     PushFailureHandler.fail_session(push_session, error_message: "#{failure_message}: #{exception.message}")

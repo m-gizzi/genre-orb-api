@@ -26,7 +26,7 @@ class SpotifyJob < ApplicationJob
 
   def guard_connection!(user)
     connection = user.spotify_connection
-    return connection unless connection.nil? || connection.needs_reauth?
+    return connection if connection.present? && !connection.needs_reauth?
 
     raise Spotify::ReauthRequiredError, "Spotify must be reconnected"
   end

@@ -7,7 +7,7 @@ class ScheduledPlaylistDiscoveryJob < SpotifyJob
 
   def self.abandon(arguments, exception)
     Rails.logger.error("ScheduledPlaylistDiscoveryJob abandoned (#{exception.class}): #{exception.message}")
-    ScheduledRun.find_by(id: (arguments || {})[:scheduled_run_id])&.discovery_completed!
+    ScheduledRun.find_by(id: arguments.to_h[:scheduled_run_id])&.discovery_completed!
   end
 
   def perform(scheduled_run_id:, user_id:)

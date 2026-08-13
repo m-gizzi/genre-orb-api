@@ -23,8 +23,8 @@ module ScheduledRuns
       run.record_stage_error!(:discovery, "timed out with #{outstanding} playlist fetches unfinished")
     end
 
-    def continue!
-      false
+    def advance!
+      :done
     end
 
     private

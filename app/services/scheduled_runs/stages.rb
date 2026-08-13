@@ -7,7 +7,8 @@ module ScheduledRuns
   #   start     — kick off the stage's work
   #   settled?  — nothing in the current unit of work is still in flight
   #   abandon!  — fail what is still in flight and record why
-  #   continue! — started another unit of work (only pushes, which run in waves)
+  #   advance!  — :continue if it started another unit of work (only pushes, which
+  #               run in waves), :done if the stage is over
   module Stages
     CLASSES = {
       "discovery" => DiscoveryStage,

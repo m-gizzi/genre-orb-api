@@ -22,8 +22,8 @@ module ScheduledRuns
       run.record_stage_error!(:artist_metadata, "timed out; #{sessions.size} sessions abandoned")
     end
 
-    def continue!
-      false
+    def advance!
+      :done
     end
 
     private

@@ -23,12 +23,12 @@ module ScheduledRuns
       run.record_stage_error!("pushes_wave_#{run.push_wave}", "timed out; #{sessions.size} pushes abandoned")
     end
 
-    def continue!
+    def advance!
       run.update!(push_wave: run.push_wave + 1, stage_started_at: Time.current)
-      return false if run.current_wave.empty?
+      return :done if run.current_wave.empty?
 
       start_wave
-      true
+      :continue
     end
 
     private
@@ -42,10 +42,14 @@ module ScheduledRuns
     # Users are independent graphs, so wave k of one lines up with wave k of any
     # other. Persisted, so rules edited mid-run cannot reshape the plan.
     def build_plan
-      per_user = EligibleUsers.call.map { |user| SmartPlaylists::PushOrder.new(user).waves }
-      depth = per_user.map(&:size).max || 0
+      plans = EligibleUsers.call.map { |user| SmartPlaylists::PushOrder.new(user).waves }
+      depth = plans.map(&:size).max.to_i
 
-      Array.new(depth) { |index| per_user.flat_map { |waves| Array(waves[index]).map(&:id) } }.reject(&:empty?)
+      Array.new(depth) { |index| wave_at(plans, index) }.reject(&:empty?)
+    end
+
+    def wave_at(plans, index)
+      plans.filter_map { |waves| waves[index] }.flatten.map(&:id)
     end
 
     def start_wave

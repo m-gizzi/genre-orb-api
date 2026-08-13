@@ -8,7 +8,7 @@ RSpec.describe SyncRateLimitState do
   let(:redis) { instance_spy(RedisClient) }
 
   before do
-    allow(AppRedis).to receive(:with) { |&block| block.call(redis) }
+    stub_app_redis(redis)
     allow(redis).to receive(:call).and_return(-2)
   end
 

@@ -9,8 +9,9 @@ module ScheduledRuns
     def call
       run.with_lock do
         next unless run.running?
+        next expire! if run.expired?
 
-        expire! || step
+        step
       end
     end
 
@@ -24,7 +25,7 @@ module ScheduledRuns
       return unless settled || run.timed_out?
 
       stage.abandon! unless settled
-      enter_next_stage unless stage.continue!
+      enter_next_stage if stage.advance! == :done
     end
 
     def enter_next_stage
@@ -43,12 +44,9 @@ module ScheduledRuns
     end
 
     def expire!
-      return false unless run.expired?
-
       Stages.for(run).abandon!
       run.record_stage_error!(:hard_cap, "run exceeded #{ScheduledRun::HARD_CAP.inspect}")
       run.update!(status: :completed_with_errors, completed_at: Time.current)
-      true
     end
   end
 end
