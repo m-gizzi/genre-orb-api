@@ -94,6 +94,22 @@ RSpec.describe Rules::ValueChecker do
       end
     end
 
+    context "with a playlist field" do
+      it "accepts a record id" do
+        expect(described_class.error_for("playlist", 42)).to be_nil
+      end
+
+      it "rejects an id that could not name a record" do
+        expect(described_class.error_for("playlist", 0)).to eq("must refer to a playlist")
+        expect(described_class.error_for("playlist", -1)).to eq("must refer to a playlist")
+      end
+
+      it "rejects anything that is not a whole number" do
+        expect(described_class.error_for("playlist", "42")).to eq("must refer to a playlist")
+        expect(described_class.error_for("playlist", 4.2)).to eq("must refer to a playlist")
+      end
+    end
+
     it "has no opinion on a field it does not know" do
       expect(described_class.error_for("bpm", "anything")).to be_nil
     end

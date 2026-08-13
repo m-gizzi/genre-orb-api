@@ -13,6 +13,7 @@ module Rules
       "duration" => :number_error,
       "boolean" => :boolean_error,
       "date" => :date_error,
+      "playlist" => :reference_error,
     }.freeze
 
     class << self
@@ -41,6 +42,10 @@ module Rules
         return if value.between?(min, max)
 
         translate(:out_of_range, min: min, max: max)
+      end
+
+      def reference_error(value, _constraints)
+        translate(:not_a_reference) unless value.is_a?(Integer) && value.positive?
       end
 
       def boolean_error(value, _constraints)

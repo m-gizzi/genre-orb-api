@@ -4,7 +4,10 @@ class Playlist < ApplicationRecord
   SPOTIFY_DESCRIPTION_LIMIT = 300
 
   belongs_to :user, inverse_of: :playlists
-  belongs_to :current_version, class_name: "PlaylistVersion", optional: true
+  belongs_to :current_version,
+             class_name: "PlaylistVersion",
+             optional: true,
+             inverse_of: :playlist_as_current
 
   before_destroy :clear_current_version
 

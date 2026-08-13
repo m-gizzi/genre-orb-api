@@ -11,14 +11,18 @@ module Rules
     DATE_ADDED = "date_added"
 
     # Each entry says how to build the track ids a field can constrain:
-    #   scope  — a relation with one row per (track, candidate value)
-    #   column — the attribute the predicate compares
-    #   id     — the column naming the track within `scope`
+    #   scope    — a relation with one row per (track, candidate value)
+    #   column   — the attribute the predicate compares
+    #   id       — the column naming the track within `scope`
+    #   presence — `scope` without the join a value comparison needs, for the
+    #              fields whose vocabulary offers is_set / is_not_set
     SOURCES = {
       "genre" => { scope: -> { TrackGenre.joins(:genre) },
+                   presence: -> { TrackGenre.all },
                    column: -> { Genre.arel_table[:name] },
                    id: :track_id, },
       "artist" => { scope: -> { TrackArtist.joins(:artist) },
+                    presence: -> { TrackArtist.all },
                     column: -> { Artist.arel_table[:name] },
                     id: :track_id, },
       "album" => { scope: -> { Track.joins(:album) },
@@ -39,6 +43,9 @@ module Rules
       "explicit" => { scope: -> { Track.all },
                       column: -> { Track.arel_table[:explicit] },
                       id: :id, },
+      "playlist" => { scope: -> { PlaylistVersionTrack.joins(playlist_version: :playlist_as_current) },
+                      column: -> { Playlist.arel_table[:id] },
+                      id: :track_id, },
     }.freeze
 
     def initialize(memberships)
@@ -61,9 +68,26 @@ module Rules
       return date_added_ids(condition) if condition.field == DATE_ADDED
 
       source = SOURCES.fetch(condition.field)
-      source[:scope].call
-                    .where(Predicates.call(condition, source[:column].call))
-                    .select(source[:id])
+      matching(source, condition).select(source[:id])
+    end
+
+    def matching(source, condition)
+      return present_rows(source) if condition.presence_check?
+
+      source[:scope].call.where(Predicates.call(condition, source[:column].call))
+    end
+
+    # A presence check compares nothing, so it needs neither the join reaching
+    # the named entity nor the whole table behind it. Narrowing to the pool the
+    # evaluator already bounds the outer query to cannot change the answer, and
+    # keeps an unfiltered `NOT IN` off every other user's rows.
+    def present_rows(source)
+      source.fetch(:presence, source[:scope]).call
+            .where(source[:id] => candidate_track_ids)
+    end
+
+    def candidate_track_ids
+      memberships.reselect(PlaylistVersionTrack.arel_table[:track_id])
     end
 
     # date_added is the one field that is not a track attribute — `added_at`

@@ -20,6 +20,7 @@ module Rules
     #   two      → a [min, max] pair
     #   many     → a non-empty list of scalars
     #   relative → { "count" => Integer, "unit" => RELATIVE_UNITS }
+    #   none     → null; the operator asks whether the field has any value at all
     OPERATORS = {
       "equals" => :one,
       "not_equals" => :one,
@@ -33,15 +34,29 @@ module Rules
       "not_in" => :many,
       "in_the_last" => :relative,
       "not_in_the_last" => :relative,
+      "is_set" => :none,
+      "is_not_set" => :none,
+    }.freeze
+
+    ENTITY_OPERATORS = {
+      "equals" => "is",
+      "not_equals" => "is not",
+      "contains" => "contains",
+      "in" => "is any of",
+      "not_in" => "is none of",
+    }.freeze
+
+    PRESENCE_OPERATORS = {
+      "is_set" => "is set",
+      "is_not_set" => "is not set",
     }.freeze
 
     # Operator vocabularies, each mapping an operator to how it reads for that
     # kind of field — "is after" for a year, "is longer than" for a duration.
     VOCABULARIES = {
-      entity: {
-        "equals" => "is",
-        "not_equals" => "is not",
-        "contains" => "contains",
+      entity: ENTITY_OPERATORS,
+      optional_entity: ENTITY_OPERATORS.merge(PRESENCE_OPERATORS).freeze,
+      playlist: {
         "in" => "is any of",
         "not_in" => "is none of",
       },
@@ -82,12 +97,13 @@ module Rules
 
     # `suggest` names the autocomplete endpoint that feeds the value input.
     # Entity fields match on name, not id, so a rule stays readable and keeps
-    # working when a record is pruned and re-synced.
+    # working when a record is pruned and re-synced. Playlist is the exception:
+    # names are neither unique nor stable, so it references the local record.
     FIELDS = [
       { key: "genre", label: "Genre", value_type: "text", suggest: "genres",
-        constraints: TEXT_LIMITS, operators: VOCABULARIES[:entity], },
+        constraints: TEXT_LIMITS, operators: VOCABULARIES[:optional_entity], },
       { key: "artist", label: "Artist", value_type: "text", suggest: "artists",
-        constraints: TEXT_LIMITS, operators: VOCABULARIES[:entity], },
+        constraints: TEXT_LIMITS, operators: VOCABULARIES[:optional_entity], },
       { key: "album", label: "Album", value_type: "text", suggest: "albums",
         constraints: TEXT_LIMITS, operators: VOCABULARIES[:entity], },
       { key: "title", label: "Title", value_type: "text", suggest: nil,
@@ -102,6 +118,8 @@ module Rules
         constraints: NO_LIMITS, operators: VOCABULARIES[:boolean], },
       { key: "date_added", label: "Date added", value_type: "date", suggest: nil,
         constraints: NO_LIMITS, operators: VOCABULARIES[:date], },
+      { key: "playlist", label: "Playlist", value_type: "playlist", suggest: "playlists",
+        constraints: NO_LIMITS, operators: VOCABULARIES[:playlist], },
     ].freeze
 
     BY_KEY = FIELDS.index_by { |field| field[:key] }.freeze

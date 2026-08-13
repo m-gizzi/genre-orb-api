@@ -147,6 +147,30 @@ RSpec.describe Rules::ValueValidator do
     end
   end
 
+  describe "arity :none" do
+    it "accepts a null value" do
+      expect(errors_for(nil, field: "genre", operator: "is_set")).to be_empty
+    end
+
+    it "rejects a value that was sent anyway" do
+      expect(errors_for("rock", field: "genre", operator: "is_not_set"))
+        .to eq(["must not have a value when checking whether a field is set"])
+      expect(errors_for([], field: "genre", operator: "is_not_set"))
+        .to eq(["must not have a value when checking whether a field is set"])
+    end
+  end
+
+  describe "playlist references" do
+    it "accepts a list of record ids" do
+      expect(errors_for([1, 2], field: "playlist", operator: "not_in")).to be_empty
+    end
+
+    it "type-checks every id" do
+      expect(errors_for([1, "2"], field: "playlist", operator: "in"))
+        .to eq(["must refer to a playlist"])
+    end
+  end
+
   it "has no opinion on an operator with no arity" do
     expect(errors_for("x", field: "genre", operator: "matches_sql")).to be_empty
   end

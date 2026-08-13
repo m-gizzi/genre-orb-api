@@ -14,6 +14,7 @@ module Rules
       "duration" => :numeric,
       "boolean" => :boolean,
       "date" => :date,
+      "playlist" => :reference,
     }.freeze
 
     WILDCARDS = {
@@ -65,6 +66,10 @@ module Rules
 
     def boolean
       attribute.eq(value)
+    end
+
+    def reference
+      attribute.in(value)
     end
 
     # Dates are UTC and day-granular: `added_at` is a UTC timestamp and no

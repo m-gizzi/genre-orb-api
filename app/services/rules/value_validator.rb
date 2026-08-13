@@ -10,6 +10,7 @@ module Rules
       two: :pair_errors,
       many: :list_errors,
       relative: :relative_errors,
+      none: :empty_errors,
     }.freeze
 
     def self.call(value, field:, operator:)
@@ -55,6 +56,10 @@ module Rules
       return translate(:entry_shape) unless all_scalars?(value)
 
       typing_errors(value)
+    end
+
+    def empty_errors
+      translate(:value_not_allowed) unless value.nil?
     end
 
     def relative_errors

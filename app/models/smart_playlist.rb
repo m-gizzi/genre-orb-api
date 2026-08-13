@@ -20,7 +20,7 @@ class SmartPlaylist < ApplicationRecord
   validate :target_must_exist_on_spotify
   validate :sources_must_be_present
   validate :sources_must_belong_to_owner
-  validate :sources_must_not_create_a_cycle
+  validate :playlist_links_must_be_usable
   validate :rules_must_be_present_when_enabled
 
   after_create :enable_target_sync
@@ -32,6 +32,13 @@ class SmartPlaylist < ApplicationRecord
 
   def ready?
     rules.is_a?(Hash) && rules["rules"].present?
+  end
+
+  def rule_playlists
+    ids = Rules::PlaylistReferences.extract(rules)
+    return Playlist.none if ids.empty?
+
+    user.playlists.where(id: ids).includes(:current_version).order(:name)
   end
 
   private
@@ -70,10 +77,15 @@ class SmartPlaylist < ApplicationRecord
     smart_playlist_sources.reject(&:marked_for_destruction?)
   end
 
-  def sources_must_not_create_a_cycle
+  def playlist_links_must_be_usable
     return unless target_playlist
 
     graph = SmartPlaylists::DependencyGraph.new(target_playlist.user, excluding: id)
+    sources_must_not_create_a_cycle(graph)
+    rule_playlists_must_be_usable(graph)
+  end
+
+  def sources_must_not_create_a_cycle(graph)
     looping = live_sources.map(&:playlist_id).select { |source_id| cycles_back?(graph, source_id) }
     return if looping.empty?
 
@@ -91,6 +103,15 @@ class SmartPlaylist < ApplicationRecord
     subject = names.one? ? "it" : "them"
     "cannot include #{names.to_sentence} — this smart playlist already fills #{subject}, " \
       "directly or through a chain"
+  end
+
+  # Only worth asking once the tree itself is well formed — a rule set the shape
+  # validator rejected has no references worth resolving.
+  def rule_playlists_must_be_usable(graph)
+    return if errors[:rules].any?
+
+    SmartPlaylists::RuleReferenceCheck.call(self, rules, graph: graph)
+                                      .each { |message| errors.add(:rules, message) }
   end
 
   def rules_must_be_present_when_enabled

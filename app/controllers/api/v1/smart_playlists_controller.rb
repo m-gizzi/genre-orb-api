@@ -87,14 +87,23 @@ module Api
           smart_playlist.errors.add(:rules, I18n.t("rules.errors.group_shape"))
         else
           RuleSetValidator.new(attributes: [:rules]).validate_each(smart_playlist, :rules, rules)
+          validate_rule_references!(smart_playlist, rules)
         end
 
         raise ActiveRecord::RecordInvalid, smart_playlist if smart_playlist.errors[:rules].any?
       end
 
+      def validate_rule_references!(smart_playlist, rules)
+        return if smart_playlist.errors[:rules].any?
+
+        SmartPlaylists::RuleReferenceCheck.call(smart_playlist, rules).each do |message|
+          smart_playlist.errors.add(:rules, message)
+        end
+      end
+
       def find_smart_playlist
         current_user.smart_playlists
-                    .includes(:source_playlists, target_playlist: :current_version)
+                    .includes(source_playlists: :current_version, target_playlist: :current_version)
                     .find(params.expect(:id))
       end
 

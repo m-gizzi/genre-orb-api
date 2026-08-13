@@ -62,6 +62,21 @@ FactoryBot.define do
       last_pushed_at { 30.minutes.ago }
     end
 
+    trait :playlist_rule do
+      transient do
+        excluded_playlist { association :playlist, :with_spotify, user: user, strategy: :create }
+      end
+
+      rules do
+        {
+          "match" => "all",
+          "rules" => [
+            { "field" => "playlist", "operator" => "not_in", "value" => [excluded_playlist.id] },
+          ],
+        }
+      end
+    end
+
     trait :complex_rules do
       rules do
         {
