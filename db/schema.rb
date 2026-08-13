@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_12_014709) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_13_141602) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -54,11 +54,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_12_014709) do
     t.integer "completed_batches", default: 0, null: false
     t.datetime "created_at", null: false
     t.string "error_message"
+    t.bigint "scheduled_run_id"
     t.datetime "started_at"
     t.integer "status", default: 0, null: false
     t.integer "total_batches", default: 0, null: false
     t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
+    t.bigint "user_id"
+    t.index "((user_id IS NULL))", name: "idx_unique_active_global_artist_metadata_session", unique: true, where: "((user_id IS NULL) AND (status = ANY (ARRAY[0, 1])))"
+    t.index ["scheduled_run_id"], name: "index_artist_metadata_sessions_on_scheduled_run_id"
     t.index ["status"], name: "index_artist_metadata_sessions_on_status"
     t.index ["user_id", "status"], name: "index_artist_metadata_sessions_on_user_id_and_status"
     t.index ["user_id"], name: "idx_unique_active_artist_metadata_session_per_user", unique: true, where: "(status = ANY (ARRAY[0, 1]))"
@@ -150,6 +153,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_12_014709) do
     t.integer "match_count", default: 0, null: false
     t.bigint "playlist_version_id"
     t.boolean "sampled", default: false, null: false
+    t.bigint "scheduled_run_id"
     t.bigint "smart_playlist_id", null: false
     t.string "spotify_snapshot_id"
     t.datetime "started_at"
@@ -162,15 +166,39 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_12_014709) do
     t.datetime "updated_at", null: false
     t.index ["baseline_version_id"], name: "index_push_sessions_on_baseline_version_id"
     t.index ["playlist_version_id"], name: "index_push_sessions_on_playlist_version_id"
+    t.index ["scheduled_run_id"], name: "index_push_sessions_on_scheduled_run_id"
     t.index ["smart_playlist_id", "status"], name: "index_push_sessions_on_smart_playlist_id_and_status"
     t.index ["smart_playlist_id"], name: "idx_unique_active_push_session_per_smart_playlist", unique: true, where: "(status = ANY (ARRAY[0, 1]))"
     t.index ["smart_playlist_id"], name: "index_push_sessions_on_smart_playlist_id"
     t.index ["status"], name: "index_push_sessions_on_status"
   end
 
+  create_table "scheduled_runs", force: :cascade do |t|
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.string "error_message"
+    t.jsonb "push_plan", default: [], null: false
+    t.integer "push_wave", default: 0, null: false
+    t.date "run_date", null: false
+    t.integer "stage", default: 0, null: false
+    t.integer "stage_completed", default: 0, null: false
+    t.jsonb "stage_errors", default: {}, null: false
+    t.datetime "stage_started_at"
+    t.integer "stage_total", default: 0, null: false
+    t.datetime "started_at"
+    t.integer "status", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index "((status IS NOT NULL))", name: "idx_single_active_scheduled_run", unique: true, where: "(status = ANY (ARRAY[0, 1]))"
+    t.index ["run_date"], name: "index_scheduled_runs_on_run_date", unique: true
+    t.index ["status"], name: "index_scheduled_runs_on_status"
+  end
+
   create_table "service_connections", force: :cascade do |t|
     t.text "access_token", null: false
     t.datetime "created_at", null: false
+    t.string "last_auth_error"
+    t.datetime "last_auth_error_at"
+    t.boolean "needs_reauth", default: false, null: false
     t.jsonb "profile_data", default: {}
     t.text "refresh_token"
     t.integer "service_type", null: false
@@ -235,12 +263,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_12_014709) do
     t.datetime "created_at", null: false
     t.string "error_message"
     t.integer "failed_playlists", default: 0, null: false
+    t.bigint "scheduled_run_id"
     t.integer "skipped_playlists", default: 0, null: false
     t.datetime "started_at"
     t.integer "status", default: 0, null: false
     t.integer "total_playlists", default: 0, null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.index ["scheduled_run_id"], name: "index_sync_sessions_on_scheduled_run_id"
     t.index ["status"], name: "index_sync_sessions_on_status"
     t.index ["user_id", "status"], name: "idx_sync_sessions_user_status"
     t.index ["user_id"], name: "idx_unique_active_sync_session_per_user", unique: true, where: "(status = ANY (ARRAY[0, 1]))"
@@ -311,6 +341,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_12_014709) do
   add_foreign_key "album_artists", "artists"
   add_foreign_key "artist_genres", "artists"
   add_foreign_key "artist_genres", "genres"
+  add_foreign_key "artist_metadata_sessions", "scheduled_runs"
   add_foreign_key "artist_metadata_sessions", "users"
   add_foreign_key "playlist_version_tracks", "playlist_versions"
   add_foreign_key "playlist_version_tracks", "tracks"
@@ -319,6 +350,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_12_014709) do
   add_foreign_key "playlists", "users"
   add_foreign_key "push_sessions", "playlist_versions"
   add_foreign_key "push_sessions", "playlist_versions", column: "baseline_version_id"
+  add_foreign_key "push_sessions", "scheduled_runs"
   add_foreign_key "push_sessions", "smart_playlists"
   add_foreign_key "service_connections", "users"
   add_foreign_key "smart_playlist_sources", "playlists"
@@ -328,6 +360,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_12_014709) do
   add_foreign_key "sync_session_playlists", "playlist_versions", column: "baseline_version_id"
   add_foreign_key "sync_session_playlists", "playlists"
   add_foreign_key "sync_session_playlists", "sync_sessions"
+  add_foreign_key "sync_sessions", "scheduled_runs"
   add_foreign_key "sync_sessions", "users"
   add_foreign_key "track_artists", "artists"
   add_foreign_key "track_artists", "tracks"

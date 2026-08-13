@@ -3,7 +3,10 @@
 class ArtistMetadataSession < ApplicationRecord
   include Sessionable
 
-  belongs_to :user, inverse_of: :artist_metadata_sessions
+  belongs_to :user, inverse_of: :artist_metadata_sessions, optional: true
+  belongs_to :scheduled_run, inverse_of: :artist_metadata_sessions, optional: true
+
+  scope :global, -> { where(user_id: nil) }
 
   enum :status, {
     pending: 0,

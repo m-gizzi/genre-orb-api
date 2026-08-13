@@ -2,10 +2,13 @@
 
 module SmartPlaylists
   class PushInitializer
+    include SessionClaim
+
     Result = Struct.new(:outcome, :session, keyword_init: true) { include StartableResult }
 
-    def initialize(smart_playlist)
+    def initialize(smart_playlist, scheduled_run: nil)
       @smart_playlist = smart_playlist
+      @scheduled_run = scheduled_run
     end
 
     def call
@@ -17,10 +20,11 @@ module SmartPlaylists
 
     private
 
-    attr_reader :smart_playlist
+    attr_reader :smart_playlist, :scheduled_run
 
     def blocking_outcome
       return :spotify_not_connected unless smart_playlist.user.spotify_connected?
+      return :reauth_required if smart_playlist.user.spotify_needs_reauth?
       return :not_ready unless smart_playlist.ready?
       return :already_in_progress if smart_playlist.push_sessions.active.exists?
 
@@ -36,9 +40,10 @@ module SmartPlaylists
     end
 
     def create_session
-      PushSession.create!(smart_playlist: smart_playlist, status: :running, started_at: Time.current)
-    rescue ActiveRecord::RecordNotUnique
-      nil
+      claim do
+        PushSession.create!(smart_playlist: smart_playlist, scheduled_run: scheduled_run,
+                            status: :running, started_at: Time.current,)
+      end
     end
   end
 end

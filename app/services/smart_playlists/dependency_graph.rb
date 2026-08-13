@@ -33,6 +33,10 @@ module SmartPlaylists
       false
     end
 
+    def edge_pairs
+      source_pairs + rule_pairs
+    end
+
     private
 
     attr_reader :user, :excluding
@@ -42,13 +46,9 @@ module SmartPlaylists
     end
 
     def edges
-      @edges ||= pairs.each_with_object({}) do |(source_id, target_id), map|
+      @edges ||= edge_pairs.each_with_object({}) do |(source_id, target_id), map|
         (map[source_id] ||= []) << target_id
       end
-    end
-
-    def pairs
-      source_pairs + rule_pairs
     end
 
     def source_pairs

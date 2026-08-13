@@ -10,6 +10,7 @@ module Auth
           id: current_user.id,
           email: current_user.email,
           spotify_connected: current_user.spotify_connected?,
+          spotify_needs_reauth: current_user.spotify_needs_reauth?,
           spotify_profile: current_user.spotify_connection&.profile_data,
         },
       }

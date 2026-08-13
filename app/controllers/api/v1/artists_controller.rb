@@ -7,6 +7,7 @@ module Api
 
       sync_outcomes(
         spotify_not_connected: { key: "api.errors.spotify_not_connected", status: :unprocessable_content },
+        reauth_required: { key: "api.errors.spotify_reauth_required", status: :unprocessable_content },
         already_in_progress: { key: "api.artists.sync_in_progress", status: :conflict },
         no_artists: { key: "api.artists.no_artists_need_sync", status: :unprocessable_content },
       )
@@ -51,7 +52,7 @@ module Api
           current_session: @session ? serialize_session(@session) : nil,
           artists_total: artist_counts[:total],
           artists_synced: artist_counts[:synced],
-        }.merge(rate_limit_info)
+        }.merge(sync_meta)
       end
 
       def serialize_session(session)

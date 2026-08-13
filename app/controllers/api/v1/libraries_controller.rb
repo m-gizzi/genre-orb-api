@@ -7,6 +7,7 @@ module Api
 
       sync_outcomes(
         spotify_not_connected: { key: "api.errors.spotify_not_connected", status: :unprocessable_content },
+        reauth_required: { key: "api.errors.spotify_reauth_required", status: :unprocessable_content },
         already_in_progress: { key: "api.library.sync_in_progress", status: :conflict },
         no_playlists: { key: "api.library.no_playlists_selected", status: :unprocessable_content },
       )
@@ -42,7 +43,8 @@ module Api
           current_session: @session ? serialize_session(@session) : nil,
           playlists_metadata_fetched_at: current_user.playlists_metadata_fetched_at&.iso8601,
           playlists_metadata_error: current_user.playlists_metadata_error,
-        }.merge(rate_limit_info)
+          next_scheduled_run_at: ScheduledRun.next_run_at.iso8601,
+        }.merge(sync_meta)
       end
 
       def render_spotify_error

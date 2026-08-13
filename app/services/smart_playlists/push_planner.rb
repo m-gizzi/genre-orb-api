@@ -15,7 +15,7 @@ module SmartPlaylists
       nothing_to_push = track_set.entries.empty?
       evaluator.record!
 
-      return fail_no_matches! if nothing_to_push
+      return skip_no_matches! if nothing_to_push
 
       build_version!(track_set)
       strategy = commit_plan(track_set)
@@ -51,8 +51,12 @@ module SmartPlaylists
       push_session.update!(baseline_version_id: target.current_version_id)
     end
 
-    def fail_no_matches!
-      PushFailureHandler.fail_session(push_session, error_message: I18n.t("api.smart_playlists.push_no_matches"))
+    def skip_no_matches!
+      push_session.update!(
+        status: :skipped,
+        error_message: I18n.t("api.smart_playlists.push_no_matches"),
+        completed_at: Time.current,
+      )
     end
 
     def build_version!(track_set)

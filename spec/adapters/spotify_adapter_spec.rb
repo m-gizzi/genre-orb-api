@@ -266,7 +266,7 @@ RSpec.describe SpotifyAdapter do
             { status: 401 },
             { status: 200, body: { "id" => "abc" }.to_json, headers: json_headers },
           )
-        token_stub = stub_request(:post, Spotify::Client::TOKEN_URL)
+        token_stub = stub_request(:post, Spotify::TokenSource::TOKEN_URL)
                      .to_return(status: 200, body: { access_token: "refreshed_token", expires_in: 3600 }.to_json)
 
         expect(adapter.user_profile).to eq("id" => "abc")
@@ -274,12 +274,17 @@ RSpec.describe SpotifyAdapter do
         expect(service_connection.reload.access_token).to eq("refreshed_token")
       end
 
-      it "verify_connection returns false when refresh cannot recover" do
+      it "gives up and flags reauth when a fresh token is still rejected" do
         stub_request(:get, "#{Spotify::Client::BASE_URL}/me").to_return(status: 401)
-        stub_request(:post, Spotify::Client::TOKEN_URL)
+        stub_request(:post, Spotify::TokenSource::TOKEN_URL)
           .to_return(status: 200, body: { access_token: "refreshed_token", expires_in: 3600 }.to_json)
 
-        expect(adapter.verify_connection).to be(false)
+        expect { adapter.user_profile }.to raise_error(Spotify::ReauthRequiredError)
+        expect(service_connection.reload).to have_attributes(
+          needs_reauth: true,
+          last_auth_error: be_present,
+          last_auth_error_at: be_present,
+        )
       end
     end
   end
@@ -287,7 +292,7 @@ RSpec.describe SpotifyAdapter do
   describe "proactive token refresh" do
     it "refreshes before the request when the token is expiring soon" do
       service_connection.update!(token_expires_at: 1.minute.from_now)
-      token_stub = stub_request(:post, Spotify::Client::TOKEN_URL)
+      token_stub = stub_request(:post, Spotify::TokenSource::TOKEN_URL)
                    .to_return(status: 200, body: { access_token: "refreshed_token", expires_in: 3600 }.to_json)
       stub_get("me", body: { "id" => "abc" })
 

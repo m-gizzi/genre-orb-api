@@ -24,6 +24,7 @@ module Spotify
 
     def blocking_outcome
       return :spotify_not_connected unless user.spotify_connected?
+      return :reauth_required if user.spotify_needs_reauth?
       return :already_in_progress if user.artist_metadata_sessions.active.exists?
       return :no_artists if artist_ids.empty?
 
@@ -61,9 +62,7 @@ module Spotify
     end
 
     def enqueue_batch_jobs(session, batches)
-      jobs = batches.map do |batch_ids|
-        ArtistBatchFetchJob.new(session_id: session.id, user_id: user.id, artist_ids: batch_ids)
-      end
+      jobs = batches.map { |batch_ids| ArtistBatchFetchJob.new(session_id: session.id, artist_ids: batch_ids) }
       ActiveJob.perform_all_later(jobs)
     end
   end

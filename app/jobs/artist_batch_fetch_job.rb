@@ -4,27 +4,27 @@ class ArtistBatchFetchJob < SpotifyJob
   queue_as :metadata
 
   sidekiq_retries_exhausted do |job, exception|
-    args = perform_arguments(job).first || {}
-    session = ArtistMetadataSession.find_by(id: args[:session_id])
-    next unless session
-
-    session.update!(
-      status: :failed,
-      error_message: "Batch fetch failed after retries: #{exception.message}",
-      completed_at: Time.current,
-    )
+    abandon(perform_arguments(job).first, exception)
   end
 
-  def perform(session_id:, user_id:, artist_ids:)
+  def self.abandon(arguments, exception)
+    session = ArtistMetadataSession.find_by(id: arguments.to_h[:session_id])
+    return unless session
+
+    session.fail!(error_message: "Batch fetch failed after retries: #{exception.message}")
+  end
+
+  # These fetches run on the app token, so user_id only survives for jobs enqueued
+  # before that change shipped; for everything since it is nil and the pause it
+  # consults is the global one.
+  def perform(session_id:, artist_ids:, user_id: nil)
     if rate_limited?(user_id)
       defer_for_rate_limit(user_id)
       return
     end
 
     session = ArtistMetadataSession.find(session_id)
-    user = User.find(user_id)
-    adapter = SpotifyAdapter.new(user.spotify_connection)
 
-    Spotify::ArtistBatchProcessor.new(session, artist_ids: artist_ids, adapter: adapter).call
+    Spotify::ArtistBatchProcessor.new(session, artist_ids: artist_ids, adapter: SpotifyAdapter::Catalog.app).call
   end
 end

@@ -5,19 +5,14 @@ class SpotifyAdapter
   TRACK_BATCH_LIMIT = 100
   PLAYLIST_TRACK_LIMIT = 10_000
 
-  def initialize(service_connection)
-    @client = Spotify::Client.new(service_connection)
+  delegate :artists, to: :catalog
+
+  def initialize(token_source)
+    @client = Spotify::Client.new(token_source)
   end
 
   def user_profile
     client.get("me")
-  end
-
-  def verify_connection
-    user_profile
-    true
-  rescue Spotify::AuthenticationError
-    false
   end
 
   def playlists(limit: 50, offset: 0)
@@ -43,15 +38,6 @@ class SpotifyAdapter
 
   def update_playlist_details(playlist_id, attributes)
     client.put("playlists/#{playlist_id}", body: attributes)
-  end
-
-  def artists(spotify_ids)
-    if spotify_ids.size > ARTIST_BATCH_LIMIT
-      raise ArgumentError,
-            "Cannot fetch more than #{ARTIST_BATCH_LIMIT} artists at once"
-    end
-
-    client.get("artists", params: { ids: spotify_ids.join(",") })
   end
 
   def playlist_snapshot_id(playlist_id)
@@ -80,6 +66,10 @@ class SpotifyAdapter
   private
 
   attr_reader :client
+
+  def catalog
+    @catalog ||= Catalog.new(client)
+  end
 
   def guard_track_batch!(spotify_ids, verb)
     return if spotify_ids.size <= TRACK_BATCH_LIMIT

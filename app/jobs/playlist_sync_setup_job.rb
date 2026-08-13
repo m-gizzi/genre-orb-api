@@ -2,9 +2,12 @@
 
 class PlaylistSyncSetupJob < SpotifyJob
   sidekiq_retries_exhausted do |job, exception|
-    sync_session_playlist_id = perform_arguments(job).first
+    abandon(perform_arguments(job).first, exception)
+  end
+
+  def self.abandon(sync_session_playlist_id, exception)
     playlist_session = SyncSessionPlaylist.find_by(id: sync_session_playlist_id)
-    next unless playlist_session
+    return unless playlist_session
 
     SyncFailureHandler.fail_playlist_session(
       playlist_session,
@@ -34,7 +37,7 @@ class PlaylistSyncSetupJob < SpotifyJob
   private
 
   def run_setup(playlist_session, user)
-    adapter = SpotifyAdapter.new(user.spotify_connection)
+    adapter = SpotifyAdapter.new(guard_connection!(user))
     Spotify::PlaylistSyncSetup.new(playlist_session, adapter: adapter).call
   end
 

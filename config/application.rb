@@ -40,6 +40,11 @@ module GenreOrbApi
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
 
+    # ScheduledRuns::Advancer creates sessions and enqueues their jobs inside a
+    # row lock, so without this a worker can pick a job up before its session row
+    # is visible. Covers ActiveJob.perform_all_later too.
+    config.active_job.enqueue_after_transaction_commit = true
+
     config.middleware.use ActionDispatch::Cookies
     config.middleware.use ActionDispatch::Session::CookieStore
   end

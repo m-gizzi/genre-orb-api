@@ -1,16 +1,14 @@
 # frozen_string_literal: true
 
-# Sidekiq Cron scheduled jobs
-# See: https://github.com/sidekiq-cron/sidekiq-cron
+return unless Sidekiq.server?
 
-# Jobs will be added in later phases:
-# - SyncSchedulerJob: Check which users need syncing
-# - SmartPlaylistEvaluationJob: Evaluate smart playlists
-# - PlaylistSnapshotJob: Create daily playlist snapshots
-
-# Example format:
-# Sidekiq::Cron::Job.create(
-#   name: "Sync Scheduler - every minute",
-#   cron: "* * * * *",
-#   class: "SyncSchedulerJob"
-# )
+Rails.application.config.after_initialize do
+  Sidekiq::Cron::Job.load_from_hash!(
+    "scheduled_run_tick" => {
+      "cron" => "*/2 * * * *",
+      "class" => "ScheduledRunTickJob",
+      "queue" => "default",
+      "description" => "Starts and advances the nightly scheduled run",
+    },
+  )
+end

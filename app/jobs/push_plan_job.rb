@@ -2,7 +2,11 @@
 
 class PushPlanJob < PushJob
   sidekiq_retries_exhausted do |job, exception|
-    fail_push(job, exception, "Push planning failed after retries")
+    abandon(perform_arguments(job).first, exception)
+  end
+
+  def self.failure_message
+    "Push planning failed after retries"
   end
 
   def perform(push_session_id:)

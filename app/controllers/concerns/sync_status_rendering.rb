@@ -16,6 +16,10 @@ module SyncStatusRendering
 
   private
 
+  def sync_meta
+    rate_limit_info.merge(needs_reauth: current_user.spotify_needs_reauth?)
+  end
+
   def rate_limit_info
     rate_limited = SyncRateLimitState.user_paused?(current_user.id)
     {

@@ -2,14 +2,17 @@
 
 module Spotify
   class LibrarySyncInitializer
+    include SessionClaim
+
     Result = Struct.new(:outcome, :sync_session, :playlist_session_ids, keyword_init: true) do
       include StartableResult
     end
 
-    attr_reader :user
+    attr_reader :user, :scheduled_run
 
-    def initialize(user)
+    def initialize(user, scheduled_run: nil)
       @user = user
+      @scheduled_run = scheduled_run
     end
 
     def call
@@ -23,6 +26,7 @@ module Spotify
 
     def blocking_outcome
       return :spotify_not_connected unless user.spotify_connected?
+      return :reauth_required if user.spotify_needs_reauth?
       return :already_in_progress if user.sync_sessions.active.exists?
       return :no_playlists if syncable_playlists.empty?
 
@@ -42,9 +46,10 @@ module Spotify
     end
 
     def create_sync(playlists)
-      ActiveRecord::Base.transaction do
+      claim do
         session = SyncSession.create!(
           user: user,
+          scheduled_run: scheduled_run,
           status: :running,
           started_at: Time.current,
           total_playlists: playlists.count,
@@ -54,8 +59,6 @@ module Spotify
         end
         Result.new(outcome: :started, sync_session: session, playlist_session_ids: ids)
       end
-    rescue ActiveRecord::RecordNotUnique
-      nil
     end
 
     def enqueue_playlist_setup_jobs(playlist_session_ids)

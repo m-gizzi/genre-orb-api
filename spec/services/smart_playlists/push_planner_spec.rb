@@ -223,13 +223,13 @@ RSpec.describe SmartPlaylists::PushPlanner do
         "rules" => [{ "field" => "title", "operator" => "equals", "value" => "nothing matches this" }], }
     end
 
-    it "fails the session and never calls Spotify" do
+    it "skips the session and never calls Spotify" do
       target = build_target(holding: [desired_tracks.first], snapshot: "snap_1")
       snapshot_stub = stub_snapshot(target, "snap_1")
 
       session = plan(smart_playlist_for(target, rules: no_matches))
 
-      expect(session).to be_failed
+      expect(session).to be_skipped
       expect(session.error_message).to eq(I18n.t("api.smart_playlists.push_no_matches"))
       expect(snapshot_stub).not_to have_been_requested
     end

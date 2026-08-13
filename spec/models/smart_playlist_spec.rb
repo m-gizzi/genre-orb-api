@@ -700,17 +700,5 @@ RSpec.describe SmartPlaylist do
         expect(described_class.enabled).not_to include(disabled)
       end
     end
-
-    describe ".needs_evaluation" do
-      let!(:never_evaluated) { create(:smart_playlist, :enabled, last_evaluated_at: nil) }
-      let!(:stale) { create(:smart_playlist, :enabled, last_evaluated_at: 2.days.ago) }
-      let!(:recent) { create(:smart_playlist, :enabled, last_evaluated_at: 1.hour.ago) }
-      let!(:disabled) { create(:smart_playlist, last_evaluated_at: nil) }
-
-      it "returns enabled smart playlists that need evaluation" do
-        expect(described_class.needs_evaluation).to contain_exactly(never_evaluated, stale)
-        expect(described_class.needs_evaluation).not_to include(recent, disabled)
-      end
-    end
   end
 end

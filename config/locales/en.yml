@@ -10,6 +10,7 @@ en:
   api:
     errors:
       spotify_not_connected: "Spotify not connected"
+      spotify_reauth_required: "Spotify access has expired. Reconnect your account to continue."
       spotify_unavailable: "Spotify is temporarily unavailable. Your changes were not saved."
       spotify_rate_limited: "Spotify is rate limiting us. Please try again in a moment."
       unauthenticated: "You need to sign in or sign up before continuing"

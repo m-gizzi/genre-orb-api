@@ -4,6 +4,7 @@ class SyncSession < ApplicationRecord
   include Sessionable
 
   belongs_to :user, inverse_of: :sync_sessions
+  belongs_to :scheduled_run, inverse_of: :sync_sessions, optional: true
   has_many :sync_session_playlists, dependent: :destroy, inverse_of: :sync_session
   has_many :playlists, through: :sync_session_playlists
 
