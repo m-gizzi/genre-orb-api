@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_13_184126) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_13_224755) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -49,7 +49,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_184126) do
     t.index ["artist_id", "genre_id", "source"], name: "index_artist_genres_on_artist_id_genre_id_source", unique: true
     t.index ["artist_id"], name: "index_artist_genres_on_artist_id"
     t.index ["genre_id"], name: "index_artist_genres_on_genre_id"
-    t.index ["source"], name: "index_artist_genres_on_source"
   end
 
   create_table "artist_metadata_sessions", force: :cascade do |t|
@@ -85,8 +84,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_184126) do
     t.integer "state", default: 0, null: false
     t.datetime "updated_at", null: false
     t.index ["artist_id", "source"], name: "index_artist_metadata_sources_on_artist_id_and_source", unique: true
-    t.index ["artist_id"], name: "index_artist_metadata_sources_on_artist_id"
-    t.index ["source", "retry_after"], name: "index_artist_metadata_sources_on_source_and_retry_after"
+    t.index ["source", "retry_after"], name: "index_artist_metadata_sources_on_due", order: { retry_after: "NULLS FIRST" }
     t.index ["source", "state"], name: "index_artist_metadata_sources_on_source_and_state"
   end
 
@@ -318,7 +316,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_184126) do
     t.datetime "updated_at", null: false
     t.index ["confidence"], name: "index_track_genres_on_confidence"
     t.index ["genre_id"], name: "index_track_genres_on_genre_id"
-    t.index ["source"], name: "index_track_genres_on_source"
     t.index ["track_id", "genre_id", "source"], name: "index_track_genres_on_track_id_genre_id_source", unique: true
     t.index ["track_id"], name: "index_track_genres_on_track_id"
   end

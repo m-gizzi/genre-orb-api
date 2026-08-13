@@ -36,6 +36,9 @@ module Enrichment
                .to_h
     end
 
+    # The canonical name goes in external_id because it is what Last.fm answers to —
+    # see ArtistMetadataSource. Never the borrowed MBID: that identifies the artist to
+    # MusicBrainz, and storing it here would claim Last.fm had matched it.
     def fetch(row)
       result = adapter.artist_top_tags(name: row.artist.name, mbid: mbids[row.artist_id])
       applier.call(row.artist_id, result.genres)

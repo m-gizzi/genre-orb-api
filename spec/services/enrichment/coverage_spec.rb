@@ -62,6 +62,25 @@ RSpec.describe Enrichment::Coverage do
     expect(coverage[:musicbrainz]).to include(total: 0, fetched: 0)
   end
 
+  # It rides along on sync_status, which is polled every couple of seconds while a
+  # sync runs, so it must not re-count what the caller already counted.
+  it "takes the library size from the caller rather than counting again" do
+    create(:artist, :in_library, user: user)
+
+    result = described_class.new(user, library_artist_count: 99).call
+
+    expect(result[:musicbrainz]).to include(total: 99)
+  end
+
+  it "reads every count from a single aggregate" do
+    artist = create(:artist, :in_library, user: user)
+    create(:artist_metadata_source, :fetched, artist: artist, source: :musicbrainz)
+
+    queries = queries_during { described_class.new(user, library_artist_count: 1).call }
+
+    expect(queries.grep(/FROM "artist_metadata_sources"/).size).to eq(1)
+  end
+
   it "reports zeroes for an empty library" do
     expect(coverage[:musicbrainz]).to eq(total: 0, fetched: 0, matched: 0, unmatched: 0, errored: 0, pending: 0)
   end

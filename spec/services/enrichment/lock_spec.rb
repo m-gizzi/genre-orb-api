@@ -9,7 +9,15 @@ RSpec.describe Enrichment::Lock do
 
   def allow_set(reply)
     allow(redis).to receive(:call).with("SET", any_args).and_return(reply)
-    allow(redis).to receive(:call).with("DEL", any_args).and_return(1)
+    allow(redis).to receive(:call).with("EVAL", any_args).and_return(1)
+  end
+
+  # SET's value argument and EVAL's last argument, in call order.
+  def capture_tokens
+    tokens = { set: [], eval: [] }
+    allow(redis).to receive(:call).with("SET", any_args) { |*args| tokens[:set].push(args[2]) && "OK" }
+    allow(redis).to receive(:call).with("EVAL", any_args) { |*args| tokens[:eval].push(args.last) && 1 }
+    tokens
   end
 
   it "yields and reports :ran when it takes the lock" do
@@ -42,14 +50,33 @@ RSpec.describe Enrichment::Lock do
 
     described_class.acquire("lastfm", ttl: 90) { nil }
 
-    expect(redis).to have_received(:call).with("DEL", "#{described_class::KEY_PREFIX}:lastfm")
+    expect(redis).to have_received(:call)
+      .with("EVAL", described_class::RELEASE, 1, "#{described_class::KEY_PREFIX}:lastfm", anything)
   end
 
   it "releases the key even when the block raises" do
     allow_set("OK")
 
     expect { described_class.acquire("lastfm", ttl: 90) { raise "boom" } }.to raise_error("boom")
-    expect(redis).to have_received(:call).with("DEL", "#{described_class::KEY_PREFIX}:lastfm")
+    expect(redis).to have_received(:call).with("EVAL", any_args)
+  end
+
+  # A tick that outran the TTL must not free the lock its successor now holds, so the
+  # release is conditional on the token this tick wrote rather than a bare DEL.
+  it "releases only the token it wrote" do
+    tokens = capture_tokens
+
+    described_class.acquire("lastfm", ttl: 90) { nil }
+
+    expect(tokens[:eval]).to eq(tokens[:set])
+  end
+
+  it "writes a fresh token per acquisition, so one tick cannot release another's" do
+    tokens = capture_tokens
+
+    2.times { described_class.acquire("lastfm", ttl: 90) { nil } }
+
+    expect(tokens[:set].uniq.size).to eq(2)
   end
 
   it "keys each source separately so they never block one another" do

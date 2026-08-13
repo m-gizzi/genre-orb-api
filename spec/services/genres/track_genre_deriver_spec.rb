@@ -100,6 +100,28 @@ RSpec.describe Genres::TrackGenreDeriver do
       expect(TrackGenre.sole.confidence).to be_within(0.001).of(0.9)
     end
 
+    # source is part of the conflict target, so a derived user row would land on the
+    # genre a person set on that track by hand and overwrite its confidence.
+    it "does not derive a user-curated artist genre onto their tracks" do
+      artist = create(:artist, :with_genres, genres: [metal], genre_source: :user, genre_confidence: 0.3)
+      track = create(:track, :with_artists, artists: [artist])
+
+      expect { described_class.new.by_track([track.id]) }.not_to change(TrackGenre, :count)
+    end
+
+    it "leaves a hand-set track genre untouched while deriving the provider's" do
+      artist = create(:artist)
+      create(:artist_genre, artist: artist, genre: metal, source: :user, confidence: 0.3)
+      create(:artist_genre, artist: artist, genre: metal, source: :lastfm, confidence: 0.6)
+      track = create(:track, :with_artists, artists: [artist])
+      create(:track_genre, track: track, genre: metal, source: :user, confidence: 1.0)
+
+      described_class.new.by_track([track.id])
+
+      expect(TrackGenre.where(track: track, genre: metal).pluck(:source, :confidence))
+        .to contain_exactly(["user", 1.0], ["lastfm", 0.6])
+    end
+
     it "refreshes an existing row's confidence on re-derivation" do
       artist = create(:artist, :with_genres, genres: [metal], genre_source: :lastfm, genre_confidence: 0.2)
       track = create(:track, :with_artists, artists: [artist])

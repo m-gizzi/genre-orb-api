@@ -155,6 +155,19 @@ RSpec.describe "Api::V1::Artists" do
       expect(response.parsed_body["data"]["genres"].pluck("source")).to contain_exactly("spotify", "lastfm")
     end
 
+    # Each entry resolves genre.name, so without the preload a well-enriched artist
+    # costs one query per genre — and enrichment pushes that into the dozens.
+    it "loads the genres' names in one query rather than one per entry" do
+      artist = create(:artist, :in_library, user: user)
+      %i[spotify musicbrainz lastfm].each do |source|
+        create(:artist_genre, artist: artist, genre: create(:genre), source: source)
+      end
+
+      queries = queries_during { get "/api/v1/artists/#{artist.id}" }
+
+      expect(queries.grep(/FROM "genres"/).size).to eq(1)
+    end
+
     it "exposes each source's lookup state" do
       artist = create(:artist, :in_library, user: user)
       create(:artist_metadata_source, :matched, artist: artist, source: :musicbrainz, external_id: "mb-1")

@@ -64,10 +64,23 @@ module Enrichment
     # Rows with no row for this source yet. Creating them up front is what lets the
     # work query be one indexed scan over artist_metadata_sources alone.
     def backfill
+      return if fully_enrolled?
+
       rows = missing_artist_ids.map { |artist_id| pending_row_for(artist_id) }
       return if rows.empty?
 
       ArtistMetadataSource.insert_all(rows, unique_by: %i[artist_id source])
+    end
+
+    # The anti-join below cannot stop at the LIMIT until it has evaluated every
+    # artist, so once the source is caught up it costs a full scan a minute to learn
+    # there is nothing to do. Two counting scans answer the same question far cheaper.
+    #
+    # Exact, not a heuristic: rows are unique per (artist_id, source) and the foreign
+    # key keeps every one of them pointing at a live artist, so the enrolled ids are a
+    # subset of the artists — reaching the same size means it is the whole set.
+    def fully_enrolled?
+      ArtistMetadataSource.where(source: strategy.source).count >= Artist.count
     end
 
     def missing_artist_ids

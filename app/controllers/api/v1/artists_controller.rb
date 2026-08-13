@@ -20,7 +20,7 @@ module Api
       end
 
       def show
-        artist = current_user.library_artists.find(params.expect(:id))
+        artist = current_user.library_artists.includes(artist_genres: :genre).find(params.expect(:id))
         render_data(ArtistDetailSerializer.new(artist, params: detail_params(artist)).serializable_hash)
       end
 
@@ -52,7 +52,7 @@ module Api
           current_session: @session ? serialize_session(@session) : nil,
           artists_total: artist_counts[:total],
           artists_synced: artist_counts[:synced],
-          enrichment: Enrichment::Coverage.new(current_user).call,
+          enrichment: Enrichment::Coverage.new(current_user, library_artist_count: artist_counts[:total]).call,
         }.merge(sync_meta)
       end
 

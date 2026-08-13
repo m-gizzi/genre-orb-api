@@ -2,9 +2,15 @@
 
 module Genres
   # Projects artist_genres down onto the artists' tracks, carrying each row's source
-  # and confidence through. Deliberately source-agnostic: re-deriving one artist
-  # refreshes every source's rows for their tracks, which makes it self-healing.
+  # and confidence through. Provider-agnostic: re-deriving one artist refreshes every
+  # provider's rows for their tracks, which makes it self-healing.
   class TrackGenreDeriver
+    # Curation is per-entity, so a `user` row on an artist is not evidence about their
+    # tracks. It is also excluded for safety: source is part of the conflict target,
+    # so a derived user row would land on — and overwrite the confidence of — a genre
+    # a person set on that track by hand.
+    USER_SOURCE = GenreSourced::SOURCES.fetch(:user)
+
     # DISTINCT ON is load-bearing. A track credited to two artists that both carry the
     # same genre from the same source yields two candidate rows for one conflict
     # target, and Postgres refuses to affect a row twice in one statement. The plain
@@ -22,6 +28,7 @@ module Genres
       FROM track_artists
       INNER JOIN artist_genres ON artist_genres.artist_id = track_artists.artist_id
       WHERE track_artists.%<filter>s IN (?)
+        AND artist_genres.source <> #{USER_SOURCE}
       ORDER BY track_artists.track_id,
                artist_genres.genre_id,
                artist_genres.source,

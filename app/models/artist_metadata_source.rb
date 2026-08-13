@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+# `external_id` is whatever the provider answers to, and that is not the same kind of
+# thing on both: an MBID for MusicBrainz, and for Last.fm — which publishes no stable
+# artist id — the canonical name its lookups take. An address, not a key.
 class ArtistMetadataSource < ApplicationRecord
   REFRESH_TTL = 90.days
   UNMATCHED_RETRY = 30.days

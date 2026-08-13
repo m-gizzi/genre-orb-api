@@ -37,6 +37,25 @@ RSpec.describe Enrichment::Drip do
 
       expect(artist.metadata_sources.pluck(:source)).to contain_exactly("lastfm", "musicbrainz")
     end
+
+    # The anti-join cannot stop at its LIMIT until it has walked every artist, so once
+    # the source is caught up it must not run at all — this fires every minute forever.
+    it "does not scan for missing artists once the source is fully enrolled" do
+      create(:artist_metadata_source, :fetched, artist: create(:artist), source: :musicbrainz)
+
+      queries = queries_during { drip.call }
+
+      expect(queries.grep(/NOT IN \(SELECT/)).to be_empty
+    end
+
+    it "still scans while artists remain unenrolled" do
+      create(:artist)
+      allow(adapter).to receive(:artists_by_spotify_url).and_return({})
+
+      queries = queries_during { drip.call }
+
+      expect(queries.grep(/NOT IN \(SELECT/)).not_to be_empty
+    end
   end
 
   describe "the match phase" do
