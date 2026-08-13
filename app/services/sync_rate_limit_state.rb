@@ -1,45 +1,45 @@
 # frozen_string_literal: true
 
+# Spotify throttles per application, not per user, so a 429 raised on a request
+# with no user behind it (the app token) pauses everything. A user's own pause is
+# the longer of the two.
 class SyncRateLimitState
+  GLOBAL_KEY = "genre_orb:sync:rate_limit:global"
+
   class << self
-    def pause_user!(user_id, seconds)
+    def pause!(user_id, seconds)
       with_redis do |redis|
-        redis.call("SETEX", user_key(user_id), seconds.to_i, Time.current.iso8601)
+        redis.call("SETEX", key_for(user_id), seconds.to_i, Time.current.iso8601)
       end
     end
 
     def user_paused?(user_id)
-      with_redis { |redis| redis.call("EXISTS", user_key(user_id)).positive? }
+      wait_time_for_user(user_id).positive?
     end
 
     def user_resume_at(user_id)
-      ttl = with_redis { |redis| redis.call("TTL", user_key(user_id)) }
-      return nil if ttl <= 0
+      wait = wait_time_for_user(user_id)
+      return nil if wait.zero?
 
-      Time.current + ttl
+      Time.current + wait
     end
 
     def wait_time_for_user(user_id)
-      ttl = with_redis { |redis| redis.call("TTL", user_key(user_id)) }
-      [ttl, 0].max
+      [ttl(key_for(user_id)), ttl(GLOBAL_KEY), 0].max
     end
 
     private
 
+    def ttl(key)
+      with_redis { |redis| redis.call("TTL", key) }
+    end
+
     def with_redis(&)
-      redis_pool.with(&)
+      AppRedis.with(&)
     end
 
-    def redis_pool
-      @redis_pool ||= RedisClient.config(url: redis_url).new_pool(size: 5, timeout: 5)
-    end
-
-    def redis_url
-      ENV.fetch("REDIS_URL", "redis://localhost:6379/1")
-    end
-
-    def user_key(user_id)
-      "genre_orb:sync:rate_limit:user:#{user_id}"
+    def key_for(user_id)
+      user_id ? "genre_orb:sync:rate_limit:user:#{user_id}" : GLOBAL_KEY
     end
   end
 end

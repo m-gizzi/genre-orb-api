@@ -3,12 +3,15 @@
 class PushJob < SpotifyJob
   queue_as :push
 
-  def self.fail_push(job, exception, message)
-    args = perform_arguments(job).first || {}
-    push_session = PushSession.find_by(id: args[:push_session_id])
+  def self.abandon(arguments, exception)
+    push_session = PushSession.find_by(id: (arguments || {})[:push_session_id])
     return unless push_session
 
-    PushFailureHandler.fail_session(push_session, error_message: "#{message}: #{exception.message}")
+    PushFailureHandler.fail_session(push_session, error_message: "#{failure_message}: #{exception.message}")
+  end
+
+  def self.failure_message
+    "Push failed after retries"
   end
 
   private
@@ -20,7 +23,7 @@ class PushJob < SpotifyJob
     user = push_session.user
     return defer_for_rate_limit(user.id) if rate_limited?(user.id)
 
-    yield(push_session, SpotifyAdapter.new(user.spotify_connection))
+    yield(push_session, SpotifyAdapter.new(guard_connection!(user)))
   end
 
   def perform_push(push_session_id)

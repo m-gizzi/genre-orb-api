@@ -2,7 +2,11 @@
 
 class PlaylistTrackRemovalJob < PushJob
   sidekiq_retries_exhausted do |job, exception|
-    fail_push(job, exception, "Removing tracks failed after retries")
+    abandon(perform_arguments(job).first, exception)
+  end
+
+  def self.failure_message
+    "Removing tracks failed after retries"
   end
 
   def perform(push_session_id:, spotify_ids:)

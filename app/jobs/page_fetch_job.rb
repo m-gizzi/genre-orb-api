@@ -2,9 +2,13 @@
 
 class PageFetchJob < SpotifyJob
   sidekiq_retries_exhausted do |job, exception|
-    args = perform_arguments(job).first || {}
+    abandon(perform_arguments(job).first, exception)
+  end
+
+  def self.abandon(arguments, exception)
+    args = arguments || {}
     playlist_session = SyncSessionPlaylist.find_by(id: args[:sync_session_playlist_id])
-    next unless playlist_session
+    return unless playlist_session
 
     SyncFailureHandler.fail_playlist_session(
       playlist_session,
@@ -22,7 +26,7 @@ class PageFetchJob < SpotifyJob
       return
     end
 
-    adapter = SpotifyAdapter.new(user.spotify_connection)
+    adapter = SpotifyAdapter.new(guard_connection!(user))
     Spotify::PlaylistPageFetcher.new(playlist_session, page: page, adapter: adapter).call
   end
 end
