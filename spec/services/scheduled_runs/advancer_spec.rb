@@ -116,6 +116,12 @@ RSpec.describe ScheduledRuns::Advancer do
 
         expect(run.reload.stage).to eq("pushes")
       end
+
+      it "does not treat an idle night as a degraded one" do
+        tick
+
+        expect(run.reload).to have_attributes(stage_errors: be_empty, status: "running")
+      end
     end
 
     context "with a global session stranded by an earlier run" do
@@ -125,6 +131,14 @@ RSpec.describe ScheduledRuns::Advancer do
         tick
 
         expect(run.reload.stage).to eq("artist_metadata")
+      end
+
+      it "records that it could not start its own session" do
+        run.update!(stage: :library_sync)
+
+        tick
+
+        expect(run.reload.stage_errors).to have_key("artist_metadata_skipped")
       end
 
       it "clears it at the timeout so the next night can run" do
@@ -193,6 +207,43 @@ RSpec.describe ScheduledRuns::Advancer do
 
       expect(session.reload).to be_failed
       expect(run.reload).to have_attributes(push_wave: 1, stage_errors: have_key("pushes_wave_0"))
+    end
+
+    # The wave exists to stop the downstream push reading its upstream target
+    # early. A push we could not start because one was already running has to hold
+    # the wave open just the same, or the ordering guarantee is only cosmetic.
+    context "with a wave member already being pushed by hand" do
+      let!(:manual) { create(:push_session, smart_playlist: upstream, status: :running) }
+
+      it "does not start the next wave while that push is still active" do
+        enter_push_stage
+
+        expect(run.reload).to have_attributes(push_wave: 0, stage_errors: have_key("pushes_wave_0_skipped"))
+        expect(run.push_sessions).to be_empty
+
+        tick
+
+        expect(run.reload.push_wave).to eq(0)
+      end
+
+      it "moves on once it lands" do
+        enter_push_stage
+        manual.update!(status: :completed, completed_at: Time.current)
+
+        tick
+
+        expect(run.reload.push_wave).to eq(1)
+        expect(run.push_sessions.pluck(:smart_playlist_id)).to eq([downstream.id])
+      end
+
+      it "leaves it alone at the wave timeout but names it in the stage error" do
+        enter_push_stage
+
+        travel_to(ScheduledRun::STAGE_TIMEOUTS.fetch("pushes").from_now + 1.minute) { tick }
+
+        expect(manual.reload).to be_running
+        expect(run.reload.stage_errors["pushes_wave_0"]).to include("started outside this run")
+      end
     end
   end
 

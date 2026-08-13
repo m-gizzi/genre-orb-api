@@ -274,12 +274,17 @@ RSpec.describe SpotifyAdapter do
         expect(service_connection.reload.access_token).to eq("refreshed_token")
       end
 
-      it "verify_connection returns false when refresh cannot recover" do
+      it "gives up and flags reauth when a fresh token is still rejected" do
         stub_request(:get, "#{Spotify::Client::BASE_URL}/me").to_return(status: 401)
         stub_request(:post, Spotify::TokenSource::TOKEN_URL)
           .to_return(status: 200, body: { access_token: "refreshed_token", expires_in: 3600 }.to_json)
 
-        expect(adapter.verify_connection).to be(false)
+        expect { adapter.user_profile }.to raise_error(Spotify::ReauthRequiredError)
+        expect(service_connection.reload).to have_attributes(
+          needs_reauth: true,
+          last_auth_error: be_present,
+          last_auth_error_at: be_present,
+        )
       end
     end
   end

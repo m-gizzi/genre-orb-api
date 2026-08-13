@@ -80,6 +80,15 @@ RSpec.describe SmartPlaylists::PushFinalizer do
       expect { finalize }.not_to(change { target.reload.current_version_id })
     end
 
+    it "leaves a skipped session skipped" do
+      session.update!(status: :skipped, completed_at: Time.current)
+
+      finalize
+
+      expect(session).to be_skipped
+      expect(target.reload.current_version_id).not_to eq(version.id)
+    end
+
     it "stands down when the planner has discarded the version it would complete" do
       session.update!(playlist_version: nil)
 

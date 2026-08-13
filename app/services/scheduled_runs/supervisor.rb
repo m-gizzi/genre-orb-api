@@ -12,9 +12,9 @@ module ScheduledRuns
     private
 
     def kickoff_due?
-      return false if ScheduledRun.exists?(run_date: Date.current)
+      return false if ScheduledRun.exists?(run_date: ScheduledRun.date_for)
 
-      opens_at = Time.current.utc.change(hour: ScheduledRun::RUN_HOUR, min: 0, sec: 0)
+      opens_at = ScheduledRun.opens_at
       Time.current.between?(opens_at, opens_at + ScheduledRun::KICKOFF_WINDOW)
     end
   end

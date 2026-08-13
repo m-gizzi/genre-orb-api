@@ -2,6 +2,8 @@
 
 module Spotify
   class GlobalArtistMetadataInitializer
+    include SessionClaim
+
     BATCH_SIZE = SpotifyAdapter::ARTIST_BATCH_LIMIT
 
     MAX_BATCHES_PER_RUN = 2_000
@@ -40,16 +42,16 @@ module Spotify
     end
 
     def create_session
-      ArtistMetadataSession.create!(
-        user: nil,
-        scheduled_run: scheduled_run,
-        status: :running,
-        total_batches: batches.size,
-        completed_batches: 0,
-        started_at: Time.current,
-      )
-    rescue ActiveRecord::RecordNotUnique
-      nil
+      claim do
+        ArtistMetadataSession.create!(
+          user: nil,
+          scheduled_run: scheduled_run,
+          status: :running,
+          total_batches: batches.size,
+          completed_batches: 0,
+          started_at: Time.current,
+        )
+      end
     end
 
     def enqueue_batch_jobs(session)

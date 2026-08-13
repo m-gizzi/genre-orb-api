@@ -2,27 +2,33 @@
 
 module ScheduledRuns
   class Starter
-    def call
-      run = create_run
-      return nil unless run
+    include SessionClaim
 
-      Stages.for(run).start
-      run.update!(status: :running)
-      run
+    # Creating the run and starting its first stage are one transaction, and the
+    # run is `running` from the first insert. A stage that fails to start therefore
+    # leaves no row behind, so the next tick can retry inside the kickoff window —
+    # a run stranded in `pending` would hold the single-active-run index forever
+    # and Advancer would refuse to touch it.
+    def call
+      ScheduledRun.transaction do
+        run = claim { create_run }
+        next nil unless run
+
+        Stages.for(run).start
+        run
+      end
     end
 
     private
 
     def create_run
       ScheduledRun.create!(
-        run_date: Date.current,
-        status: :pending,
+        run_date: ScheduledRun.date_for,
+        status: :running,
         stage: :discovery,
         stage_started_at: Time.current,
         started_at: Time.current,
       )
-    rescue ActiveRecord::RecordNotUnique
-      nil
     end
   end
 end

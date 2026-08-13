@@ -14,6 +14,9 @@ class ArtistBatchFetchJob < SpotifyJob
     session.fail!(error_message: "Batch fetch failed after retries: #{exception.message}")
   end
 
+  # These fetches run on the app token, so user_id only survives for jobs enqueued
+  # before that change shipped; for everything since it is nil and the pause it
+  # consults is the global one.
   def perform(session_id:, artist_ids:, user_id: nil)
     if rate_limited?(user_id)
       defer_for_rate_limit(user_id)

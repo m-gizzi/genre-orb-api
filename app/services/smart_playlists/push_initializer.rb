@@ -2,6 +2,8 @@
 
 module SmartPlaylists
   class PushInitializer
+    include SessionClaim
+
     Result = Struct.new(:outcome, :session, keyword_init: true) { include StartableResult }
 
     def initialize(smart_playlist, scheduled_run: nil)
@@ -38,10 +40,10 @@ module SmartPlaylists
     end
 
     def create_session
-      PushSession.create!(smart_playlist: smart_playlist, scheduled_run: scheduled_run,
-                          status: :running, started_at: Time.current,)
-    rescue ActiveRecord::RecordNotUnique
-      nil
+      claim do
+        PushSession.create!(smart_playlist: smart_playlist, scheduled_run: scheduled_run,
+                            status: :running, started_at: Time.current,)
+      end
     end
   end
 end

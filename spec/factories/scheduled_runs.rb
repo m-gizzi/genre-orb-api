@@ -2,15 +2,11 @@
 
 FactoryBot.define do
   factory :scheduled_run do
-    run_date { Date.current }
+    run_date { ScheduledRun.date_for }
     status { :running }
     stage { :discovery }
     stage_started_at { Time.current }
     started_at { Time.current }
-
-    trait :pending do
-      status { :pending }
-    end
 
     trait :library_sync do
       stage { :library_sync }

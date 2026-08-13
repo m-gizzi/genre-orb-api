@@ -13,7 +13,7 @@ RSpec.describe ScheduledRuns::Starter do
   it "creates today's run in the discovery stage and starts it" do
     run = described_class.new.call
 
-    expect(run).to have_attributes(run_date: Date.current, status: "running", stage: "discovery")
+    expect(run).to have_attributes(run_date: ScheduledRun.date_for, status: "running", stage: "discovery")
     expect(run.stage_total).to eq(1)
   end
 
@@ -32,5 +32,14 @@ RSpec.describe ScheduledRuns::Starter do
     create(:scheduled_run, run_date: Date.current - 1)
 
     expect(described_class.new.call).to be_nil
+  end
+
+  # A run left behind as `pending` would hold the single-active-run index while
+  # Advancer refused to touch it, wedging every night that followed.
+  it "leaves no run behind when the discovery stage cannot start" do
+    allow(ActiveJob).to receive(:perform_all_later).and_raise(RedisClient::ConnectionError)
+
+    expect { described_class.new.call }.to raise_error(RedisClient::ConnectionError)
+    expect(ScheduledRun.count).to eq(0)
   end
 end

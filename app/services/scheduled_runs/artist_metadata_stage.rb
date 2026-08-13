@@ -8,8 +8,16 @@ module ScheduledRuns
       @run = run
     end
 
+    # `no_artists` is a healthy night, not a fault — recording it would push the run
+    # to completed_with_errors for having nothing to do. Anything else means a
+    # session stranded by an earlier run is holding the index.
+    EXPECTED_OUTCOMES = %i[started no_artists].freeze
+
     def start
-      Spotify::GlobalArtistMetadataInitializer.new(scheduled_run: run).call
+      outcome = Spotify::GlobalArtistMetadataInitializer.new(scheduled_run: run).call.outcome
+      return if outcome.in?(EXPECTED_OUTCOMES)
+
+      run.record_stage_error!(:artist_metadata_skipped, "not started (#{outcome})")
     end
 
     def settled?

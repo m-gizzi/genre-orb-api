@@ -14,13 +14,13 @@ module ScheduledRuns
     end
 
     def settled?
-      wave_sessions.active.none?
+      wave_pushes.none?
     end
 
     def abandon!
-      sessions = wave_sessions.active.to_a
+      sessions = our_wave_pushes.to_a
       sessions.each { |session| PushFailureHandler.fail_session(session, error_message: TIMEOUT_MESSAGE) }
-      run.record_stage_error!("pushes_wave_#{run.push_wave}", "timed out; #{sessions.size} pushes abandoned")
+      run.record_stage_error!("pushes_wave_#{run.push_wave}", timeout_reason(sessions.size))
     end
 
     def advance!
@@ -35,8 +35,25 @@ module ScheduledRuns
 
     attr_reader :run
 
-    def wave_sessions
-      run.push_sessions.where(smart_playlist_id: run.current_wave)
+    # Any active push for a wave member holds the wave open, not just ours: a
+    # playlist whose push we could not start because one was already running still
+    # has to land before the next wave reads its target.
+    def wave_pushes
+      PushSession.active.where(smart_playlist_id: run.current_wave)
+    end
+
+    # Abandoning is narrower than waiting — a push someone started by hand is not
+    # ours to fail, so it only gets named in the stage error.
+    def our_wave_pushes
+      run.push_sessions.active.where(smart_playlist_id: run.current_wave)
+    end
+
+    def timeout_reason(abandoned)
+      reason = "timed out; #{abandoned} pushes abandoned"
+      stragglers = wave_pushes.count
+      return reason if stragglers.zero?
+
+      "#{reason}; #{stragglers} started outside this run still active"
     end
 
     # Users are independent graphs, so wave k of one lines up with wave k of any

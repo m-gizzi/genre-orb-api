@@ -15,13 +15,6 @@ class SpotifyAdapter
     client.get("me")
   end
 
-  def verify_connection
-    user_profile
-    true
-  rescue Spotify::AuthenticationError, Spotify::TokenRefreshError
-    false
-  end
-
   def playlists(limit: 50, offset: 0)
     client.get("me/playlists", params: { limit: limit, offset: offset })
   end

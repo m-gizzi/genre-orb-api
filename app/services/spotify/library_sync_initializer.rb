@@ -2,6 +2,8 @@
 
 module Spotify
   class LibrarySyncInitializer
+    include SessionClaim
+
     Result = Struct.new(:outcome, :sync_session, :playlist_session_ids, keyword_init: true) do
       include StartableResult
     end
@@ -44,7 +46,7 @@ module Spotify
     end
 
     def create_sync(playlists)
-      ActiveRecord::Base.transaction do
+      claim do
         session = SyncSession.create!(
           user: user,
           scheduled_run: scheduled_run,
@@ -57,8 +59,6 @@ module Spotify
         end
         Result.new(outcome: :started, sync_session: session, playlist_session_ids: ids)
       end
-    rescue ActiveRecord::RecordNotUnique
-      nil
     end
 
     def enqueue_playlist_setup_jobs(playlist_session_ids)

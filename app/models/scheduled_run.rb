@@ -19,6 +19,8 @@ class ScheduledRun < ApplicationRecord
   has_many :artist_metadata_sessions, dependent: :nullify, inverse_of: :scheduled_run
   has_many :push_sessions, dependent: :nullify, inverse_of: :scheduled_run
 
+  # `failed` is here only because Sessionable#fail! needs it. A run always lands
+  # on completed or completed_with_errors, the hard cap included.
   enum :status, {
     pending: 0,
     running: 1,
@@ -35,8 +37,19 @@ class ScheduledRun < ApplicationRecord
   }, prefix: true
 
   def self.next_run_at(from: Time.current)
-    today = from.utc.change(hour: RUN_HOUR, min: 0, sec: 0)
+    today = opens_at(from: from)
     today.after?(from) ? today : today + 1.day
+  end
+
+  def self.opens_at(from: Time.current)
+    from.utc.change(hour: RUN_HOUR, min: 0, sec: 0)
+  end
+
+  # The day a run belongs to, read off the same UTC clock the kickoff window uses.
+  # Date.current would follow Time.zone, and a local date that rolls over mid-window
+  # lets a second run start for the "next" day.
+  def self.date_for(from: Time.current)
+    from.utc.to_date
   end
 
   def timed_out?
