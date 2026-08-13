@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class SmartPlaylist < ApplicationRecord
-  EVALUATION_EXPIRES = 1.day
   EMPTY_RULES = { "match" => "all", "rules" => [] }.freeze
 
   belongs_to :target_playlist,
@@ -26,9 +25,6 @@ class SmartPlaylist < ApplicationRecord
   after_create :enable_target_sync
 
   scope :enabled, -> { where(is_enabled: true) }
-  scope :needs_evaluation, lambda {
-    enabled.where("last_evaluated_at IS NULL OR last_evaluated_at < ?", EVALUATION_EXPIRES.ago)
-  }
 
   def ready?
     rules.is_a?(Hash) && rules["rules"].present?

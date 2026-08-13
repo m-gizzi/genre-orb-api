@@ -6,10 +6,11 @@ module Spotify
       include StartableResult
     end
 
-    attr_reader :user
+    attr_reader :user, :scheduled_run
 
-    def initialize(user)
+    def initialize(user, scheduled_run: nil)
       @user = user
+      @scheduled_run = scheduled_run
     end
 
     def call
@@ -46,6 +47,7 @@ module Spotify
       ActiveRecord::Base.transaction do
         session = SyncSession.create!(
           user: user,
+          scheduled_run: scheduled_run,
           status: :running,
           started_at: Time.current,
           total_playlists: playlists.count,
