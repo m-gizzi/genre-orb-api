@@ -9,6 +9,7 @@ module Api
 
       sync_outcomes(
         spotify_not_connected: { key: "api.errors.spotify_not_connected", status: :unprocessable_content },
+        reauth_required: { key: "api.errors.spotify_reauth_required", status: :unprocessable_content },
         not_ready: { key: "api.smart_playlists.push_not_ready", status: :unprocessable_content },
         already_in_progress: { key: "api.smart_playlists.push_in_progress", status: :conflict },
       )
@@ -23,7 +24,7 @@ module Api
       def status
         render_data(
           { active_pushes: serialize(active_pushes),
-            recent_pushes: serialize(recent_pushes), }.merge(rate_limit_info),
+            recent_pushes: serialize(recent_pushes), }.merge(sync_meta),
         )
       end
 

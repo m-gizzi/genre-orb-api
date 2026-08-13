@@ -21,6 +21,7 @@ module SmartPlaylists
 
     def blocking_outcome
       return :spotify_not_connected unless smart_playlist.user.spotify_connected?
+      return :reauth_required if smart_playlist.user.spotify_needs_reauth?
       return :not_ready unless smart_playlist.ready?
       return :already_in_progress if smart_playlist.push_sessions.active.exists?
 

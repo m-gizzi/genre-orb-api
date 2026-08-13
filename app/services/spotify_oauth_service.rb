@@ -79,6 +79,9 @@ class SpotifyOauthService
       refresh_token: credentials["refresh_token"],
       token_expires_at: Time.zone.at(credentials["expires_at"]),
       profile_data: build_profile_data,
+      needs_reauth: false,
+      last_auth_error: nil,
+      last_auth_error_at: nil,
     )
 
     connection

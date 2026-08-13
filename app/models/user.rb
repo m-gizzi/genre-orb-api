@@ -21,6 +21,10 @@ class User < ApplicationRecord
     spotify_connection.present?
   end
 
+  def spotify_needs_reauth?
+    spotify_connection&.needs_reauth? || false
+  end
+
   def liked_songs_playlist
     playlists.liked_songs.first
   end

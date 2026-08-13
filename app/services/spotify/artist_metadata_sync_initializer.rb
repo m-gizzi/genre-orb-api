@@ -24,6 +24,7 @@ module Spotify
 
     def blocking_outcome
       return :spotify_not_connected unless user.spotify_connected?
+      return :reauth_required if user.spotify_needs_reauth?
       return :already_in_progress if user.artist_metadata_sessions.active.exists?
       return :no_artists if artist_ids.empty?
 

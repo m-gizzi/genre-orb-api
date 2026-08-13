@@ -23,6 +23,7 @@ module Spotify
 
     def blocking_outcome
       return :spotify_not_connected unless user.spotify_connected?
+      return :reauth_required if user.spotify_needs_reauth?
       return :already_in_progress if user.sync_sessions.active.exists?
       return :no_playlists if syncable_playlists.empty?
 
