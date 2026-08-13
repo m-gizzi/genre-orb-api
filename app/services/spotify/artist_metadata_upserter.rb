@@ -77,7 +77,7 @@ module Spotify
       return if incoming_spotify_ids.empty?
 
       pairs = incoming_artists.flat_map { |artist| genre_pairs_for(artist) }
-      Spotify::ArtistGenrePropagator.new.call(pairs)
+      Genres::ArtistGenreWriter.new(source: :spotify).call(pairs)
     end
 
     def genre_pairs_for(artist)
@@ -87,7 +87,7 @@ module Spotify
     def propagate_genres_to_tracks
       return if incoming_spotify_ids.empty?
 
-      Spotify::TrackGenreDeriver.new.by_artist(incoming_artists.map(&:id))
+      Genres::TrackGenreDeriver.new.by_artist(incoming_artists.map(&:id))
     end
 
     def incoming_artists

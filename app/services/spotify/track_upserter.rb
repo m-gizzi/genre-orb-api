@@ -11,7 +11,7 @@ module Spotify
       tracks_by_spotify_id = upsert_tracks(items, albums_by_spotify_id)
 
       write_artist_joins(items, tracks_by_spotify_id, albums_by_spotify_id, artists_by_spotify_id)
-      Spotify::TrackGenreDeriver.new.by_track(tracks_by_spotify_id.values.map(&:id))
+      Genres::TrackGenreDeriver.new.by_track(tracks_by_spotify_id.values.map(&:id))
 
       tracks_by_spotify_id
     end
