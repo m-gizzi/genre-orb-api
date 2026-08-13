@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_13_141602) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_13_224755) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -41,10 +41,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_141602) do
 
   create_table "artist_genres", force: :cascade do |t|
     t.bigint "artist_id", null: false
+    t.float "confidence", default: 1.0, null: false
     t.datetime "created_at", null: false
     t.bigint "genre_id", null: false
+    t.integer "source", default: 0, null: false
     t.datetime "updated_at", null: false
-    t.index ["artist_id", "genre_id"], name: "index_artist_genres_on_artist_id_and_genre_id", unique: true
+    t.index ["artist_id", "genre_id", "source"], name: "index_artist_genres_on_artist_id_genre_id_source", unique: true
     t.index ["artist_id"], name: "index_artist_genres_on_artist_id"
     t.index ["genre_id"], name: "index_artist_genres_on_genre_id"
   end
@@ -66,6 +68,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_141602) do
     t.index ["user_id", "status"], name: "index_artist_metadata_sessions_on_user_id_and_status"
     t.index ["user_id"], name: "idx_unique_active_artist_metadata_session_per_user", unique: true, where: "(status = ANY (ARRAY[0, 1]))"
     t.index ["user_id"], name: "index_artist_metadata_sessions_on_user_id"
+  end
+
+  create_table "artist_metadata_sources", force: :cascade do |t|
+    t.bigint "artist_id", null: false
+    t.datetime "attempted_at"
+    t.datetime "created_at", null: false
+    t.string "external_id"
+    t.string "external_url"
+    t.integer "failure_count", default: 0, null: false
+    t.datetime "fetched_at"
+    t.string "last_error"
+    t.datetime "retry_after"
+    t.integer "source", null: false
+    t.integer "state", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["artist_id", "source"], name: "index_artist_metadata_sources_on_artist_id_and_source", unique: true
+    t.index ["source", "retry_after"], name: "index_artist_metadata_sources_on_due", order: { retry_after: "NULLS FIRST" }
+    t.index ["source", "state"], name: "index_artist_metadata_sources_on_source_and_state"
   end
 
   create_table "artists", force: :cascade do |t|
@@ -296,7 +316,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_141602) do
     t.datetime "updated_at", null: false
     t.index ["confidence"], name: "index_track_genres_on_confidence"
     t.index ["genre_id"], name: "index_track_genres_on_genre_id"
-    t.index ["source"], name: "index_track_genres_on_source"
     t.index ["track_id", "genre_id", "source"], name: "index_track_genres_on_track_id_genre_id_source", unique: true
     t.index ["track_id"], name: "index_track_genres_on_track_id"
   end
@@ -343,6 +362,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_141602) do
   add_foreign_key "artist_genres", "genres"
   add_foreign_key "artist_metadata_sessions", "scheduled_runs"
   add_foreign_key "artist_metadata_sessions", "users"
+  add_foreign_key "artist_metadata_sources", "artists"
   add_foreign_key "playlist_version_tracks", "playlist_versions"
   add_foreign_key "playlist_version_tracks", "tracks"
   add_foreign_key "playlist_versions", "playlists"

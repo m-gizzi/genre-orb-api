@@ -33,7 +33,7 @@ RSpec.describe "Api::V1::Artists" do
         expect(response.parsed_body["data"].pluck("id")).to contain_exactly(artist.id)
         expect(response.parsed_body["data"].first).to include(
           "name" => "Slayer",
-          "genres" => [{ "id" => thrash.id, "name" => "thrash" }],
+          "genres" => [hash_including("genre_id" => thrash.id, "name" => "thrash", "source" => "spotify")],
           "followers" => 100,
           "popularity" => 70,
         )
@@ -134,14 +134,50 @@ RSpec.describe "Api::V1::Artists" do
       expect(data["albums"].pluck("id")).to contain_exactly(album.id)
     end
 
-    it "serializes the artist's genres with their ids" do
+    it "serializes the artist's genres with their source and confidence" do
       thrash = create(:genre, name: "thrash")
       artist = create(:artist, :in_library, :with_genres, user: user, name: "Slayer", genres: [thrash])
 
       get "/api/v1/artists/#{artist.id}"
 
-      expect(response.parsed_body["data"]["genres"]).to eq(
-        [{ "id" => thrash.id, "name" => "thrash" }],
+      expect(response.parsed_body["data"]["genres"]).to contain_exactly(
+        hash_including("genre_id" => thrash.id, "name" => "thrash", "source" => "spotify", "confidence" => 1.0),
+      )
+    end
+
+    it "reports the same genre once per source that claims it" do
+      thrash = create(:genre, name: "thrash")
+      artist = create(:artist, :in_library, :with_genres, user: user, genres: [thrash])
+      create(:artist_genre, :from_lastfm, artist: artist, genre: thrash, confidence: 0.8)
+
+      get "/api/v1/artists/#{artist.id}"
+
+      expect(response.parsed_body["data"]["genres"].pluck("source")).to contain_exactly("spotify", "lastfm")
+    end
+
+    # Each entry resolves genre.name, so without the preload a well-enriched artist
+    # costs one query per genre — and enrichment pushes that into the dozens.
+    it "loads the genres' names in one query rather than one per entry" do
+      artist = create(:artist, :in_library, user: user)
+      %i[spotify musicbrainz lastfm].each do |source|
+        create(:artist_genre, artist: artist, genre: create(:genre), source: source)
+      end
+
+      queries = queries_during { get "/api/v1/artists/#{artist.id}" }
+
+      expect(queries.grep(/FROM "genres"/).size).to eq(1)
+    end
+
+    it "exposes each source's lookup state" do
+      artist = create(:artist, :in_library, user: user)
+      create(:artist_metadata_source, :matched, artist: artist, source: :musicbrainz, external_id: "mb-1")
+      create(:artist_metadata_source, :lastfm, :unmatched, artist: artist)
+
+      get "/api/v1/artists/#{artist.id}"
+
+      expect(response.parsed_body["data"]["metadata_sources"]).to contain_exactly(
+        hash_including("source" => "musicbrainz", "state" => "matched", "external_id" => "mb-1"),
+        hash_including("source" => "lastfm", "state" => "unmatched"),
       )
     end
 

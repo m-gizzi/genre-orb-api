@@ -29,10 +29,15 @@ FactoryBot.define do
     trait :with_genres do
       transient do
         genres { [] }
+        genre_source { :spotify }
+        genre_confidence { 1.0 }
       end
 
       after(:create) do |artist, evaluator|
-        evaluator.genres.each { |genre| create(:artist_genre, artist: artist, genre: genre) }
+        evaluator.genres.each do |genre|
+          create(:artist_genre, artist: artist, genre: genre,
+                                source: evaluator.genre_source, confidence: evaluator.genre_confidence,)
+        end
       end
     end
 

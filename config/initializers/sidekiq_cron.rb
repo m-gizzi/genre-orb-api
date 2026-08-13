@@ -10,5 +10,19 @@ Rails.application.config.after_initialize do
       "queue" => "default",
       "description" => "Starts and advances the nightly scheduled run",
     },
+    "musicbrainz_enrichment" => {
+      "cron" => "* * * * *",
+      "class" => "EnrichmentTickJob",
+      "queue" => "enrichment",
+      "args" => ["musicbrainz"],
+      "description" => "Drips artist genre enrichment from MusicBrainz",
+    },
+    "lastfm_enrichment" => {
+      "cron" => "* * * * *",
+      "class" => "EnrichmentTickJob",
+      "queue" => "enrichment",
+      "args" => ["lastfm"],
+      "description" => "Drips artist genre enrichment from Last.fm",
+    },
   )
 end

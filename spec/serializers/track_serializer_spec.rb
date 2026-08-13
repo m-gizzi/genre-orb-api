@@ -24,8 +24,22 @@ RSpec.describe TrackSerializer do
     expect(result["artists"]).to contain_exactly(include("id" => artist.id, "name" => "Slayer"))
     track_genre = track.track_genres.first
     expect(result["genres"]).to contain_exactly(
-      { "id" => track_genre.id, "genre_id" => genre.id, "name" => "thrash metal", "source" => "spotify" },
+      { "id" => track_genre.id, "genre_id" => genre.id, "name" => "thrash metal",
+        "source" => "spotify", "confidence" => 1.0, },
     )
+  end
+
+  it "carries each source's confidence, so the client can rank agreement" do
+    genre = create(:genre, name: "metal")
+    track = create(:track)
+    create(:track_genre, :from_musicbrainz, track: track, genre: genre, confidence: 0.7)
+    create(:track_genre, :from_lastfm, track: track, genre: genre, confidence: 0.95)
+
+    loaded = Track.with_catalog_associations.find(track.id)
+    genres = described_class.new(loaded).serializable_hash["genres"]
+
+    expect(genres.map { |entry| [entry["source"], entry["confidence"]] })
+      .to contain_exactly(["musicbrainz", 0.7], ["lastfm", 0.95])
   end
 
   it "lists the same genre once per source with distinct entry ids" do

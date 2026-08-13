@@ -15,7 +15,10 @@ RSpec.configure do |config|
 
   config.before do
     null_redis = instance_double(RedisClient)
-    allow(null_redis).to receive(:call).and_return(-2)
+    # -2 is Redis's "no such key" TTL, which is what every read should see against an
+    # empty store. A SET has to look like it succeeded, though, or nothing that takes
+    # a lock (Enrichment::Lock) can run under the default stub.
+    allow(null_redis).to receive(:call) { |command, *| command == "SET" ? "OK" : -2 }
     stub_app_redis(null_redis)
   end
 end

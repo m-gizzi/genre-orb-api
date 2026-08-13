@@ -7,6 +7,14 @@ FactoryBot.define do
     confidence { 1.0 }
     source { :spotify }
 
+    trait :from_musicbrainz do
+      source { :musicbrainz }
+    end
+
+    trait :from_lastfm do
+      source { :lastfm }
+    end
+
     trait :user_override do
       source { :user }
     end
