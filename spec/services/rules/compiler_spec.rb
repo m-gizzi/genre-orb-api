@@ -3,7 +3,9 @@
 require "rails_helper"
 
 RSpec.describe Rules::Compiler do
-  subject(:compiler) { described_class.new(memberships) }
+  subject(:compiler) { described_class.new(memberships, user) }
+
+  let(:user) { create(:user) }
 
   let(:memberships) do
     PlaylistVersionTrack.where(playlist_version_id: [1]).group(:track_id).select("track_id, MIN(added_at) AS added_at")

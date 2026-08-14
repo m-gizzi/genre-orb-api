@@ -155,8 +155,9 @@ RSpec.describe "Api::V1::Artists" do
       expect(response.parsed_body["data"]["genres"].pluck("source")).to contain_exactly("spotify", "lastfm")
     end
 
-    # Each entry resolves genre.name, so without the preload a well-enriched artist
-    # costs one query per genre — and enrichment pushes that into the dozens.
+    # Each entry resolves genre.name, so without the join a well-enriched artist costs one
+    # query per genre — and enrichment pushes that into the dozens. Genres::Loader joins
+    # rather than preloads, so the whole lookup is a single statement.
     it "loads the genres' names in one query rather than one per entry" do
       artist = create(:artist, :in_library, user: user)
       %i[spotify musicbrainz lastfm].each do |source|
@@ -165,7 +166,7 @@ RSpec.describe "Api::V1::Artists" do
 
       queries = queries_during { get "/api/v1/artists/#{artist.id}" }
 
-      expect(queries.grep(/FROM "genres"/).size).to eq(1)
+      expect(queries.grep(/"genres"/).size).to eq(1)
     end
 
     it "exposes each source's lookup state" do
