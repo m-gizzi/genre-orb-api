@@ -5,10 +5,6 @@ module Genres
   # and confidence through. Provider-agnostic: re-deriving one artist refreshes every
   # provider's rows for their tracks, which makes it self-healing.
   class TrackGenreDeriver
-    # Curation is per-entity, so a `user` row on an artist is not evidence about their
-    # tracks. It is also excluded for safety: source is part of the conflict target,
-    # so a derived user row would land on — and overwrite the confidence of — a genre
-    # a person set on that track by hand.
     USER_SOURCE = GenreSourced::SOURCES.fetch(:user)
 
     # DISTINCT ON is load-bearing. A track credited to two artists that both carry the
@@ -27,7 +23,7 @@ module Genres
              NOW()
       FROM track_artists
       INNER JOIN artist_genres ON artist_genres.artist_id = track_artists.artist_id
-      WHERE track_artists.%<filter>s IN (?)
+      WHERE track_artists.track_id IN (%<track_ids>s)
         AND artist_genres.source <> #{USER_SOURCE}
       ORDER BY track_artists.track_id,
                artist_genres.genre_id,
@@ -38,8 +34,11 @@ module Genres
         WHERE track_genres.confidence IS DISTINCT FROM EXCLUDED.confidence
     SQL
 
-    BY_ARTIST = format(TEMPLATE, filter: "artist_id").freeze
-    BY_TRACK = format(TEMPLATE, filter: "track_id").freeze
+    BY_TRACK = format(TEMPLATE, track_ids: "?").freeze
+    BY_ARTIST = format(
+      TEMPLATE,
+      track_ids: "SELECT track_id FROM track_artists WHERE artist_id IN (?)",
+    ).freeze
 
     def by_artist(artist_ids)
       derive(BY_ARTIST, artist_ids)

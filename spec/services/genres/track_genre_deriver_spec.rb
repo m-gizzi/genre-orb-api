@@ -152,5 +152,15 @@ RSpec.describe Genres::TrackGenreDeriver do
 
       expect(other.genres).to be_empty
     end
+
+    it "keeps a co-artist's stronger confidence when re-derived from the weaker artist" do
+      strong = create(:artist, :with_genres, genres: [metal], genre_source: :lastfm, genre_confidence: 0.9)
+      weak = create(:artist, :with_genres, genres: [metal], genre_source: :lastfm, genre_confidence: 0.1)
+      create(:track, :with_artists, artists: [strong, weak])
+
+      described_class.new.by_artist([weak.id])
+
+      expect(TrackGenre.sole.confidence).to be_within(0.001).of(0.9)
+    end
   end
 end
