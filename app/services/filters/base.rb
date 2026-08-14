@@ -27,6 +27,10 @@ module Filters
 
     attr_reader :user, :params
 
+    def effective_genres
+      @effective_genres ||= Genres::EffectiveScope.new(user)
+    end
+
     def search(relation, column)
       value = params[:search]
       return relation if value.blank?

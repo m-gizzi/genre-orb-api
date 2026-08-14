@@ -45,8 +45,8 @@ class User < ApplicationRecord
     Album.where(id: library_tracks.where.not(album_id: nil).select(:album_id))
   end
 
-  def library_genres
-    Genre.where(id: TrackGenre.where(track_id: library_track_ids).select(:genre_id))
+  def library_genres(genres = Genres::EffectiveScope.new(self))
+    Genre.where(id: genres.tracks.where(track_id: library_track_ids).select(:genre_id))
   end
 
   private

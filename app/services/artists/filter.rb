@@ -38,7 +38,7 @@ module Artists
       value = params[:genre]
       return relation if value.blank?
 
-      relation.where(id: ArtistGenre.where(genre_id: genre_ids(value)).select(:artist_id))
+      relation.where(id: effective_genres.artists.where(genre_id: genre_ids(value)).select(:artist_id))
     end
 
     def genre_ids(value)
