@@ -13,6 +13,10 @@ class User < ApplicationRecord
   has_many :sync_sessions, dependent: :destroy, inverse_of: :user
   has_many :artist_metadata_sessions, dependent: :destroy, inverse_of: :user
 
+  has_many :blocked_genres, dependent: :destroy, inverse_of: :user
+  has_many :track_genre_overrides, dependent: :destroy, inverse_of: :user
+  has_many :artist_genre_overrides, dependent: :destroy, inverse_of: :user
+
   before_destroy :destroy_smart_playlists, prepend: true
 
   enum :registration_source, { email: 0, spotify: 1 }, validate: true
