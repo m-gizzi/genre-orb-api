@@ -4,6 +4,7 @@ module Api
   module V1
     class ArtistsController < BaseController
       include SyncStatusRendering
+      include GenreLoading
 
       sync_outcomes(
         spotify_not_connected: { key: "api.errors.spotify_not_connected", status: :unprocessable_content },
@@ -16,11 +17,14 @@ module Api
         scope = Artists::Filter.new(current_user, params).call
 
         pagy, artists = paginate(scope)
-        render_data(ArtistSerializer.new(artists).serializable_hash, meta: pagy_meta(pagy))
+        render_data(
+          ArtistSerializer.new(artists, params: artist_genres_for(artists)).serializable_hash,
+          meta: pagy_meta(pagy),
+        )
       end
 
       def show
-        artist = current_user.library_artists.includes(artist_genres: :genre).find(params.expect(:id))
+        artist = current_user.library_artists.find(params.expect(:id))
         render_data(ArtistDetailSerializer.new(artist, params: detail_params(artist)).serializable_hash)
       end
 
@@ -43,7 +47,7 @@ module Api
         {
           albums: albums,
           saved_counts: current_user.library_tracks.counts_by_album(albums.map(&:id)),
-        }
+        }.merge(artist_genres_for([artist]))
       end
 
       def build_sync_status_response

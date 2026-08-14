@@ -44,7 +44,7 @@ class Playlist < ApplicationRecord
 
     current_version.playlist_version_tracks
                    .order(:position)
-                   .includes(track: [:album, :artists, { track_genres: :genre }])
+                   .includes(track: %i[album artists])
   end
 
   def track_count

@@ -12,7 +12,7 @@ class Track < ApplicationRecord
   has_many :playlist_version_tracks, dependent: :destroy, inverse_of: :track
   has_many :playlist_versions, through: :playlist_version_tracks
 
-  scope :with_catalog_associations, -> { includes(:album, :artists, track_genres: :genre) }
+  scope :with_catalog_associations, -> { includes(:album, :artists) }
   scope :for_album, ->(album) { where(album_id: album) }
 
   def self.counts_by_album(album_ids)
