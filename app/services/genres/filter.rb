@@ -15,6 +15,7 @@ module Genres
 
     def call
       relation = search(base_relation, Genre.arel_table[:name])
+      relation = RuleUsage.new(user).apply(relation, params[:rule_usage])
       relation.order(*sort.terms)
     end
 

@@ -196,6 +196,43 @@ RSpec.describe "Api::V1 genre curation" do
     end
   end
 
+  describe "GET /api/v1/genres?rule_usage=" do
+    let(:junk) { create(:genre, name: "seen live") }
+
+    before do
+      sign_in user
+      create(:track, :in_library, :with_genres, current_version: version, genres: [metal, junk])
+      create(
+        :smart_playlist,
+        target_playlist: create(:playlist, :with_spotify, user: user),
+        source_playlists: [create(:playlist, user: user)],
+        rules: {
+          "match" => "all",
+          "rules" => [{ "field" => "genre", "operator" => "equals", "value" => "metal" }],
+        },
+      )
+    end
+
+    it "lists only the genres a rule names" do
+      get "/api/v1/genres", params: { rule_usage: "used" }
+
+      expect(genre_names).to contain_exactly("metal")
+    end
+
+    # The point of the filter: what is safe to block.
+    it "lists only the genres no rule names" do
+      get "/api/v1/genres", params: { rule_usage: "unused" }
+
+      expect(genre_names).to contain_exactly("seen live")
+    end
+
+    it "lists everything without the filter" do
+      get "/api/v1/genres"
+
+      expect(genre_names).to contain_exactly("metal", "seen live")
+    end
+  end
+
   describe "the blocklist's reach" do
     before do
       sign_in user
