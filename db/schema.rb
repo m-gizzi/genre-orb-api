@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_13_224755) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_13_234024) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -37,6 +37,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_224755) do
     t.index ["spotify_id"], name: "index_albums_on_spotify_id", unique: true
     t.index ["title"], name: "index_albums_on_title"
     t.index ["title"], name: "index_albums_on_title_trgm", opclass: :gin_trgm_ops, using: :gin
+  end
+
+  create_table "artist_genre_overrides", force: :cascade do |t|
+    t.integer "action", null: false
+    t.bigint "artist_id", null: false
+    t.datetime "created_at", null: false
+    t.bigint "genre_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["artist_id"], name: "index_artist_genre_overrides_on_artist_id"
+    t.index ["genre_id"], name: "index_artist_genre_overrides_on_genre_id"
+    t.index ["user_id", "action"], name: "index_artist_genre_overrides_on_user_id_and_action"
+    t.index ["user_id", "artist_id", "genre_id"], name: "idx_on_user_id_artist_id_genre_id_9d6d2a977a", unique: true
+    t.index ["user_id"], name: "index_artist_genre_overrides_on_user_id"
   end
 
   create_table "artist_genres", force: :cascade do |t|
@@ -100,6 +114,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_224755) do
     t.index ["name"], name: "index_artists_on_name"
     t.index ["name"], name: "index_artists_on_name_trgm", opclass: :gin_trgm_ops, using: :gin
     t.index ["spotify_id"], name: "index_artists_on_spotify_id", unique: true
+  end
+
+  create_table "blocked_genres", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "genre_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["genre_id"], name: "index_blocked_genres_on_genre_id"
+    t.index ["user_id", "genre_id"], name: "index_blocked_genres_on_user_id_and_genre_id", unique: true
+    t.index ["user_id"], name: "index_blocked_genres_on_user_id"
   end
 
   create_table "genres", force: :cascade do |t|
@@ -307,6 +331,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_224755) do
     t.index ["track_id"], name: "index_track_artists_on_track_id"
   end
 
+  create_table "track_genre_overrides", force: :cascade do |t|
+    t.integer "action", null: false
+    t.datetime "created_at", null: false
+    t.bigint "genre_id", null: false
+    t.bigint "track_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["genre_id"], name: "index_track_genre_overrides_on_genre_id"
+    t.index ["track_id"], name: "index_track_genre_overrides_on_track_id"
+    t.index ["user_id", "action"], name: "index_track_genre_overrides_on_user_id_and_action"
+    t.index ["user_id", "track_id", "genre_id"], name: "idx_on_user_id_track_id_genre_id_0283aa6083", unique: true
+    t.index ["user_id"], name: "index_track_genre_overrides_on_user_id"
+  end
+
   create_table "track_genres", force: :cascade do |t|
     t.float "confidence", default: 1.0, null: false
     t.datetime "created_at", null: false
@@ -345,6 +383,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_224755) do
     t.datetime "created_at", null: false
     t.string "email", default: "", null: false
     t.string "encrypted_password", default: "", null: false
+    t.jsonb "genre_source_preferences", default: {}, null: false
     t.string "playlists_metadata_error"
     t.datetime "playlists_metadata_fetched_at"
     t.integer "registration_source", default: 0, null: false
@@ -358,11 +397,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_224755) do
 
   add_foreign_key "album_artists", "albums"
   add_foreign_key "album_artists", "artists"
+  add_foreign_key "artist_genre_overrides", "artists"
+  add_foreign_key "artist_genre_overrides", "genres"
+  add_foreign_key "artist_genre_overrides", "users"
   add_foreign_key "artist_genres", "artists"
   add_foreign_key "artist_genres", "genres"
   add_foreign_key "artist_metadata_sessions", "scheduled_runs"
   add_foreign_key "artist_metadata_sessions", "users"
   add_foreign_key "artist_metadata_sources", "artists"
+  add_foreign_key "blocked_genres", "genres"
+  add_foreign_key "blocked_genres", "users"
   add_foreign_key "playlist_version_tracks", "playlist_versions"
   add_foreign_key "playlist_version_tracks", "tracks"
   add_foreign_key "playlist_versions", "playlists"
@@ -384,6 +428,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_224755) do
   add_foreign_key "sync_sessions", "users"
   add_foreign_key "track_artists", "artists"
   add_foreign_key "track_artists", "tracks"
+  add_foreign_key "track_genre_overrides", "genres"
+  add_foreign_key "track_genre_overrides", "tracks"
+  add_foreign_key "track_genre_overrides", "users"
   add_foreign_key "track_genres", "genres"
   add_foreign_key "track_genres", "tracks"
   add_foreign_key "tracks", "albums"

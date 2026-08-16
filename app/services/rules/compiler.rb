@@ -7,8 +7,8 @@ module Rules
   # then compose freely, without ActiveRecord::Relation#or's structural
   # compatibility rules.
   class Compiler
-    def initialize(memberships)
-      @conditions = ConditionCompiler.new(memberships)
+    def initialize(memberships, user)
+      @conditions = ConditionCompiler.new(memberships, user)
     end
 
     def call(node)

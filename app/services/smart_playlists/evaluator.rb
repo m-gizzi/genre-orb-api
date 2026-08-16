@@ -54,7 +54,7 @@ module SmartPlaylists
     attr_reader :smart_playlist, :rules
 
     def predicate
-      Rules::Compiler.new(source.memberships).call(rules)
+      Rules::Compiler.new(source.memberships, smart_playlist.user).call(rules)
     end
 
     def source

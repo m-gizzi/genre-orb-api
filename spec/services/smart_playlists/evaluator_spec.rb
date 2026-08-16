@@ -134,11 +134,76 @@ RSpec.describe SmartPlaylists::Evaluator do
       track = create(:track)
       genre = create(:genre, name: "metal")
       create(:track_genre, track: track, genre: genre, source: :spotify)
-      create(:track_genre, track: track, genre: genre, source: :user)
+      create(:track_genre, track: track, genre: genre, source: :musicbrainz)
 
       smart_playlist = smart_playlist_for([track], rules: condition("genre", "equals", "metal"))
 
       expect(matches(smart_playlist)).to contain_exactly(track)
+    end
+  end
+
+  describe "genre curation" do
+    let(:metal) { create(:genre, name: "metal") }
+
+    def metal_playlist(tracks)
+      smart_playlist_for(tracks, rules: condition("genre", "equals", "metal"))
+    end
+
+    it "stops matching a genre the user hid on that track" do
+      hidden = create(:track)
+      kept = create(:track)
+      [hidden, kept].each { |track| create(:track_genre, track: track, genre: metal) }
+      create(:track_genre_override, user: user, track: hidden, genre: metal)
+
+      expect(matches(metal_playlist([hidden, kept]))).to contain_exactly(kept)
+    end
+
+    it "stops matching a genre the user blocked library-wide" do
+      track = create(:track)
+      create(:track_genre, track: track, genre: metal)
+      create(:blocked_genre, user: user, genre: metal)
+
+      expect(matches(metal_playlist([track]))).to be_empty
+    end
+
+    it "starts matching a genre the user added by hand" do
+      track = create(:track)
+      create(:track_genre_override, :added, user: user, track: track, genre: metal)
+
+      expect(matches(metal_playlist([track]))).to contain_exactly(track)
+    end
+
+    it "drops a genre whose only source the user disabled" do
+      track = create(:track)
+      create(:track_genre, track: track, genre: metal, source: :lastfm)
+      user.update!(genre_source_preferences: { lastfm: { enabled: false } })
+
+      expect(matches(metal_playlist([track]))).to be_empty
+    end
+
+    it "agrees with is_not_set once the last genre is hidden" do
+      track = create(:track)
+      create(:track_genre, track: track, genre: metal)
+      create(:track_genre_override, user: user, track: track, genre: metal)
+
+      unset = smart_playlist_for([track], rules: condition("genre", "is_not_set", nil))
+
+      expect(matches(unset)).to contain_exactly(track)
+    end
+
+    it "leaves another user's smart playlist matching the same track" do
+      track = create(:track)
+      create(:track_genre, track: track, genre: metal)
+      create(:blocked_genre, user: user, genre: metal)
+
+      other = create(:user)
+      other_source = create(:playlist, :holding, user: other, tracks: [track])
+      other_playlist = create(:smart_playlist,
+                              target_playlist: create(:playlist, :with_spotify, user: other),
+                              rules: condition("genre", "equals", "metal"),
+                              source_playlists: [other_source],)
+
+      expect(matches(other_playlist)).to contain_exactly(track)
     end
   end
 

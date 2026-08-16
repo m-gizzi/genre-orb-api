@@ -4,6 +4,7 @@ module Api
   module V1
     class PlaylistsController < BaseController
       include SpotifyErrorRendering
+      include GenreLoading
 
       def index
         scope = Playlists::Filter.new(current_user, params).call
@@ -28,7 +29,10 @@ module Api
         playlist = current_user.playlists.find(params.expect(:id))
         pagy, version_tracks = paginate(playlist.current_version_tracks)
         tracks = version_tracks.map(&:track)
-        render_data(TrackSerializer.new(tracks).serializable_hash, meta: pagy_meta(pagy))
+        render_data(
+          TrackSerializer.new(tracks, params: track_genres_for(tracks)).serializable_hash,
+          meta: pagy_meta(pagy),
+        )
       end
 
       def create

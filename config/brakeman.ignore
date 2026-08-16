@@ -1,0 +1,13 @@
+{
+  "ignored_warnings": [
+    {
+      "fingerprint": "46d62677a6f151ec7ee89a48fe4a1a34dd701763fce0386b9b1914a248279ebd",
+      "note": "Genres::TrackGenreSql builds the effective-genres statement from a fixed set of fragments, none of which carry request data. Table names and column lists are string literals at the call site; source and action values are integers read out of the frozen GenreSourced::SOURCES / GenreOverridable::ACTIONS maps; confidence floors are Floats validated to 0..1 by Genres::PreferencesWriter; and every fragment that does carry a value (user id, blocked genre ids) goes through ActiveRecord::Base.sanitize_sql_array with bind placeholders."
+    },
+    {
+      "fingerprint": "0f1729544b799bc9e920ecf355ae7817bc030e0fa6b3c0985b09fc067af2958f",
+      "note": "Genres::ArtistGenreSql — same construction and same review as the track statement above."
+    }
+  ],
+  "brakeman_version": "8.0.6"
+}

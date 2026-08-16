@@ -14,9 +14,5 @@ FactoryBot.define do
     trait :from_lastfm do
       source { :lastfm }
     end
-
-    trait :user_override do
-      source { :user }
-    end
   end
 end

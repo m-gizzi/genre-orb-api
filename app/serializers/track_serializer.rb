@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
 # Instantiate with tracks loaded via `Track.with_catalog_associations` (or a
-# relation that includes `:album, :artists, track_genres: :genre`) so the nested
-# associations don't trigger N+1 queries — Alba never eager-loads on its own.
+# relation that includes `:album, :artists`) so the nested associations don't
+# trigger N+1 queries — Alba never eager-loads on its own.
+#
+# `genres` comes from `params[:genres]`, a Genres::Loader lookup, not from the
+# `track_genres` association: what a genre means depends on the user asking.
 class TrackSerializer
   include Alba::Resource
 
@@ -10,5 +13,8 @@ class TrackSerializer
 
   association :album, resource: AlbumSummarySerializer
   association :artists, resource: ArtistSummarySerializer
-  association :track_genres, resource: TrackGenreSerializer, key: :genres
+
+  attribute :genres do |track|
+    SourcedGenres.for(track, params)
+  end
 end

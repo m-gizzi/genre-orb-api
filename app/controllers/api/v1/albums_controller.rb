@@ -3,6 +3,8 @@
 module Api
   module V1
     class AlbumsController < BaseController
+      include GenreLoading
+
       def index
         scope = Albums::Filter.new(current_user, params).call
 
@@ -23,7 +25,7 @@ module Api
 
       def detail_params(album)
         tracks = current_user.library_tracks.for_album(album).with_catalog_associations.order(:track_number).load
-        { tracks: tracks, saved_counts: { album.id => tracks.size } }
+        { tracks: tracks, saved_counts: { album.id => tracks.size } }.merge(track_genres_for(tracks))
       end
     end
   end

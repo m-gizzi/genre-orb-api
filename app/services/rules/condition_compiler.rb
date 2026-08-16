@@ -17,39 +17,40 @@ module Rules
     #   presence — `scope` without the join a value comparison needs, for the
     #              fields whose vocabulary offers is_set / is_not_set
     SOURCES = {
-      "genre" => { scope: -> { TrackGenre.joins(:genre) },
-                   presence: -> { TrackGenre.all },
+      "genre" => { scope: ->(genres) { genres.tracks.joins(:genre) },
+                   presence: ->(genres) { genres.tracks },
                    column: -> { Genre.arel_table[:name] },
                    id: :track_id, },
-      "artist" => { scope: -> { TrackArtist.joins(:artist) },
-                    presence: -> { TrackArtist.all },
+      "artist" => { scope: ->(_genres) { TrackArtist.joins(:artist) },
+                    presence: ->(_genres) { TrackArtist.all },
                     column: -> { Artist.arel_table[:name] },
                     id: :track_id, },
-      "album" => { scope: -> { Track.joins(:album) },
+      "album" => { scope: ->(_genres) { Track.joins(:album) },
                    column: -> { Album.arel_table[:title] },
                    id: :id, },
-      "year" => { scope: -> { Track.joins(:album) },
+      "year" => { scope: ->(_genres) { Track.joins(:album) },
                   column: -> { Album.arel_table[:release_year] },
                   id: :id, },
-      "title" => { scope: -> { Track.all },
+      "title" => { scope: ->(_genres) { Track.all },
                    column: -> { Track.arel_table[:title] },
                    id: :id, },
-      "duration" => { scope: -> { Track.all },
+      "duration" => { scope: ->(_genres) { Track.all },
                       column: -> { Track.arel_table[:duration_ms] },
                       id: :id, },
-      "popularity" => { scope: -> { Track.all },
+      "popularity" => { scope: ->(_genres) { Track.all },
                         column: -> { Track.arel_table[:popularity] },
                         id: :id, },
-      "explicit" => { scope: -> { Track.all },
+      "explicit" => { scope: ->(_genres) { Track.all },
                       column: -> { Track.arel_table[:explicit] },
                       id: :id, },
-      "playlist" => { scope: -> { PlaylistVersionTrack.joins(playlist_version: :playlist_as_current) },
+      "playlist" => { scope: ->(_genres) { PlaylistVersionTrack.joins(playlist_version: :playlist_as_current) },
                       column: -> { Playlist.arel_table[:id] },
                       id: :track_id, },
     }.freeze
 
-    def initialize(memberships)
+    def initialize(memberships, user)
       @memberships = memberships
+      @genres = Genres::EffectiveScope.new(user)
     end
 
     def call(node)
@@ -62,7 +63,7 @@ module Rules
 
     private
 
-    attr_reader :memberships
+    attr_reader :memberships, :genres
 
     def track_ids(condition)
       return date_added_ids(condition) if condition.field == DATE_ADDED
@@ -74,7 +75,7 @@ module Rules
     def matching(source, condition)
       return present_rows(source) if condition.presence_check?
 
-      source[:scope].call.where(Predicates.call(condition, source[:column].call))
+      source[:scope].call(genres).where(Predicates.call(condition, source[:column].call))
     end
 
     # A presence check compares nothing, so it needs neither the join reaching
@@ -82,7 +83,7 @@ module Rules
     # evaluator already bounds the outer query to cannot change the answer, and
     # keeps an unfiltered `NOT IN` off every other user's rows.
     def present_rows(source)
-      source.fetch(:presence, source[:scope]).call
+      source.fetch(:presence, source[:scope]).call(genres)
             .where(source[:id] => candidate_track_ids)
     end
 

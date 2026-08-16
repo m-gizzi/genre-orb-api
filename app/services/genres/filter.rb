@@ -20,16 +20,25 @@ module Genres
 
     private
 
+    def genres_scope
+      @genres_scope ||= Genres::EffectiveScope.new(user, apply_blocklist: !include_blocked?)
+    end
+
+    def include_blocked?
+      ActiveModel::Type::Boolean.new.cast(params[:include_blocked]) || false
+    end
+
     def base_relation
-      return user.library_genres unless sort.key == "track_count"
+      return user.library_genres(genres_scope) unless sort.key == "track_count"
 
       Genre.joins(track_counts_join)
     end
 
     def track_counts
-      TrackGenre.where(track_id: user.library_tracks.select(:id))
-                .group(:genre_id)
-                .select(TRACK_COUNTS_SELECT)
+      genres_scope.tracks
+                  .where(track_id: user.library_tracks.select(:id))
+                  .group(:genre_id)
+                  .select(TRACK_COUNTS_SELECT)
     end
 
     def track_counts_join

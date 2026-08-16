@@ -6,14 +6,13 @@ module Filters
 
     def genre_track_ids
       value = params[:genre]
-      relation = user.library_tracks
+      rows = effective_genres.tracks.where(track_id: user.library_tracks.select(:id))
 
       if numeric?(value)
-        relation.joins(:track_genres).where(track_genres: { genre_id: value })
+        rows.where(genre_id: value)
       else
-        relation.joins(track_genres: :genre)
-                .where(genres: { name: Genre.normalize_name(value) })
-      end.reselect("tracks.id")
+        rows.joins(:genre).where(genres: { name: Genre.normalize_name(value) })
+      end.select(:track_id)
     end
   end
 end

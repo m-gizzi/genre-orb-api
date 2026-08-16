@@ -6,3 +6,5 @@ RemoveUnusedMethodsInControllersCheck:
     - "#respond_with"
     - "#respond_to_on_destroy"
     - "#authenticate_user!"
+    - "#subject"
+    - "#render_genres"

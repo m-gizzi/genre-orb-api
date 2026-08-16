@@ -13,6 +13,10 @@ class User < ApplicationRecord
   has_many :sync_sessions, dependent: :destroy, inverse_of: :user
   has_many :artist_metadata_sessions, dependent: :destroy, inverse_of: :user
 
+  has_many :blocked_genres, dependent: :destroy, inverse_of: :user
+  has_many :track_genre_overrides, dependent: :destroy, inverse_of: :user
+  has_many :artist_genre_overrides, dependent: :destroy, inverse_of: :user
+
   before_destroy :destroy_smart_playlists, prepend: true
 
   enum :registration_source, { email: 0, spotify: 1 }, validate: true
@@ -41,8 +45,8 @@ class User < ApplicationRecord
     Album.where(id: library_tracks.where.not(album_id: nil).select(:album_id))
   end
 
-  def library_genres
-    Genre.where(id: TrackGenre.where(track_id: library_track_ids).select(:genre_id))
+  def library_genres(genres = Genres::EffectiveScope.new(self))
+    Genre.where(id: genres.tracks.where(track_id: library_track_ids).select(:genre_id))
   end
 
   private

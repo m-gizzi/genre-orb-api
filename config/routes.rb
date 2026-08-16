@@ -60,10 +60,14 @@ Rails.application.routes.draw do
           get :sync_status
           post :sync
         end
+        resources :genres, only: %i[create destroy], controller: "artist_genres"
       end
       resources :albums, only: %i[index show]
       resources :genres, only: %i[index show]
-      resources :tracks, only: %i[index show]
+      resource :genre_preferences, only: %i[show update]
+      resources :tracks, only: %i[index show] do
+        resources :genres, only: %i[create destroy], controller: "track_genres"
+      end
     end
   end
 

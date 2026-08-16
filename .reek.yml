@@ -67,6 +67,8 @@ detectors:
     exclude:
       - ArtistMetadataSyncJob#perform
       - Spotify::ArtistMetadataSyncInitializer#initialize
+      - Genres::EffectiveScope#initialize
+      - Genres::Preferences#initialize
 
   TooManyMethods:
     max_methods: 20

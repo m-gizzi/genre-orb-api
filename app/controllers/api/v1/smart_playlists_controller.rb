@@ -4,6 +4,7 @@ module Api
   module V1
     class SmartPlaylistsController < BaseController
       include SpotifyErrorRendering
+      include GenreLoading
 
       rescue_from SmartPlaylists::Creator::MissingTargetError, with: :render_missing_target
 
@@ -54,7 +55,7 @@ module Api
           [page, evaluation_meta(pagy, evaluator)]
         end
 
-        render_data(TrackSerializer.new(tracks).serializable_hash, meta: meta)
+        render_data(TrackSerializer.new(tracks, params: track_genres_for(tracks)).serializable_hash, meta: meta)
       rescue ActiveRecord::QueryCanceled
         render_validation_error(I18n.t("api.smart_playlists.evaluation_timeout"))
       end

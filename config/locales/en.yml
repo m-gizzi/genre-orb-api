@@ -28,6 +28,10 @@ en:
     artists:
       sync_in_progress: "Artist metadata sync already in progress"
       no_artists_need_sync: "No artists need metadata sync"
+    genres:
+      unknown_genre: "Name that genre, or give an id we know"
+      unknown_action: "A genre override is either hidden or added"
+      invalid_preference: "'%{name}' is not a genre preference we can set"
   rules:
     locators:
       rule: "%{message} at rule %{path}"
