@@ -69,7 +69,7 @@ module Rules
       return date_added_ids(condition) if condition.field == DATE_ADDED
 
       source = SOURCES.fetch(condition.field)
-      matching(source, condition).select(source[:id])
+      matching(source, condition).distinct.select(source[:id])
     end
 
     def matching(source, condition)
