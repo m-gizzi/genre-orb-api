@@ -71,7 +71,13 @@ RSpec.describe Rules::ConditionCompiler do
     it "asks for every track the source has a row for" do
       sql = compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }).to_sql
 
-      expect(sql).to start_with('"tracks"."id" IN (SELECT "track_genres"."track_id"')
+      expect(sql).to start_with('"tracks"."id" IN (SELECT DISTINCT "track_genres"."track_id"')
+    end
+
+    it "names each track once however many rows it has" do
+      sql = compiler.call({ "field" => "genre", "operator" => "is_not_set", "value" => nil }).to_sql
+
+      expect(sql).to include('SELECT DISTINCT "track_genres"."track_id"')
     end
 
     it "does not reach the named entity it has no value to compare against" do
