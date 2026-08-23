@@ -16,4 +16,8 @@ module GenreLoading
   def artist_genres_for(artists)
     { genres: genre_loader.for_artists(artists) }
   end
+
+  def blocked_genre_ids
+    @blocked_genre_ids ||= current_user.blocked_genres.pluck(:genre_id)
+  end
 end
