@@ -3,7 +3,7 @@
 class ScheduledRun < ApplicationRecord
   include Sessionable
 
-  RUN_HOUR = 3
+  RUN_HOUR = 8
   KICKOFF_WINDOW = 3.hours
   HARD_CAP = 6.hours
 

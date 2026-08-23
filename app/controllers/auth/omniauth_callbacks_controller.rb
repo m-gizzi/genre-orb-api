@@ -13,8 +13,8 @@ module Auth
       success = result.success?
       sign_in(result.user) if success && !user_signed_in?
 
-      redirect_to build_callback_url(omniauth_origin, success: success, error: result.error),
-                  allow_other_host: true
+      url = build_callback_url(omniauth_origin, success: success, error: result.error)
+      redirect_to url, allow_other_host: true
     end
 
     def failure
