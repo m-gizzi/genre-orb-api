@@ -3,6 +3,8 @@
 module Api
   module V1
     class GenresController < BaseController
+      include GenreLoading
+
       def index
         scope = Genres::Filter.new(current_user, params).call
 
@@ -23,10 +25,6 @@ module Api
 
       def unblocked_scope
         Genres::EffectiveScope.new(current_user, apply_blocklist: false)
-      end
-
-      def blocked_genre_ids
-        @blocked_genre_ids ||= current_user.blocked_genres.pluck(:genre_id)
       end
     end
   end

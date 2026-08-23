@@ -43,6 +43,7 @@ Rails.application.routes.draw do
       end
       resources :playlists, only: %i[index show create update] do
         get :tracks, on: :member
+        get :genres, on: :member
         get :liked, on: :collection
       end
       resources :smart_playlists, only: %i[index show create update destroy] do

@@ -26,11 +26,21 @@ module Api
       end
 
       def tracks
-        playlist = current_user.playlists.find(params.expect(:id))
-        pagy, version_tracks = paginate(playlist.current_version_tracks)
+        playlist = find_playlist
+        pagy, version_tracks = paginate(Playlists::TrackFilter.new(current_user, params, playlist).call)
         tracks = version_tracks.map(&:track)
         render_data(
           TrackSerializer.new(tracks, params: track_genres_for(tracks)).serializable_hash,
+          meta: pagy_meta(pagy),
+        )
+      end
+
+      def genres
+        filter = Genres::Filter.new(current_user, params, tracks: find_playlist.tracks)
+
+        pagy, genres = paginate(filter.call)
+        render_data(
+          GenreBreakdownSerializer.new(genres, params: breakdown_params(filter, genres)).serializable_hash,
           meta: pagy_meta(pagy),
         )
       end
@@ -41,12 +51,20 @@ module Api
       end
 
       def update
-        playlist = current_user.playlists.find(params.expect(:id))
+        playlist = find_playlist
         Spotify::PlaylistDetailsPusher.new(playlist, update_params).call
         render_data(PlaylistSerializer.new(playlist).serializable_hash)
       end
 
       private
+
+      def find_playlist
+        current_user.playlists.find(params.expect(:id))
+      end
+
+      def breakdown_params(filter, genres)
+        { blocked_genre_ids: blocked_genre_ids, track_counts: filter.track_counts_for(genres) }
+      end
 
       def create_params
         params.expect(playlist: %i[name description])

@@ -229,9 +229,145 @@ RSpec.describe "Api::V1::Playlists" do
       expect(response.parsed_body["meta"]["total"]).to eq(0)
     end
 
+    it "keeps only the tracks carrying the requested genre" do
+      shoegaze = create(:genre, name: "shoegaze")
+      tagged = create(:track, :with_genres, title: "Only Shallow", genres: [shoegaze])
+      playlist = create(:playlist, :holding, user: user, tracks: [tagged, create(:track)])
+
+      get "/api/v1/playlists/#{playlist.id}/tracks", params: { genre: shoegaze.id }
+
+      expect(response.parsed_body["data"].pluck("title")).to eq(["Only Shallow"])
+    end
+
+    it "reports the filtered total, so it can be checked against the breakdown's count" do
+      shoegaze = create(:genre, name: "shoegaze")
+      tagged = create(:track, :with_genres, genres: [shoegaze])
+      playlist = create(:playlist, :holding, user: user, tracks: [tagged, create(:track)])
+
+      get "/api/v1/playlists/#{playlist.id}/tracks", params: { genre: shoegaze.id }
+
+      expect(response.parsed_body["meta"]).to include("total" => 1)
+    end
+
     it "returns 404 for another user's playlist" do
       get "/api/v1/playlists/#{create(:playlist).id}/tracks"
       expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  describe "GET /api/v1/playlists/:id/genres" do
+    let(:shoegaze) { create(:genre, name: "shoegaze") }
+    let(:dream_pop) { create(:genre, name: "dream pop") }
+
+    # shoegaze on two tracks, dream pop on one.
+    let(:playlist) do
+      tracks = [
+        create(:track, :with_genres, genres: [shoegaze, dream_pop]),
+        create(:track, :with_genres, genres: [shoegaze]),
+      ]
+      create(:playlist, :holding, user: user, tracks: tracks)
+    end
+
+    context "when not authenticated" do
+      it "returns 401 unauthorized" do
+        get "/api/v1/playlists/#{create(:playlist, user: user).id}/genres"
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context "when authenticated" do
+      before { sign_in user }
+
+      it "returns each genre with the number of the playlist's tracks carrying it" do
+        get "/api/v1/playlists/#{playlist.id}/genres", params: { sort: "track_count", order: "desc" }
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body["data"]).to eq(
+          [
+            { "id" => shoegaze.id, "name" => "shoegaze", "blocked" => false, "track_count" => 2 },
+            { "id" => dream_pop.id, "name" => "dream pop", "blocked" => false, "track_count" => 1 },
+          ],
+        )
+      end
+
+      it "counts the playlist's tracks, not the library's" do
+        elsewhere = create(:track, :with_genres, genres: [shoegaze])
+        create(:playlist, :holding, user: user, tracks: [elsewhere])
+
+        get "/api/v1/playlists/#{playlist.id}/genres", params: { sort: "track_count", order: "desc" }
+
+        expect(response.parsed_body["data"].first).to include("name" => "shoegaze", "track_count" => 2)
+      end
+
+      it "leaves out a genre the playlist does not carry" do
+        create(:track, :in_library, :with_genres, user: user, genre_names: ["new wave"])
+
+        get "/api/v1/playlists/#{playlist.id}/genres"
+
+        expect(response.parsed_body["data"].pluck("name")).to contain_exactly("dream pop", "shoegaze")
+      end
+
+      it "sorts by name" do
+        get "/api/v1/playlists/#{playlist.id}/genres", params: { sort: "name" }
+
+        expect(response.parsed_body["data"].pluck("name")).to eq(["dream pop", "shoegaze"])
+      end
+
+      it "narrows the list with search" do
+        get "/api/v1/playlists/#{playlist.id}/genres", params: { search: "pop" }
+
+        expect(response.parsed_body["data"].pluck("name")).to eq(["dream pop"])
+      end
+
+      it "hides a blocked genre by default" do
+        create(:blocked_genre, user: user, genre: dream_pop)
+
+        get "/api/v1/playlists/#{playlist.id}/genres"
+
+        expect(response.parsed_body["data"].pluck("name")).to eq(["shoegaze"])
+      end
+
+      it "returns a blocked genre, flagged, with include_blocked" do
+        create(:blocked_genre, user: user, genre: dream_pop)
+
+        get "/api/v1/playlists/#{playlist.id}/genres", params: { include_blocked: true, sort: "name" }
+
+        expect(response.parsed_body["data"].first).to include("name" => "dream pop", "blocked" => true)
+      end
+
+      it "splits the list by whether a smart playlist rule names the genre" do
+        create(
+          :smart_playlist,
+          target_playlist: create(:playlist, :with_spotify, user: user),
+          rules: {
+            "match" => "all",
+            "rules" => [{ "field" => "genre", "operator" => "equals", "value" => "shoegaze" }],
+          },
+        )
+
+        get "/api/v1/playlists/#{playlist.id}/genres", params: { rule_usage: "unused" }
+
+        expect(response.parsed_body["data"].pluck("name")).to eq(["dream pop"])
+      end
+
+      it "paginates" do
+        get "/api/v1/playlists/#{playlist.id}/genres", params: { per_page: 1, sort: "name" }
+
+        expect(response.parsed_body["data"].pluck("name")).to eq(["dream pop"])
+        expect(response.parsed_body["meta"]).to include("total" => 2, "total_pages" => 2)
+      end
+
+      it "returns an empty list when the playlist has no current version" do
+        get "/api/v1/playlists/#{create(:playlist, user: user).id}/genres"
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body["data"]).to eq([])
+      end
+
+      it "returns 404 for another user's playlist" do
+        get "/api/v1/playlists/#{create(:playlist).id}/genres"
+        expect(response).to have_http_status(:not_found)
+      end
     end
   end
 
