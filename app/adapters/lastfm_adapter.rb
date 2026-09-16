@@ -22,8 +22,11 @@ class LastfmAdapter
     body = client.get("artist.getTopTags", params: lookup_params(name: name, mbid: mbid))
     top_tags = body["toptags"] || {}
 
-    Result.new(genres: genres_from(top_tags), name: top_tags.dig("@attr", "artist") || name,
-               url: top_tags["url"],)
+    Result.new(
+      genres: genres_from(top_tags),
+      name: top_tags.dig("@attr", "artist") || name,
+      url: top_tags["url"],
+    )
   end
 
   private

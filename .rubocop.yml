@@ -23,6 +23,58 @@ Layout/LineLength:
   Exclude:
     - "config/initializers/devise.rb"
 
+# Multiline calls and definitions use one argument per line, indented by 2,
+# with the closing paren on its own line.
+Layout/FirstMethodArgumentLineBreak:
+  Enabled: true
+
+Layout/FirstMethodParameterLineBreak:
+  Enabled: true
+
+Layout/MultilineMethodCallBraceLayout:
+  EnforcedStyle: new_line
+
+Layout/MultilineMethodDefinitionBraceLayout:
+  EnforcedStyle: new_line
+
+Layout/MultilineMethodArgumentLineBreaks:
+  Enabled: true
+
+Layout/ArgumentAlignment:
+  EnforcedStyle: with_fixed_indentation
+
+Layout/ParameterAlignment:
+  EnforcedStyle: with_fixed_indentation
+
+# Indent a nested call's first argument one step from the start of the line,
+# rather than aligning it under the outer call's paren. Without this the
+# default (special_for_inner_method_call_in_parentheses) contradicts the brace
+# layout above and autocorrect mangles nested calls such as expect(with_rules([...])).
+Layout/FirstArgumentIndentation:
+  EnforcedStyle: consistent
+
+# Arrays and hashes expand the same way, except that a collection whose last
+# element is itself multiline may hug its brackets, e.g. errors: [{ ... }].
+Layout/FirstArrayElementLineBreak:
+  Enabled: true
+  AllowMultilineFinalElement: true
+
+Layout/FirstHashElementLineBreak:
+  Enabled: true
+  AllowMultilineFinalElement: true
+
+Layout/MultilineArrayBraceLayout:
+  EnforcedStyle: symmetrical
+
+Layout/MultilineHashBraceLayout:
+  EnforcedStyle: symmetrical
+
+Layout/MultilineArrayLineBreaks:
+  Enabled: true
+
+Layout/MultilineHashKeyLineBreaks:
+  Enabled: true
+
 Lint/EmptyBlock:
   Exclude:
     - "config/routes.rb"

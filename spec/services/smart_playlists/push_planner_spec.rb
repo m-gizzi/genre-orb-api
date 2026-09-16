@@ -30,8 +30,10 @@ RSpec.describe SmartPlaylists::PushPlanner do
   def stub_snapshot(target, snapshot_id)
     stub_request(:get, "#{Spotify::Client::BASE_URL}/playlists/#{target.spotify_id}")
       .with(query: { fields: "snapshot_id" })
-      .to_return(status: 200, body: { "snapshot_id" => snapshot_id }.to_json,
-                 headers: { "Content-Type" => "application/json" },)
+      .to_return(status: 200,
+        body: { "snapshot_id" => snapshot_id }.to_json,
+        headers: { "Content-Type" => "application/json" },
+      )
   end
 
   describe "the snapshot guard" do
@@ -219,8 +221,10 @@ RSpec.describe SmartPlaylists::PushPlanner do
 
   describe "when the rules match nothing" do
     let(:no_matches) do
-      { "match" => "all",
-        "rules" => [{ "field" => "title", "operator" => "equals", "value" => "nothing matches this" }], }
+      {
+        "match" => "all",
+        "rules" => [{ "field" => "title", "operator" => "equals", "value" => "nothing matches this" }],
+      }
     end
 
     it "skips the session and never calls Spotify" do

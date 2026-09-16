@@ -21,20 +21,23 @@ class ScheduledRun < ApplicationRecord
 
   # `failed` is here only because Sessionable#fail! needs it. A run always lands
   # on completed or completed_with_errors, the hard cap included.
-  enum :status, {
-    pending: 0,
-    running: 1,
-    completed: 2,
-    failed: 3,
-    completed_with_errors: 4,
-  }
+  enum :status,
+    {
+      pending: 0,
+      running: 1,
+      completed: 2,
+      failed: 3,
+      completed_with_errors: 4,
+    }
 
-  enum :stage, {
-    discovery: 0,
-    library_sync: 1,
-    artist_metadata: 2,
-    pushes: 3,
-  }, prefix: true
+  enum :stage,
+    {
+      discovery: 0,
+      library_sync: 1,
+      artist_metadata: 2,
+      pushes: 3,
+    },
+    prefix: true
 
   def self.next_run_at(from: Time.current)
     today = opens_at(from: from)

@@ -1,9 +1,13 @@
 # frozen_string_literal: true
 
 class User < ApplicationRecord
-  devise :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :validatable,
-         :omniauthable, omniauth_providers: [:spotify]
+  devise :database_authenticatable,
+    :registerable,
+    :recoverable,
+    :rememberable,
+    :validatable,
+    :omniauthable,
+    omniauth_providers: [:spotify]
 
   has_many :service_connections, dependent: :destroy, inverse_of: :user
   has_one :spotify_connection, -> { spotify }, class_name: "ServiceConnection", dependent: :destroy, inverse_of: :user

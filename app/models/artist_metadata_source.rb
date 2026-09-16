@@ -20,8 +20,15 @@ class ArtistMetadataSource < ApplicationRecord
   scope :stalest_first, -> { order(Arel.sql("retry_after ASC NULLS FIRST"), :id) }
 
   def record_match!(external_id:, external_url: nil)
-    update!(state: :matched, external_id: external_id, external_url: external_url,
-            attempted_at: Time.current, retry_after: nil, failure_count: 0, last_error: nil,)
+    update!(
+      state: :matched,
+      external_id: external_id,
+      external_url: external_url,
+      attempted_at: Time.current,
+      retry_after: nil,
+      failure_count: 0,
+      last_error: nil,
+    )
   end
 
   # Anything not supplied keeps its current value, so MusicBrainz (which learned the
@@ -31,20 +38,38 @@ class ArtistMetadataSource < ApplicationRecord
     now = Time.current
     identity = { external_id: external_id, external_url: external_url }.compact
 
-    update!(identity.merge(state: :matched, attempted_at: now, fetched_at: now,
-                           retry_after: REFRESH_TTL.from_now, failure_count: 0, last_error: nil,))
+    update!(
+      identity.merge(
+        state: :matched,
+        attempted_at: now,
+        fetched_at: now,
+        retry_after: REFRESH_TTL.from_now,
+        failure_count: 0,
+        last_error: nil,
+      ),
+    )
   end
 
   def record_unmatched!
-    update!(state: :unmatched, external_id: nil, attempted_at: Time.current,
-            retry_after: UNMATCHED_RETRY.from_now, failure_count: 0, last_error: nil,)
+    update!(
+      state: :unmatched,
+      external_id: nil,
+      attempted_at: Time.current,
+      retry_after: UNMATCHED_RETRY.from_now,
+      failure_count: 0,
+      last_error: nil,
+    )
   end
 
   def record_failure!(exception)
     failures = failure_count + 1
-    update!(state: :errored, attempted_at: Time.current, failure_count: failures,
-            last_error: exception.message.to_s.truncate(ERROR_LIMIT),
-            retry_after: backoff_for(failures).from_now,)
+    update!(
+      state: :errored,
+      attempted_at: Time.current,
+      failure_count: failures,
+      last_error: exception.message.to_s.truncate(ERROR_LIMIT),
+      retry_after: backoff_for(failures).from_now,
+    )
   end
 
   private

@@ -41,8 +41,12 @@ module SmartPlaylists
 
     def create_session
       claim do
-        PushSession.create!(smart_playlist: smart_playlist, scheduled_run: scheduled_run,
-                            status: :running, started_at: Time.current,)
+        PushSession.create!(
+          smart_playlist: smart_playlist,
+          scheduled_run: scheduled_run,
+          status: :running,
+          started_at: Time.current,
+        )
       end
     end
   end

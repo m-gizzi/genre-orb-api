@@ -22,16 +22,16 @@ class Track < ApplicationRecord
   validates :title, presence: true
   validates :spotify_id, uniqueness: true, allow_nil: true
   validates :duration_ms,
-            numericality: { only_integer: true, greater_than: 0 },
-            allow_nil: true
+    numericality: { only_integer: true, greater_than: 0 },
+    allow_nil: true
   validates :track_number,
-            numericality: { only_integer: true, greater_than: 0 },
-            allow_nil: true
+    numericality: { only_integer: true, greater_than: 0 },
+    allow_nil: true
   validates :popularity,
-            numericality: {
-              only_integer: true,
-              greater_than_or_equal_to: 0,
-              less_than_or_equal_to: 100,
-            },
-            allow_nil: true
+    numericality: {
+      only_integer: true,
+      greater_than_or_equal_to: 0,
+      less_than_or_equal_to: 100,
+    },
+    allow_nil: true
 end

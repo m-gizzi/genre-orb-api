@@ -32,8 +32,10 @@ class SpotifyAdapter
   end
 
   def create_playlist(spotify_user_id, name:, description: nil)
-    client.post("users/#{spotify_user_id}/playlists",
-                body: { name: name, description: description }.compact,)
+    client.post(
+      "users/#{spotify_user_id}/playlists",
+      body: { name: name, description: description }.compact,
+    )
   end
 
   def update_playlist_details(playlist_id, attributes)

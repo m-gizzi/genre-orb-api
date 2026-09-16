@@ -10,8 +10,14 @@ class ApplicationController < ActionController::API
   def authenticate_user!
     return if user_signed_in?
 
-    render json: {
-      errors: [{ code: "unauthenticated", message: I18n.t("api.errors.unauthenticated") }],
-    }, status: :unauthorized
+    render(
+      json: {
+        errors: [{
+          code: "unauthenticated",
+          message: I18n.t("api.errors.unauthenticated"),
+        }],
+      },
+      status: :unauthorized,
+    )
   end
 end

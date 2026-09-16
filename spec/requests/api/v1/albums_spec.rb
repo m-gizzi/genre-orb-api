@@ -61,8 +61,14 @@ RSpec.describe "Api::V1::Albums" do
         reign = create(:album, title: "Reign in Blood")
         create(:track, :in_library, :with_genres, current_version: version, album: reign, genres: [metal])
         watermark = create(:album, title: "Watermark")
-        create(:track, :in_library, :with_genres, current_version: version, album: watermark,
-                                                  genres: [create(:genre, name: "new age")],)
+        create(
+          :track,
+          :in_library,
+          :with_genres,
+          current_version: version,
+          album: watermark,
+          genres: [create(:genre, name: "new age")],
+        )
 
         get "/api/v1/albums", params: { genre: metal.id }
 
@@ -74,8 +80,14 @@ RSpec.describe "Api::V1::Albums" do
         reign = create(:album, title: "Reign in Blood")
         create(:track, :in_library, :with_genres, current_version: version, album: reign, genres: [metal])
         watermark = create(:album, title: "Watermark")
-        create(:track, :in_library, :with_genres, current_version: version, album: watermark,
-                                                  genres: [create(:genre, name: "new age")],)
+        create(
+          :track,
+          :in_library,
+          :with_genres,
+          current_version: version,
+          album: watermark,
+          genres: [create(:genre, name: "new age")],
+        )
 
         get "/api/v1/albums", params: { genre: "metal" }
 
@@ -156,8 +168,14 @@ RSpec.describe "Api::V1::Albums" do
 
     it "returns the album with its library tracks" do
       album = create(:album, title: "Reign in Blood")
-      in_library = create(:track, :in_library, current_version: version, title: "Angel of Death",
-                                               album: album, track_number: 1,)
+      in_library = create(
+        :track,
+        :in_library,
+        current_version: version,
+        title: "Angel of Death",
+        album: album,
+        track_number: 1,
+      )
       create(:track, title: "Not Owned", album: album, track_number: 2)
 
       get "/api/v1/albums/#{album.id}"

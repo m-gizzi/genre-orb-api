@@ -35,8 +35,10 @@ module Musicbrainz
         # FlatParamsEncoder is required, not cosmetic: the batched url lookup sends
         # `resource=a&resource=b`, and Faraday's default encoder would turn an array
         # into `resource[]=a`, which MusicBrainz does not understand.
-        @connection ||= Faraday.new(url: BASE_URL,
-                                    request: { params_encoder: Faraday::FlatParamsEncoder },) do |conn|
+        @connection ||= Faraday.new(
+          url: BASE_URL,
+          request: { params_encoder: Faraday::FlatParamsEncoder },
+        ) do |conn|
           conn.response :json, content_type: /\bjson$/
           conn.adapter :net_http_persistent, pool_size: 2
         end

@@ -7,8 +7,14 @@ RSpec.describe SmartPlaylists::Evaluator do
   let(:target) { create(:playlist, :with_spotify, user: user) }
 
   def smart_playlist_for(tracks, rules:, added_at: Time.current, memberships: nil)
-    source = create(:playlist, :holding, user: user, tracks: tracks || [],
-                                         added_at: added_at, memberships: memberships,)
+    source = create(
+      :playlist,
+      :holding,
+      user: user,
+      tracks: tracks || [],
+      added_at: added_at,
+      memberships: memberships,
+    )
     create(:smart_playlist, target_playlist: target, rules: rules, source_playlists: [source])
   end
 
@@ -33,8 +39,12 @@ RSpec.describe SmartPlaylists::Evaluator do
 
     it "draws nothing from a source that has never been synced" do
       unsynced = create(:playlist, user: user)
-      smart_playlist = create(:smart_playlist, target_playlist: target, source_playlists: [unsynced],
-                                               rules: SmartPlaylist::EMPTY_RULES.deep_dup,)
+      smart_playlist = create(
+        :smart_playlist,
+        target_playlist: target,
+        source_playlists: [unsynced],
+        rules: SmartPlaylist::EMPTY_RULES.deep_dup,
+      )
 
       expect(matches(smart_playlist)).to be_empty
       expect(described_class.new(smart_playlist).source_track_count).to eq(0)
@@ -44,8 +54,12 @@ RSpec.describe SmartPlaylists::Evaluator do
       track = create(:track)
       first = create(:playlist, :holding, user: user, tracks: [track])
       second = create(:playlist, :holding, user: user, tracks: [track])
-      smart_playlist = create(:smart_playlist, target_playlist: target, source_playlists: [first, second],
-                                               rules: SmartPlaylist::EMPTY_RULES.deep_dup,)
+      smart_playlist = create(
+        :smart_playlist,
+        target_playlist: target,
+        source_playlists: [first, second],
+        rules: SmartPlaylist::EMPTY_RULES.deep_dup,
+      )
 
       expect(matches(smart_playlist)).to contain_exactly(track)
       expect(described_class.new(smart_playlist).count).to eq(1)
@@ -54,8 +68,11 @@ RSpec.describe SmartPlaylists::Evaluator do
     it "counts a track once even when one playlist holds it twice" do
       track = create(:track)
       now = Time.current
-      smart_playlist = smart_playlist_for(nil, rules: SmartPlaylist::EMPTY_RULES.deep_dup,
-                                               memberships: [[track, now], [track, now]],)
+      smart_playlist = smart_playlist_for(
+        nil,
+        rules: SmartPlaylist::EMPTY_RULES.deep_dup,
+        memberships: [[track, now], [track, now]],
+      )
 
       expect(matches(smart_playlist)).to contain_exactly(track)
     end
@@ -111,8 +128,13 @@ RSpec.describe SmartPlaylists::Evaluator do
       rock = create(:track, :with_genres, genre_names: ["rock"])
       rules = {
         "match" => "all",
-        "rules" => [{ "match" => "any", "not" => true,
-                      "rules" => [{ "field" => "genre", "operator" => "equals", "value" => "metal" }], }],
+        "rules" => [
+          {
+            "match" => "any",
+            "not" => true,
+            "rules" => [{ "field" => "genre", "operator" => "equals", "value" => "metal" }],
+          },
+        ],
       }
 
       smart_playlist = smart_playlist_for([metal, rock], rules: rules)
@@ -198,10 +220,12 @@ RSpec.describe SmartPlaylists::Evaluator do
 
       other = create(:user)
       other_source = create(:playlist, :holding, user: other, tracks: [track])
-      other_playlist = create(:smart_playlist,
-                              target_playlist: create(:playlist, :with_spotify, user: other),
-                              rules: condition("genre", "equals", "metal"),
-                              source_playlists: [other_source],)
+      other_playlist = create(
+        :smart_playlist,
+        target_playlist: create(:playlist, :with_spotify, user: other),
+        rules: condition("genre", "equals", "metal"),
+        source_playlists: [other_source],
+      )
 
       expect(matches(other_playlist)).to contain_exactly(track)
     end
@@ -242,8 +266,10 @@ RSpec.describe SmartPlaylists::Evaluator do
       only_source = create(:track)
       excluded = create(:playlist, :holding, user: user, tracks: [shared])
 
-      smart_playlist = smart_playlist_for([shared, only_source],
-                                          rules: condition("playlist", "not_in", [excluded.id]),)
+      smart_playlist = smart_playlist_for(
+        [shared, only_source],
+        rules: condition("playlist", "not_in", [excluded.id]),
+      )
 
       expect(matches(smart_playlist)).to contain_exactly(only_source)
     end
@@ -288,11 +314,13 @@ RSpec.describe SmartPlaylists::Evaluator do
         "match" => "all",
         "rules" => [
           { "field" => "genre", "operator" => "equals", "value" => "metal" },
-          { "match" => "any",
+          {
+            "match" => "any",
             "rules" => [
               { "field" => "year", "operator" => "greater_than", "value" => 2020 },
               { "field" => "year", "operator" => "less_than", "value" => 1990 },
-            ], },
+            ],
+          },
         ],
       }
 
@@ -307,10 +335,16 @@ RSpec.describe SmartPlaylists::Evaluator do
       track = create(:track)
       old_source = create(:playlist, :holding, user: user, tracks: [track], added_at: 90.days.ago)
       new_source = create(:playlist, :holding, user: user, tracks: [track], added_at: 1.day.ago)
-      smart_playlist = create(:smart_playlist, target_playlist: target,
-                                               source_playlists: [old_source, new_source],
-                                               rules: condition("date_added", "in_the_last",
-                                                                { "count" => 30, "unit" => "days" }),)
+      smart_playlist = create(
+        :smart_playlist,
+        target_playlist: target,
+        source_playlists: [old_source, new_source],
+        rules: condition(
+          "date_added",
+          "in_the_last",
+          { "count" => 30, "unit" => "days" },
+        ),
+      )
 
       expect(matches(smart_playlist)).to be_empty
     end
@@ -389,8 +423,13 @@ RSpec.describe SmartPlaylists::Evaluator do
       leaf = { "field" => "genre", "operator" => "equals", "value" => "metal" }
       deepest = nest(Rules::FieldCatalog::MAX_DEPTH - 1, leaf)
       wide = Array.new(Rules::FieldCatalog::MAX_NODES - 10) { leaf }
-      smart_playlist = smart_playlist_for([track], rules: { "match" => "all",
-                                                            "rules" => [deepest, *wide], },)
+      smart_playlist = smart_playlist_for(
+        [track],
+        rules: {
+          "match" => "all",
+          "rules" => [deepest, *wide],
+        },
+      )
 
       expect(smart_playlist).to be_valid
       expect(matches(smart_playlist)).to contain_exactly(track)
@@ -444,8 +483,10 @@ RSpec.describe SmartPlaylists::Evaluator do
     end
 
     it "does not record an empty rule set, which matches the whole pool" do
-      smart_playlist = smart_playlist_for(create_list(:track, 2),
-                                          rules: SmartPlaylist::EMPTY_RULES.deep_dup,)
+      smart_playlist = smart_playlist_for(
+        create_list(:track, 2),
+        rules: SmartPlaylist::EMPTY_RULES.deep_dup,
+      )
       evaluator = described_class.new(smart_playlist)
 
       expect(evaluator.count).to eq(2)

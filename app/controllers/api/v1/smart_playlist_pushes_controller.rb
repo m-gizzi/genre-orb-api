@@ -23,8 +23,10 @@ module Api
 
       def status
         render_data(
-          { active_pushes: serialize(active_pushes),
-            recent_pushes: serialize(recent_pushes), }.merge(sync_meta),
+          {
+            active_pushes: serialize(active_pushes),
+            recent_pushes: serialize(recent_pushes),
+          }.merge(sync_meta),
         )
       end
 

@@ -8,13 +8,14 @@ class SyncSession < ApplicationRecord
   has_many :sync_session_playlists, dependent: :destroy, inverse_of: :sync_session
   has_many :playlists, through: :sync_session_playlists
 
-  enum :status, {
-    pending: 0,
-    running: 1,
-    completed: 2,
-    failed: 3,
-    completed_with_errors: 4,
-  }
+  enum :status,
+    {
+      pending: 0,
+      running: 1,
+      completed: 2,
+      failed: 3,
+      completed_with_errors: 4,
+    }
 
   def progress
     done = completed_playlists + skipped_playlists + failed_playlists

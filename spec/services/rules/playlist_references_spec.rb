@@ -25,8 +25,11 @@ RSpec.describe Rules::PlaylistReferences do
         "match" => "all",
         "rules" => [
           condition("playlist", [1]),
-          { "match" => "any", "not" => true,
-            "rules" => [{ "match" => "all", "rules" => [condition("playlist", [2])] }], },
+          {
+            "match" => "any",
+            "not" => true,
+            "rules" => [{ "match" => "all", "rules" => [condition("playlist", [2])] }],
+          },
         ],
       }
 

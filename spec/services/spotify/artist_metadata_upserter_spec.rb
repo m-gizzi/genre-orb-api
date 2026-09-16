@@ -24,8 +24,18 @@ RSpec.describe Spotify::ArtistMetadataUpserter do
 
     it "stores fetched metadata on the artist" do
       described_class.new(
-        spotify_response([sp_artist(id: "artist_1", name: "Real Name", genres: ["rock"],
-                                    followers: 42, popularity: 88, image: "https://img",)]),
+        spotify_response(
+          [
+            sp_artist(
+              id: "artist_1",
+              name: "Real Name",
+              genres: ["rock"],
+              followers: 42,
+              popularity: 88,
+              image: "https://img",
+            ),
+          ],
+        ),
       ).call
 
       artist.reload

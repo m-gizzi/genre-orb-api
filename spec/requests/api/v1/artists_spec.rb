@@ -19,7 +19,9 @@ RSpec.describe "Api::V1::Artists" do
       it "returns library artists with their genres, metadata fields, and a meta envelope" do
         thrash = create(:genre, name: "thrash")
         artist = create(
-          :artist, :in_library, :with_genres,
+          :artist,
+          :in_library,
+          :with_genres,
           user: user,
           name: "Slayer",
           genres: [thrash],
@@ -52,8 +54,14 @@ RSpec.describe "Api::V1::Artists" do
       it "filters by genre id" do
         metal = create(:genre, name: "metal")
         in_genre = create(:artist, :in_library, :with_genres, user: user, name: "Slayer", genres: [metal])
-        create(:artist, :in_library, :with_genres, user: user, name: "Enya",
-                                                   genres: [create(:genre, name: "new age")],)
+        create(
+          :artist,
+          :in_library,
+          :with_genres,
+          user: user,
+          name: "Enya",
+          genres: [create(:genre, name: "new age")],
+        )
 
         get "/api/v1/artists", params: { genre: metal.id }
 
@@ -63,8 +71,14 @@ RSpec.describe "Api::V1::Artists" do
       it "filters by genre name" do
         metal = create(:genre, name: "metal")
         in_genre = create(:artist, :in_library, :with_genres, user: user, name: "Slayer", genres: [metal])
-        create(:artist, :in_library, :with_genres, user: user, name: "Enya",
-                                                   genres: [create(:genre, name: "new age")],)
+        create(
+          :artist,
+          :in_library,
+          :with_genres,
+          user: user,
+          name: "Enya",
+          genres: [create(:genre, name: "new age")],
+        )
 
         get "/api/v1/artists", params: { genre: "metal" }
 

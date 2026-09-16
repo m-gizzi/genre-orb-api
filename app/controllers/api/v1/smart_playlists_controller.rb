@@ -50,17 +50,27 @@ module Api
         smart_playlist = find_smart_playlist
         evaluator = SmartPlaylists::Evaluator.new(smart_playlist, **submitted_rules(smart_playlist))
 
-        tracks, meta = SmartPlaylists::QueryTimeout.guard do
-          pagy, page = paginate(evaluator.matches, count: evaluator.count)
-          [page, evaluation_meta(pagy, evaluator)]
-        end
+        tracks, genres, meta = guarded_page(evaluator)
 
-        render_data(TrackSerializer.new(tracks, params: track_genres_for(tracks)).serializable_hash, meta: meta)
+        render_data(TrackSerializer.new(tracks, params: genres).serializable_hash, meta: meta)
       rescue ActiveRecord::QueryCanceled
         render_validation_error(I18n.t("api.smart_playlists.evaluation_timeout"))
       end
 
       private
+
+      # Everything the serializer needs is loaded inside the guard on purpose: Pagy
+      # hands back an unloaded relation, and the genre load is the effective-genre
+      # UNION, which a user with many overrides can make slow. Either one left to run
+      # after COMMIT would be a query the statement timeout no longer applies to.
+      def guarded_page(evaluator)
+        SmartPlaylists::QueryTimeout.guard do
+          pagy, page = paginate(evaluator.matches, count: evaluator.count)
+          tracks = page.to_a
+
+          [tracks, track_genres_for(tracks), evaluation_meta(pagy, evaluator)]
+        end
+      end
 
       def evaluation_meta(pagy, evaluator)
         evaluated_at = evaluator.record! if pagy.page == 1
@@ -112,8 +122,10 @@ module Api
         params.expect(
           smart_playlist: [
             :target_playlist_id,
-            { source_playlist_ids: [],
-              target_playlist_attributes: %i[name description], },
+            {
+              source_playlist_ids: [],
+              target_playlist_attributes: %i[name description],
+            },
           ],
         )
       end

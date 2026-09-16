@@ -8,8 +8,13 @@ RSpec.describe Spotify::PlaylistCreator do
   let(:attributes) { { name: "Metal Mix", description: "Heavy stuff" } }
 
   before do
-    create(:service_connection, user: user, service_user_id: "spotify_user_1",
-                                access_token: "test_token", token_expires_at: 1.hour.from_now,)
+    create(
+      :service_connection,
+      user: user,
+      service_user_id: "spotify_user_1",
+      access_token: "test_token",
+      token_expires_at: 1.hour.from_now,
+    )
   end
 
   def stub_create(status: 201, body: { "id" => "spotify_new_1" })
@@ -31,8 +36,10 @@ RSpec.describe Spotify::PlaylistCreator do
   it "does not send Spotify's public key, leaving its default in place" do
     stub = stub_request(:post, create_url)
            .with(body: { name: "Metal Mix", description: "Heavy stuff" }.to_json)
-           .to_return(status: 201, body: { "id" => "spotify_new_1" }.to_json,
-                      headers: { "Content-Type" => "application/json" },)
+           .to_return(status: 201,
+             body: { "id" => "spotify_new_1" }.to_json,
+             headers: { "Content-Type" => "application/json" },
+           )
 
     described_class.new(user, attributes).call
 

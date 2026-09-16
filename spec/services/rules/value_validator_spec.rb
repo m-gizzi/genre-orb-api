@@ -112,8 +112,13 @@ RSpec.describe Rules::ValueValidator do
 
   describe "arity :relative" do
     it "accepts a count and a known unit" do
-      expect(errors_for({ "count" => 30, "unit" => "days" },
-                        field: "date_added", operator: "in_the_last",)).to be_empty
+      expect(
+        errors_for(
+          { "count" => 30, "unit" => "days" },
+          field: "date_added",
+          operator: "in_the_last",
+        ),
+      ).to be_empty
     end
 
     it "rejects a non-hash" do
@@ -122,27 +127,47 @@ RSpec.describe Rules::ValueValidator do
     end
 
     it "rejects a non-positive count" do
-      expect(errors_for({ "count" => 0, "unit" => "days" },
-                        field: "date_added", operator: "in_the_last",))
+      expect(
+        errors_for(
+          { "count" => 0, "unit" => "days" },
+          field: "date_added",
+          operator: "in_the_last",
+        ),
+      )
         .to eq(["must have a whole number count"])
     end
 
     it "rejects an unknown unit" do
       units = Rules::FieldCatalog::RELATIVE_UNITS.join(", ")
 
-      expect(errors_for({ "count" => 30, "unit" => "fortnights" },
-                        field: "date_added", operator: "in_the_last",))
+      expect(
+        errors_for(
+          { "count" => 30, "unit" => "fortnights" },
+          field: "date_added",
+          operator: "in_the_last",
+        ),
+      )
         .to eq(["must use one of these units: #{units}"])
     end
 
     it "reports both halves when both are wrong" do
-      expect(errors_for({ "count" => -1, "unit" => "fortnights" },
-                        field: "date_added", operator: "in_the_last",).size).to eq(2)
+      expect(
+        errors_for(
+          { "count" => -1, "unit" => "fortnights" },
+          field: "date_added",
+          operator: "in_the_last",
+        ).size,
+      ).to eq(2)
     end
 
     it "rejects keys it does not recognise" do
-      expect(errors_for({ "count" => 30, "unit" => "days", "junk" => 1 },
-                        field: "date_added", operator: "in_the_last",))
+      expect(
+        errors_for(
+          { "count" => 30, "unit" => "days", "junk" => 1 },
+          field: "date_added",
+          operator: "in_the_last",
+        ),
+      )
         .to eq(['has unexpected keys: "junk"'])
     end
   end

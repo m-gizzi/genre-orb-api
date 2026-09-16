@@ -3,8 +3,12 @@
 class PlaylistSerializer
   include Alba::Resource
 
-  attributes :id, :name, :description, :spotify_id,
-             :sync_enabled, :available_on_spotify
+  attributes :id,
+    :name,
+    :description,
+    :spotify_id,
+    :sync_enabled,
+    :available_on_spotify
 
   attribute :track_count, &:track_count
 

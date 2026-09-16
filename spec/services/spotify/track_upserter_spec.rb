@@ -36,14 +36,20 @@ RSpec.describe Spotify::TrackUpserter do
     let(:track_items) do
       [
         build_spotify_track_item(
-          track_id: "track_1", track_name: "Song One",
-          artist_id: "artist_1", artist_name: "Artist One",
-          album_id: "album_1", album_name: "Album One",
+          track_id: "track_1",
+          track_name: "Song One",
+          artist_id: "artist_1",
+          artist_name: "Artist One",
+          album_id: "album_1",
+          album_name: "Album One",
         ),
         build_spotify_track_item(
-          track_id: "track_2", track_name: "Song Two",
-          artist_id: "artist_2", artist_name: "Artist Two",
-          album_id: "album_2", album_name: "Album Two",
+          track_id: "track_2",
+          track_name: "Song Two",
+          artist_id: "artist_2",
+          artist_name: "Artist Two",
+          album_id: "album_2",
+          album_name: "Album Two",
         ),
       ]
     end
@@ -151,9 +157,12 @@ RSpec.describe Spotify::TrackUpserter do
         [
           { "track" => nil },
           build_spotify_track_item(
-            track_id: "valid_track", track_name: "Valid Song",
-            artist_id: "artist_1", artist_name: "Artist",
-            album_id: "album_1", album_name: "Album",
+            track_id: "valid_track",
+            track_name: "Valid Song",
+            artist_id: "artist_1",
+            artist_name: "Artist",
+            album_id: "album_1",
+            album_name: "Album",
           ),
         ]
       end
@@ -167,8 +176,12 @@ RSpec.describe Spotify::TrackUpserter do
     context "with phantom / empty Spotify data" do
       def item_with(track_overrides: {}, artist_overrides: {}, album_overrides: {})
         base = build_spotify_track_item(
-          track_id: "t", track_name: "Song", artist_id: "a", artist_name: "Artist",
-          album_id: "al", album_name: "Album",
+          track_id: "t",
+          track_name: "Song",
+          artist_id: "a",
+          artist_name: "Artist",
+          album_id: "al",
+          album_name: "Album",
         )
         base["track"].merge!(track_overrides)
         base["track"]["artists"][0].merge!(artist_overrides)
@@ -190,8 +203,12 @@ RSpec.describe Spotify::TrackUpserter do
 
       it "keeps the good tracks on a page that also contains a phantom" do
         good = build_spotify_track_item(
-          track_id: "good", track_name: "Real Song", artist_id: "a", artist_name: "Artist",
-          album_id: "al", album_name: "Album",
+          track_id: "good",
+          track_name: "Real Song",
+          artist_id: "a",
+          artist_name: "Artist",
+          album_id: "al",
+          album_name: "Album",
         )
         phantom = item_with(track_overrides: { "id" => "phantom", "name" => "", "duration_ms" => 0 })
 
@@ -224,8 +241,12 @@ RSpec.describe Spotify::TrackUpserter do
 
       it "keeps real tracks alongside a podcast episode on the same page" do
         song = build_spotify_track_item(
-          track_id: "song", track_name: "Real Song", artist_id: "a", artist_name: "Artist",
-          album_id: "al", album_name: "Album",
+          track_id: "song",
+          track_name: "Real Song",
+          artist_id: "a",
+          artist_name: "Artist",
+          album_id: "al",
+          album_name: "Album",
         )
         song["track"]["type"] = "track"
         episode = item_with(track_overrides: { "id" => "ep", "type" => "episode" })
@@ -283,9 +304,12 @@ RSpec.describe Spotify::TrackUpserter do
     let(:track_items) do
       [
         build_spotify_track_item(
-          track_id: "track_1", track_name: "Song One",
-          artist_id: "artist_1", artist_name: "Artist One",
-          album_id: "album_1", album_name: "Album One",
+          track_id: "track_1",
+          track_name: "Song One",
+          artist_id: "artist_1",
+          artist_name: "Artist One",
+          album_id: "album_1",
+          album_name: "Album One",
         ),
       ]
     end
@@ -293,7 +317,8 @@ RSpec.describe Spotify::TrackUpserter do
     context "when the artist already has genres" do
       before do
         create(
-          :artist, :with_genres,
+          :artist,
+          :with_genres,
           spotify_id: "artist_1",
           genres: [create(:genre, name: "death metal"), create(:genre, name: "black metal")],
         )

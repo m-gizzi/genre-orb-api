@@ -12,11 +12,11 @@ class Album < ApplicationRecord
   validates :title, presence: true
   validates :spotify_id, uniqueness: true
   validates :release_year,
-            numericality: {
-              only_integer: true,
-            },
-            allow_nil: true
+    numericality: {
+      only_integer: true,
+    },
+    allow_nil: true
   validates :total_tracks,
-            numericality: { only_integer: true, greater_than: 0 },
-            allow_nil: true
+    numericality: { only_integer: true, greater_than: 0 },
+    allow_nil: true
 end

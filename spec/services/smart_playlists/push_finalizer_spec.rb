@@ -6,8 +6,14 @@ RSpec.describe SmartPlaylists::PushFinalizer do
   let(:user) { create(:user) }
   let(:tracks) { create_list(:track, 2) }
   let(:target) do
-    create(:playlist, :with_spotify, :holding, user: user,
-                                               tracks: [create(:track)], version_snapshot_id: "snap_baseline",)
+    create(
+      :playlist,
+      :with_spotify,
+      :holding,
+      user: user,
+      tracks: [create(:track)],
+      version_snapshot_id: "snap_baseline",
+    )
   end
   let(:smart_playlist) { create(:smart_playlist, :with_rules, target_playlist: target) }
 
@@ -20,8 +26,13 @@ RSpec.describe SmartPlaylists::PushFinalizer do
   end
 
   let(:session) do
-    create(:push_session, :running, smart_playlist: smart_playlist,
-                                    playlist_version: version, spotify_snapshot_id: "snap_from_last_write",)
+    create(
+      :push_session,
+      :running,
+      smart_playlist: smart_playlist,
+      playlist_version: version,
+      spotify_snapshot_id: "snap_from_last_write",
+    )
   end
 
   def finalize

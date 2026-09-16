@@ -14,22 +14,51 @@ RSpec.describe Tracks::Filter do
   let(:recent_album) { create(:album, title: "Sequel", release_year: 2021) }
 
   let(:alpha) do
-    build_track("Alpha", genre: metal, artist_name: "Anthrax",
-                         album: old_album, duration_ms: 100_000, popularity: 50, explicit: false,)
+    build_track(
+      "Alpha",
+      genre: metal,
+      artist_name: "Anthrax",
+      album: old_album,
+      duration_ms: 100_000,
+      popularity: 50,
+      explicit: false,
+    )
   end
   let(:beta) do
-    build_track("Beta", genre: jazz, artist_name: "Miles Davis",
-                        album: recent_album, duration_ms: 200_000, popularity: 90, explicit: true,)
+    build_track(
+      "Beta",
+      genre: jazz,
+      artist_name: "Miles Davis",
+      album: recent_album,
+      duration_ms: 200_000,
+      popularity: 90,
+      explicit: true,
+    )
   end
   let(:alphabet) do
-    build_track("Alphabet", genre: metal, artist_name: "Metallica",
-                            album: recent_album, duration_ms: 300_000, popularity: 10, explicit: false,)
+    build_track(
+      "Alphabet",
+      genre: metal,
+      artist_name: "Metallica",
+      album: recent_album,
+      duration_ms: 300_000,
+      popularity: 10,
+      explicit: false,
+    )
   end
 
   def build_track(title, genre:, artist_name:, **track_attrs)
-    create(:track, :in_library, :with_genres, :with_artists,
-           current_version: version, title: title, genres: [genre],
-           artists: [create(:artist, name: artist_name)], **track_attrs,)
+    create(
+      :track,
+      :in_library,
+      :with_genres,
+      :with_artists,
+      current_version: version,
+      title: title,
+      genres: [genre],
+      artists: [create(:artist, name: artist_name)],
+      **track_attrs,
+    )
   end
 
   def titles(params)

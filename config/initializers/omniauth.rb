@@ -12,9 +12,9 @@ SPOTIFY_SCOPES = %w[
 
 Rails.application.config.middleware.use OmniAuth::Builder do
   provider :spotify,
-           Rails.application.credentials.dig(:spotify, :client_id),
-           Rails.application.credentials.dig(:spotify, :client_secret),
-           scope: SPOTIFY_SCOPES.join(" ")
+    Rails.application.credentials.dig(:spotify, :client_id),
+    Rails.application.credentials.dig(:spotify, :client_secret),
+    scope: SPOTIFY_SCOPES.join(" ")
 end
 
 OmniAuth.config.logger = Rails.logger

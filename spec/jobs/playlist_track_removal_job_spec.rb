@@ -18,8 +18,13 @@ RSpec.describe PlaylistTrackRemovalJob do
   end
 
   let(:session) do
-    create(:push_session, :running, smart_playlist: smart_playlist, playlist_version: version,
-                                    total_remove_batches: 1,)
+    create(
+      :push_session,
+      :running,
+      smart_playlist: smart_playlist,
+      playlist_version: version,
+      total_remove_batches: 1,
+    )
   end
 
   let(:remove_url) { "#{Spotify::Client::BASE_URL}/playlists/#{target.spotify_id}/tracks" }
@@ -28,8 +33,10 @@ RSpec.describe PlaylistTrackRemovalJob do
 
   def stub_remove
     stub_request(:delete, remove_url)
-      .to_return(status: 200, body: { "snapshot_id" => "snap_2" }.to_json,
-                 headers: { "Content-Type" => "application/json" },)
+      .to_return(status: 200,
+        body: { "snapshot_id" => "snap_2" }.to_json,
+        headers: { "Content-Type" => "application/json" },
+      )
   end
 
   def run(spotify_ids: [stale.spotify_id])
@@ -39,8 +46,10 @@ RSpec.describe PlaylistTrackRemovalJob do
   it "sends the batch's uris in a DELETE body" do
     stub = stub_request(:delete, remove_url)
            .with(body: { tracks: [{ uri: "spotify:track:#{stale.spotify_id}" }] }.to_json)
-           .to_return(status: 200, body: { "snapshot_id" => "snap_2" }.to_json,
-                      headers: { "Content-Type" => "application/json" },)
+           .to_return(status: 200,
+             body: { "snapshot_id" => "snap_2" }.to_json,
+             headers: { "Content-Type" => "application/json" },
+           )
 
     run
 

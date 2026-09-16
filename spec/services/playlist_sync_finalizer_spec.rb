@@ -6,15 +6,27 @@ RSpec.describe PlaylistSyncFinalizer do
   let(:user) { create(:user) }
   let(:sync_session) { create(:sync_session, :running, user: user, total_playlists: 1) }
   let(:playlist) do
-    create(:playlist, :with_spotify, :holding, user: user, tracks: [create(:track)],
-                                               last_synced_snapshot_id: "snap_before",)
+    create(
+      :playlist,
+      :with_spotify,
+      :holding,
+      user: user,
+      tracks: [create(:track)],
+      last_synced_snapshot_id: "snap_before",
+    )
   end
   let(:baseline) { playlist.current_version }
   let(:synced_version) { create(:playlist_version, :with_tracks, playlist: playlist, tracks_count: 2) }
 
   let!(:playlist_session) do
-    create(:sync_session_playlist, :fetching, sync_session: sync_session, playlist: playlist,
-                                              playlist_version: synced_version, baseline_version: baseline,)
+    create(
+      :sync_session_playlist,
+      :fetching,
+      sync_session: sync_session,
+      playlist: playlist,
+      playlist_version: synced_version,
+      baseline_version: baseline,
+    )
   end
 
   def finalize

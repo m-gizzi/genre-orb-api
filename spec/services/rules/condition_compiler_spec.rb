@@ -9,8 +9,11 @@ RULE_VALUES = {
   "number" => { one: 2020, two: [2020, 2024] },
   "duration" => { one: 120_000, two: [60_000, 300_000] },
   "boolean" => { one: true },
-  "date" => { one: "2024-01-01", two: %w[2024-01-01 2024-06-30],
-              relative: { "count" => 30, "unit" => "days" }, },
+  "date" => {
+    one: "2024-01-01",
+    two: %w[2024-01-01 2024-06-30],
+    relative: { "count" => 30, "unit" => "days" },
+  },
   "playlist" => { many: [1, 2] },
 }.freeze
 
@@ -37,12 +40,12 @@ RSpec.describe Rules::ConditionCompiler do
 
     Rules::FieldCatalog.field_keys.each do |field|
       Rules::FieldCatalog.operators_for(field).each do |operator|
-        it "compiles #{field} #{operator} to a track-id predicate" do
+        it "compiles #{field} #{operator} to a predicate over a subquery" do
           node = { "field" => field, "operator" => operator, "value" => value_for(field, operator) }
 
           sql = compiler.call(node).to_sql
 
-          expect(sql).to start_with('"tracks"."id" ')
+          expect(sql).to match(/\A(?:NOT \()?(?:"tracks"\."id" |EXISTS \()/)
           expect(sql).to include("SELECT")
         end
       end
@@ -68,16 +71,23 @@ RSpec.describe Rules::ConditionCompiler do
   end
 
   describe "presence operators" do
-    it "asks for every track the source has a row for" do
+    it "asks whether the source has any row for the track" do
       sql = compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }).to_sql
 
-      expect(sql).to start_with('"tracks"."id" IN (SELECT DISTINCT "track_genres"."track_id"')
+      expect(sql).to start_with("EXISTS ((SELECT 1 FROM")
     end
 
     it "names each track once however many rows it has" do
-      sql = compiler.call({ "field" => "genre", "operator" => "is_not_set", "value" => nil }).to_sql
+      # An addition puts a DISTINCT of its own inside the effective-genre union, so
+      # the assertion below names the dedup this guards rather than any dedup at all.
+      create(:artist_genre_override, :added, user: user)
 
-      expect(sql).to include('SELECT DISTINCT "track_genres"."track_id"')
+      sql = compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }).to_sql
+
+      # Correlating to the track under test is what makes this once-per-track;
+      # the id-set form needed a DISTINCT to collapse the duplicates instead.
+      expect(sql).to include(%("track_genres"."track_id" = "tracks"."id"))
+      expect(sql).not_to include(%(DISTINCT "track_genres"."track_id"))
     end
 
     it "does not reach the named entity it has no value to compare against" do
@@ -86,18 +96,50 @@ RSpec.describe Rules::ConditionCompiler do
       expect(sql).not_to include('INNER JOIN "genres"')
     end
 
-    it "bounds the set by the same pool the outer query draws from" do
+    it "needs no pool bound beyond the track it is already correlated to" do
       sql = compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }).to_sql
 
-      expect(sql).to include('"track_genres"."track_id" IN (SELECT "playlist_version_tracks"."track_id"')
+      expect(sql).not_to include('IN (SELECT "playlist_version_tracks"."track_id"')
     end
 
     it "reads is_not_set as having no value at all" do
       positive = compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }).to_sql
       negative = compiler.call({ "field" => "genre", "operator" => "is_not_set", "value" => nil }).to_sql
 
-      expect(negative).to start_with('"tracks"."id" NOT IN')
-      expect(negative.sub("NOT IN", "IN")).to eq(positive)
+      expect(negative).to eq("NOT (#{positive})")
+    end
+
+    # A source rooted at `tracks` would correlate a row to itself, and
+    # `tracks.id = tracks.id` holds for every track — is_set matching everything
+    # and is_not_set nothing, with nothing in the SQL to look wrong. No field the
+    # catalog declares can reach this, so the point is that adding one cannot.
+    it "refuses to compile a presence check against a source rooted at tracks itself" do
+      rooted_at_tracks = {
+        scope: ->(_genres) { Track.all },
+        presence: ->(_genres) { Track.all },
+        column: -> { Track.arel_table[:title] },
+        id: :id,
+      }
+      stub_const("#{described_class}::SOURCES", described_class::SOURCES.merge("genre" => rooted_at_tracks))
+
+      expect { compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }) }
+        .to raise_error(ArgumentError, /no correlatable source/)
+    end
+
+    it "refuses to compile a presence check against a source with no presence relation" do
+      stub_const(
+        "#{described_class}::SOURCES",
+        described_class::SOURCES.merge("genre" => described_class::SOURCES["album"]),
+      )
+
+      expect { compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }) }
+        .to raise_error(ArgumentError, /no correlatable source/)
+    end
+
+    it "keeps the id-set form for a value comparison, which is selective enough to join once" do
+      sql = compiler.call({ "field" => "genre", "operator" => "equals", "value" => "metal" }).to_sql
+
+      expect(sql).to start_with('"tracks"."id" IN')
     end
   end
 
@@ -127,8 +169,11 @@ RSpec.describe Rules::ConditionCompiler do
 
   describe "date_added" do
     it "filters the grouped memberships on the earliest add" do
-      node = { "field" => "date_added", "operator" => "in_the_last",
-               "value" => { "count" => 7, "unit" => "days" }, }
+      node = {
+        "field" => "date_added",
+        "operator" => "in_the_last",
+        "value" => { "count" => 7, "unit" => "days" },
+      }
 
       sql = compiler.call(node).to_sql
 

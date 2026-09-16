@@ -8,18 +8,21 @@ class PushSession < ApplicationRecord
   belongs_to :baseline_version, class_name: "PlaylistVersion", optional: true
   belongs_to :scheduled_run, inverse_of: :push_sessions, optional: true
 
-  enum :status, {
-    pending: 0,
-    running: 1,
-    completed: 2,
-    failed: 3,
-    skipped: 4,
-  }
+  enum :status,
+    {
+      pending: 0,
+      running: 1,
+      completed: 2,
+      failed: 3,
+      skipped: 4,
+    }
 
-  enum :strategy, {
-    diff: 0,
-    replace: 1,
-  }, prefix: true
+  enum :strategy,
+    {
+      diff: 0,
+      replace: 1,
+    },
+    prefix: true
 
   delegate :name, :user, :user_id, to: :smart_playlist
 

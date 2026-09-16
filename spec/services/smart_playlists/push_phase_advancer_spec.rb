@@ -20,8 +20,15 @@ RSpec.describe SmartPlaylists::PushPhaseAdvancer do
   end
 
   let(:session) do
-    create(:push_session, :running, :pinned, smart_playlist: smart_playlist, playlist_version: version,
-                                             total_remove_batches: 1, total_add_batches: 5,)
+    create(
+      :push_session,
+      :running,
+      :pinned,
+      smart_playlist: smart_playlist,
+      playlist_version: version,
+      total_remove_batches: 1,
+      total_add_batches: 5,
+    )
   end
 
   let(:advancer) { described_class.new(session) }

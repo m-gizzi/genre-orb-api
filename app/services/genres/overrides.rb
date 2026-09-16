@@ -15,6 +15,11 @@ module Genres
     def any_artist? = artist_hides? || artist_adds?
     def any_track?  = track_hides? || track_adds?
 
+    def hidden_artist_genre_ids
+      @hidden_artist_genre_ids ||=
+        ArtistGenreOverride.where(user: user, action: :hidden).distinct.pluck(:genre_id)
+    end
+
     private
 
     attr_reader :user, :flags

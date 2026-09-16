@@ -71,7 +71,7 @@ detectors:
       - Genres::Preferences#initialize
 
   TooManyMethods:
-    max_methods: 20
+    max_methods: 21
 
   TooManyInstanceVariables:
     max_instance_variables: 5

@@ -8,12 +8,13 @@ class ArtistMetadataSession < ApplicationRecord
 
   scope :global, -> { where(user_id: nil) }
 
-  enum :status, {
-    pending: 0,
-    running: 1,
-    completed: 2,
-    failed: 3,
-  }
+  enum :status,
+    {
+      pending: 0,
+      running: 1,
+      completed: 2,
+      failed: 3,
+    }
 
   def progress
     return { total: 0, completed: 0, percent: 100 } if total_batches.zero?

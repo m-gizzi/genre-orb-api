@@ -14,10 +14,21 @@ RSpec.describe SmartPlaylists::DependencyGraph do
   end
 
   def excludes(referenced, target)
-    create(:smart_playlist, target_playlist: target, source_playlists: [playlist],
-                            rules: { "match" => "all",
-                                     "rules" => [{ "field" => "playlist", "operator" => "not_in",
-                                                   "value" => [referenced.id], }], },)
+    create(
+      :smart_playlist,
+      target_playlist: target,
+      source_playlists: [playlist],
+      rules: {
+        "match" => "all",
+        "rules" => [
+          {
+            "field" => "playlist",
+            "operator" => "not_in",
+            "value" => [referenced.id],
+          },
+        ],
+      },
+    )
   end
 
   describe "#reaches?" do

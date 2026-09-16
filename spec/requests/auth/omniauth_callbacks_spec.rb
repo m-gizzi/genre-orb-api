@@ -21,10 +21,12 @@ RSpec.describe "Auth::OmniauthCallbacks" do
 
   describe "GET /auth/spotify/callback" do
     def get_spotify_callback(origin: valid_origin)
-      get "/auth/spotify/callback", headers: { "HTTP_REFERER" => origin }, env: {
-        "omniauth.auth" => OmniAuth.config.mock_auth[:spotify],
-        "omniauth.origin" => origin,
-      }
+      get "/auth/spotify/callback",
+        headers: { "HTTP_REFERER" => origin },
+        env: {
+          "omniauth.auth" => OmniAuth.config.mock_auth[:spotify],
+          "omniauth.origin" => origin,
+        }
     end
 
     context "with valid origin" do
@@ -100,10 +102,11 @@ RSpec.describe "Auth::OmniauthCallbacks" do
 
     context "with nil origin" do
       it "returns 400 bad request" do
-        get "/auth/spotify/callback", env: {
-          "omniauth.auth" => OmniAuth.config.mock_auth[:spotify],
-          "omniauth.origin" => nil,
-        }
+        get "/auth/spotify/callback",
+          env: {
+            "omniauth.auth" => OmniAuth.config.mock_auth[:spotify],
+            "omniauth.origin" => nil,
+          }
         expect(response).to have_http_status(:bad_request)
       end
     end
