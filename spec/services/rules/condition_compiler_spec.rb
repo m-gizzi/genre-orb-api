@@ -42,7 +42,7 @@ RSpec.describe Rules::ConditionCompiler do
 
           sql = compiler.call(node).to_sql
 
-          expect(sql).to match(/\A(?:NOT )?\(?"?tracks"?\.?"?id"? |\A(?:NOT )?\(EXISTS \(/)
+          expect(sql).to match(/\A(?:NOT \()?(?:"tracks"\."id" |EXISTS \()/)
           expect(sql).to include("SELECT")
         end
       end
@@ -71,7 +71,7 @@ RSpec.describe Rules::ConditionCompiler do
     it "asks whether the source has any row for the track" do
       sql = compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }).to_sql
 
-      expect(sql).to start_with("(EXISTS (SELECT 1 FROM")
+      expect(sql).to start_with("EXISTS ((SELECT 1 FROM")
     end
 
     it "names each track once however many rows it has" do
@@ -79,7 +79,7 @@ RSpec.describe Rules::ConditionCompiler do
 
       # Correlating to the track under test is what makes this once-per-track;
       # the id-set form needed a DISTINCT to collapse the duplicates instead.
-      expect(sql).to include("track_genres.track_id = tracks.id")
+      expect(sql).to include(%("track_genres"."track_id" = "tracks"."id"))
       expect(sql).not_to include("DISTINCT")
     end
 
@@ -99,7 +99,7 @@ RSpec.describe Rules::ConditionCompiler do
       positive = compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }).to_sql
       negative = compiler.call({ "field" => "genre", "operator" => "is_not_set", "value" => nil }).to_sql
 
-      expect(negative).to eq("NOT #{positive}")
+      expect(negative).to eq("NOT (#{positive})")
     end
 
     it "keeps the id-set form for a field rooted at tracks itself" do

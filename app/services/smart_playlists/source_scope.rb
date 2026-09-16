@@ -21,10 +21,7 @@ module SmartPlaylists
     # scalar subquery gives it nothing to re-execute. Costs one probe per matching
     # row, so it scales with the match count rather than the size of the source pool.
     def added_at
-      Arel.sql(
-        "(SELECT MIN(m.added_at) FROM playlist_version_tracks m " \
-        "WHERE m.track_id = tracks.id AND m.playlist_version_id IN (#{version_ids.to_sql}))",
-      )
+      Arel::Nodes::Grouping.new(earliest_add)
     end
 
     def track_ids
@@ -41,6 +38,21 @@ module SmartPlaylists
 
     def rows
       PlaylistVersionTrack.where(playlist_version_id: version_ids)
+    end
+
+    def earliest_add
+      table = membership
+
+      Arel::SelectManager.new(table)
+                         .project(table[:added_at].minimum)
+                         .where(table[:track_id].eq(Track.arel_table[:id]))
+                         .where(table[:playlist_version_id].in(version_ids.arel))
+    end
+
+    # Aliased so the correlated scalar can name its own columns without colliding
+    # with a `playlist_version_tracks` the outer query may already have joined.
+    def membership
+      PlaylistVersionTrack.arel_table.alias("m")
     end
 
     def version_ids

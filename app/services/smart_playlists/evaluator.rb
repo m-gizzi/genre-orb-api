@@ -26,7 +26,7 @@ module SmartPlaylists
     end
 
     def in_canonical_order(relation)
-      relation.order(Arel.sql("#{added_at} DESC NULLS LAST"), Track.arel_table[:id].asc)
+      relation.order(added_at.desc.nulls_last, Track.arel_table[:id].asc)
     end
 
     def count
