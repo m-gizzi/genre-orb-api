@@ -50,9 +50,12 @@ module Api
         smart_playlist = find_smart_playlist
         evaluator = SmartPlaylists::Evaluator.new(smart_playlist, **submitted_rules(smart_playlist))
 
+        # Loaded inside the guard on purpose: Pagy hands back an unloaded relation, so
+        # letting it reach the serializer would run the page query after COMMIT, where
+        # the statement timeout no longer applies to it.
         tracks, meta = SmartPlaylists::QueryTimeout.guard do
           pagy, page = paginate(evaluator.matches, count: evaluator.count)
-          [page, evaluation_meta(pagy, evaluator)]
+          [page.to_a, evaluation_meta(pagy, evaluator)]
         end
 
         render_data(TrackSerializer.new(tracks, params: track_genres_for(tracks)).serializable_hash, meta: meta)

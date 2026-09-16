@@ -37,12 +37,12 @@ RSpec.describe Rules::ConditionCompiler do
 
     Rules::FieldCatalog.field_keys.each do |field|
       Rules::FieldCatalog.operators_for(field).each do |operator|
-        it "compiles #{field} #{operator} to a track-id predicate" do
+        it "compiles #{field} #{operator} to a predicate over a subquery" do
           node = { "field" => field, "operator" => operator, "value" => value_for(field, operator) }
 
           sql = compiler.call(node).to_sql
 
-          expect(sql).to start_with('"tracks"."id" ')
+          expect(sql).to match(/\A(?:NOT )?\(?"?tracks"?\.?"?id"? |\A(?:NOT )?\(EXISTS \(/)
           expect(sql).to include("SELECT")
         end
       end
@@ -68,16 +68,19 @@ RSpec.describe Rules::ConditionCompiler do
   end
 
   describe "presence operators" do
-    it "asks for every track the source has a row for" do
+    it "asks whether the source has any row for the track" do
       sql = compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }).to_sql
 
-      expect(sql).to start_with('"tracks"."id" IN (SELECT DISTINCT "track_genres"."track_id"')
+      expect(sql).to start_with("(EXISTS (SELECT 1 FROM")
     end
 
     it "names each track once however many rows it has" do
-      sql = compiler.call({ "field" => "genre", "operator" => "is_not_set", "value" => nil }).to_sql
+      sql = compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }).to_sql
 
-      expect(sql).to include('SELECT DISTINCT "track_genres"."track_id"')
+      # Correlating to the track under test is what makes this once-per-track;
+      # the id-set form needed a DISTINCT to collapse the duplicates instead.
+      expect(sql).to include("track_genres.track_id = tracks.id")
+      expect(sql).not_to include("DISTINCT")
     end
 
     it "does not reach the named entity it has no value to compare against" do
@@ -86,18 +89,29 @@ RSpec.describe Rules::ConditionCompiler do
       expect(sql).not_to include('INNER JOIN "genres"')
     end
 
-    it "bounds the set by the same pool the outer query draws from" do
+    it "needs no pool bound beyond the track it is already correlated to" do
       sql = compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }).to_sql
 
-      expect(sql).to include('"track_genres"."track_id" IN (SELECT "playlist_version_tracks"."track_id"')
+      expect(sql).not_to include('IN (SELECT "playlist_version_tracks"."track_id"')
     end
 
     it "reads is_not_set as having no value at all" do
       positive = compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }).to_sql
       negative = compiler.call({ "field" => "genre", "operator" => "is_not_set", "value" => nil }).to_sql
 
-      expect(negative).to start_with('"tracks"."id" NOT IN')
-      expect(negative.sub("NOT IN", "IN")).to eq(positive)
+      expect(negative).to eq("NOT #{positive}")
+    end
+
+    it "keeps the id-set form for a field rooted at tracks itself" do
+      sql = compiler.call({ "field" => "title", "operator" => "is_set", "value" => nil }).to_sql
+
+      expect(sql).to start_with('"tracks"."id" IN')
+    end
+
+    it "keeps the id-set form for a value comparison, which is selective enough to join once" do
+      sql = compiler.call({ "field" => "genre", "operator" => "equals", "value" => "metal" }).to_sql
+
+      expect(sql).to start_with('"tracks"."id" IN')
     end
   end
 

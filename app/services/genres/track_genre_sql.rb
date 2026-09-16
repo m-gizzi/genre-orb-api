@@ -43,11 +43,22 @@ module Genres
                                      AND ag.source = track_genres.source
                 WHERE ta.track_id = track_genres.track_id
                   #{artist_layers}
-                  AND NOT EXISTS (SELECT 1 FROM artist_genre_overrides o
-                                  WHERE o.user_id = ? AND o.action = ?
-                                    AND o.artist_id = ta.artist_id
-                                    AND o.genre_id = ag.genre_id))
+                  AND (#{unhidden_genre}
+                       OR NOT EXISTS (SELECT 1 FROM artist_genre_overrides o
+                                      WHERE o.user_id = ? AND o.action = ?
+                                        AND o.artist_id = ta.artist_id
+                                        AND o.genre_id = ag.genre_id)))
       SQL
+    end
+
+    # The override probe joins on o.genre_id = ag.genre_id, which the JOIN above has
+    # already fixed to track_genres.genre_id — so a genre no hide names can never
+    # match one, and the probe can be skipped for it outright.
+    def unhidden_genre
+      ids = overrides.hidden_artist_genre_ids
+      return "FALSE" if ids.empty?
+
+      sanitize("track_genres.genre_id NOT IN (?)", ids)
     end
 
     # The blocklist is genre-level and already applied to track_genres.genre_id outside,

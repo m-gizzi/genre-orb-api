@@ -33,7 +33,7 @@ module SmartPlaylists
     def build_entries
       rows = evaluator.in_canonical_order(selected_scope).pluck(
         Arel.sql("tracks.id"),
-        Arel.sql("#{Evaluator::MEMBERSHIPS_ALIAS}.added_at"),
+        evaluator.added_at,
       )
 
       rows.map { |id, added_at| Entry.new(track_id: id, added_at: added_at) }

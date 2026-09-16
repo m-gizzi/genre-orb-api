@@ -7,8 +7,28 @@ module Rules
   # Every condition becoming a track-id set is the engine's core invariant. It is
   # what makes negation possible and it collapses the duplicate rows that
   # `track_genres` produces for a genre carried by more than one source.
+  #
+  # Presence checks are the one exception: see CORRELATED.
   class ConditionCompiler
     DATE_ADDED = "date_added"
+
+    # Fields whose rows live in a table other than `tracks`, keyed by the column
+    # naming the track, so a presence check can correlate back to `tracks.id`.
+    #
+    # Only presence checks take this path. They compare nothing, so the id-set form
+    # has to build every (track, value) row in the pool just to DISTINCT it away —
+    # and `NOT IN` stops Postgres turning that back into an anti-join. Correlating
+    # lets it stop at the first row per track. A value comparison is the opposite
+    # case: its id set is small and selective, and one hash semi-join beats a probe
+    # per candidate track, so those keep the id-set form below.
+    #
+    # The remaining fields (album, year, title, duration, popularity, explicit) are
+    # scoped to `tracks` itself, where correlating would compare the row to itself.
+    CORRELATED = {
+      "genre" => "track_genres.track_id",
+      "artist" => "track_artists.track_id",
+      "playlist" => "playlist_version_tracks.track_id",
+    }.freeze
 
     # Each entry says how to build the track ids a field can constrain:
     #   scope    — a relation with one row per (track, candidate value)
@@ -55,15 +75,36 @@ module Rules
 
     def call(node)
       condition = Condition.new(node)
+      key = CORRELATED[condition.field]
+      return id_set(condition) unless key && condition.presence_check?
+
+      exists(condition, key)
+    end
+
+    private
+
+    attr_reader :memberships, :genres
+
+    def id_set(condition)
       ids = track_ids(condition).arel
       column = Track.arel_table[:id]
 
       condition.negated? ? column.not_in(ids) : column.in(ids)
     end
 
-    private
+    # Correlating pins the row to the track already under test, which is the same
+    # bound `present_rows` gets from `candidate_track_ids` — so the narrowing is not
+    # repeated here.
+    def exists(condition, key)
+      source = SOURCES.fetch(condition.field)
+      rows = source.fetch(:presence, source[:scope]).call(genres)
+                   .where("#{key} = tracks.id").select("1")
+      node = Arel.sql("EXISTS (#{rows.to_sql})")
 
-    attr_reader :memberships, :genres
+      # Both wrap the literal in parentheses of their own, so it composes inside an
+      # AND/OR group either way.
+      condition.negated? ? Arel::Nodes::Not.new(node) : Arel::Nodes::Grouping.new(node)
+    end
 
     def track_ids(condition)
       return date_added_ids(condition) if condition.field == DATE_ADDED

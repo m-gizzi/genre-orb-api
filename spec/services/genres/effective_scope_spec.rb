@@ -160,6 +160,28 @@ RSpec.describe Genres::EffectiveScope do
         expect(track_genre_names).to be_empty
       end
     end
+
+    # The override probe is skipped for genres no hide names, so every hidden genre
+    # has to be in that list — a partial one silently lets the rest through.
+    it "applies to each of several hidden genres, not just the first" do
+      track = create(:track, :with_artists, artists: [gojira])
+      [metal, seen_live].each do |genre|
+        create(:artist_genre, artist: gojira, genre: genre)
+        create(:track_genre, track: track, genre: genre)
+        create(:artist_genre_override, user: user, artist: gojira, genre: genre)
+      end
+
+      expect(track_genre_names).to be_empty
+    end
+
+    it "leaves a genre outside the hidden list to the artist claim alone" do
+      track = create(:track, :with_artists, artists: [gojira])
+      create(:artist_genre, artist: gojira, genre: metal)
+      create(:track_genre, track: track, genre: metal)
+      create(:artist_genre_override, user: user, artist: gojira, genre: seen_live)
+
+      expect(track_genre_names).to contain_exactly("metal")
+    end
   end
 
   describe "layer 5 — track overlay" do
