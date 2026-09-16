@@ -17,9 +17,17 @@ RSpec.describe TrackSerializer do
     album = create(:album, title: "Reign in Blood", release_year: 1986)
     artist = create(:artist, name: "Slayer")
     genre = create(:genre, name: "thrash metal")
-    track = create(:track, :with_artists, :with_genres, title: "Angel of Death", album: album,
-                                                        duration_ms: 290_000, popularity: 65,
-                                                        artists: [artist], genres: [genre],)
+    track = create(
+      :track,
+      :with_artists,
+      :with_genres,
+      title: "Angel of Death",
+      album: album,
+      duration_ms: 290_000,
+      popularity: 65,
+      artists: [artist],
+      genres: [genre],
+    )
 
     result = serialize(track)
 

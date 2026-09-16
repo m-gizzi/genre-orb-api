@@ -47,7 +47,7 @@ class SpotifyOauthService
     return if existing_connection.user_id == current_user.id
 
     raise ActiveRecord::RecordInvalid.new(existing_connection),
-          "This Spotify account is already linked to another user"
+      "This Spotify account is already linked to another user"
   end
 
   def resolve_user

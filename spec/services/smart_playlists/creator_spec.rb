@@ -8,8 +8,13 @@ RSpec.describe SmartPlaylists::Creator do
   let(:create_url) { "#{Spotify::Client::BASE_URL}/users/spotify_user_1/playlists" }
 
   before do
-    create(:service_connection, user: user, service_user_id: "spotify_user_1",
-                                access_token: "test_token", token_expires_at: 1.hour.from_now,)
+    create(
+      :service_connection,
+      user: user,
+      service_user_id: "spotify_user_1",
+      access_token: "test_token",
+      token_expires_at: 1.hour.from_now,
+    )
   end
 
   def stub_create(status: 201, body: { "id" => "spotify_new_1" })

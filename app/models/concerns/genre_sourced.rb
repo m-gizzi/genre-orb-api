@@ -16,9 +16,9 @@ module GenreSourced
     enum :source, SOURCES, validate: true
 
     validates :confidence,
-              numericality: {
-                greater_than_or_equal_to: 0.0,
-                less_than_or_equal_to: 1.0,
-              }
+      numericality: {
+        greater_than_or_equal_to: 0.0,
+        less_than_or_equal_to: 1.0,
+      }
   end
 end

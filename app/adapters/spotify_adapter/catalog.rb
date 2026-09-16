@@ -13,7 +13,7 @@ class SpotifyAdapter
     def artists(spotify_ids)
       if spotify_ids.size > ARTIST_BATCH_LIMIT
         raise ArgumentError,
-              "Cannot fetch more than #{ARTIST_BATCH_LIMIT} artists at once"
+          "Cannot fetch more than #{ARTIST_BATCH_LIMIT} artists at once"
       end
 
       client.get("artists", params: { ids: spotify_ids.join(",") })

@@ -67,8 +67,11 @@ RSpec.describe ArtistMetadataSource do
       freeze_time do
         row.record_fetch!(external_id: "mb-1")
 
-        expect(row).to have_attributes(state: "matched", fetched_at: Time.current,
-                                       retry_after: described_class::REFRESH_TTL.from_now,)
+        expect(row).to have_attributes(
+          state: "matched",
+          fetched_at: Time.current,
+          retry_after: described_class::REFRESH_TTL.from_now,
+        )
       end
     end
 
@@ -106,8 +109,12 @@ RSpec.describe ArtistMetadataSource do
       freeze_time do
         row.record_failure!(StandardError.new("boom"))
 
-        expect(row).to have_attributes(state: "errored", failure_count: 1, last_error: "boom",
-                                       retry_after: described_class::ERROR_BACKOFF_BASE.from_now,)
+        expect(row).to have_attributes(
+          state: "errored",
+          failure_count: 1,
+          last_error: "boom",
+          retry_after: described_class::ERROR_BACKOFF_BASE.from_now,
+        )
       end
     end
 

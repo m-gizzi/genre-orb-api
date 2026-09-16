@@ -32,10 +32,20 @@ RSpec.describe "Api::V1::Genres" do
       end
 
       it "filters by search substring" do
-        create(:track, :in_library, :with_genres, current_version: version,
-                                                  genres: [create(:genre, name: "death metal")],)
-        create(:track, :in_library, :with_genres, current_version: version,
-                                                  genres: [create(:genre, name: "jazz")],)
+        create(
+          :track,
+          :in_library,
+          :with_genres,
+          current_version: version,
+          genres: [create(:genre, name: "death metal")],
+        )
+        create(
+          :track,
+          :in_library,
+          :with_genres,
+          current_version: version,
+          genres: [create(:genre, name: "jazz")],
+        )
 
         get "/api/v1/genres", params: { search: "metal" }
 
@@ -43,10 +53,20 @@ RSpec.describe "Api::V1::Genres" do
       end
 
       it "sorts by name descending" do
-        create(:track, :in_library, :with_genres, current_version: version,
-                                                  genres: [create(:genre, name: "ambient")],)
-        create(:track, :in_library, :with_genres, current_version: version,
-                                                  genres: [create(:genre, name: "zydeco")],)
+        create(
+          :track,
+          :in_library,
+          :with_genres,
+          current_version: version,
+          genres: [create(:genre, name: "ambient")],
+        )
+        create(
+          :track,
+          :in_library,
+          :with_genres,
+          current_version: version,
+          genres: [create(:genre, name: "zydeco")],
+        )
 
         get "/api/v1/genres", params: { order: "desc" }
 

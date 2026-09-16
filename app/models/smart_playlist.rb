@@ -4,8 +4,8 @@ class SmartPlaylist < ApplicationRecord
   EMPTY_RULES = { "match" => "all", "rules" => [] }.freeze
 
   belongs_to :target_playlist,
-             class_name: "Playlist",
-             inverse_of: :smart_playlist_as_target
+    class_name: "Playlist",
+    inverse_of: :smart_playlist_as_target
 
   has_many :smart_playlist_sources, dependent: :destroy, inverse_of: :smart_playlist
   has_many :source_playlists, through: :smart_playlist_sources, source: :playlist

@@ -30,8 +30,11 @@ RSpec.describe SmartPlaylist do
 
     it "rejects Liked Songs as a target" do
       user = create(:user)
-      smart_playlist = build(:smart_playlist, user: user,
-                                              target_playlist: create(:liked_songs_playlist, user: user),)
+      smart_playlist = build(
+        :smart_playlist,
+        user: user,
+        target_playlist: create(:liked_songs_playlist, user: user),
+      )
 
       expect(smart_playlist).not_to be_valid
       expect(smart_playlist.errors[:target_playlist])
@@ -182,18 +185,28 @@ RSpec.describe SmartPlaylist do
 
     it "accepts a relative date value" do
       expect(
-        with_rules([
-                     { "field" => "date_added", "operator" => "in_the_last",
-                       "value" => { "count" => 30, "unit" => "days" }, },
-                   ]),
+        with_rules(
+          [
+            {
+              "field" => "date_added",
+              "operator" => "in_the_last",
+              "value" => { "count" => 30, "unit" => "days" },
+            },
+          ],
+        ),
       ).to be_valid
     end
 
     it "rejects a relative date with an unknown unit" do
-      smart_playlist = with_rules([
-                                    { "field" => "date_added", "operator" => "in_the_last",
-                                      "value" => { "count" => 30, "unit" => "fortnights" }, },
-                                  ])
+      smart_playlist = with_rules(
+        [
+          {
+            "field" => "date_added",
+            "operator" => "in_the_last",
+            "value" => { "count" => 30, "unit" => "fortnights" },
+          },
+        ],
+      )
 
       expect(smart_playlist).not_to be_valid
       expect(smart_playlist.errors[:rules])
@@ -201,10 +214,15 @@ RSpec.describe SmartPlaylist do
     end
 
     it "rejects a relative date with a non-positive count" do
-      smart_playlist = with_rules([
-                                    { "field" => "date_added", "operator" => "in_the_last",
-                                      "value" => { "count" => 0, "unit" => "days" }, },
-                                  ])
+      smart_playlist = with_rules(
+        [
+          {
+            "field" => "date_added",
+            "operator" => "in_the_last",
+            "value" => { "count" => 0, "unit" => "days" },
+          },
+        ],
+      )
 
       expect(smart_playlist).not_to be_valid
       expect(smart_playlist.errors[:rules]).to include("must have a whole number count at rule 1")
@@ -212,11 +230,13 @@ RSpec.describe SmartPlaylist do
 
     it "accepts the newly catalogued fields" do
       expect(
-        with_rules([
-                     { "field" => "popularity", "operator" => "greater_than", "value" => 50 },
-                     { "field" => "explicit", "operator" => "equals", "value" => false },
-                     { "field" => "duration", "operator" => "between", "value" => [120_000, 300_000] },
-                   ]),
+        with_rules(
+          [
+            { "field" => "popularity", "operator" => "greater_than", "value" => 50 },
+            { "field" => "explicit", "operator" => "equals", "value" => false },
+            { "field" => "duration", "operator" => "between", "value" => [120_000, 300_000] },
+          ],
+        ),
       ).to be_valid
     end
 
@@ -246,10 +266,20 @@ RSpec.describe SmartPlaylist do
     end
 
     it "validates conditions inside nested groups" do
-      smart_playlist = with_rules([
-                                    { "match" => "any",
-                                      "rules" => [{ "field" => "nope", "operator" => "equals", "value" => "x" }], },
-                                  ])
+      smart_playlist = with_rules(
+        [
+          {
+            "match" => "any",
+            "rules" => [
+              {
+                "field" => "nope",
+                "operator" => "equals",
+                "value" => "x",
+              },
+            ],
+          },
+        ],
+      )
 
       expect(smart_playlist).not_to be_valid
       expect(smart_playlist.errors[:rules]).to include('has an unknown field: "nope" at rule 1.1')
@@ -335,16 +365,30 @@ RSpec.describe SmartPlaylist do
       end
 
       it "rejects a date that isn't ISO 8601" do
-        smart_playlist = with_rules([{ "field" => "date_added", "operator" => "greater_than",
-                                       "value" => "15/01/2024", }])
+        smart_playlist = with_rules(
+          [
+            {
+              "field" => "date_added",
+              "operator" => "greater_than",
+              "value" => "15/01/2024",
+            },
+          ],
+        )
 
         expect(smart_playlist).not_to be_valid
         expect(smart_playlist.errors[:rules]).to include("must be a date in YYYY-MM-DD form at rule 1")
       end
 
       it "rejects a date that looks ISO but isn't real" do
-        smart_playlist = with_rules([{ "field" => "date_added", "operator" => "greater_than",
-                                       "value" => "2024-02-31", }])
+        smart_playlist = with_rules(
+          [
+            {
+              "field" => "date_added",
+              "operator" => "greater_than",
+              "value" => "2024-02-31",
+            },
+          ],
+        )
 
         expect(smart_playlist).not_to be_valid
         expect(smart_playlist.errors[:rules]).to include("must be a date in YYYY-MM-DD form at rule 1")
@@ -380,16 +424,26 @@ RSpec.describe SmartPlaylist do
 
     describe "unexpected keys" do
       it "rejects a rule carrying keys the schema does not describe" do
-        smart_playlist = with_rules([{ "field" => "genre", "operator" => "equals", "value" => "rock",
-                                       "junk" => "smuggled", }])
+        smart_playlist = with_rules(
+          [
+            {
+              "field" => "genre",
+              "operator" => "equals",
+              "value" => "rock",
+              "junk" => "smuggled",
+            },
+          ],
+        )
 
         expect(smart_playlist).not_to be_valid
         expect(smart_playlist.errors[:rules]).to include('has unexpected keys: "junk" at rule 1')
       end
 
       it "rejects a group carrying keys the schema does not describe" do
-        smart_playlist = build(:smart_playlist,
-                               rules: { "match" => "all", "junk" => "smuggled", "rules" => [] },)
+        smart_playlist = build(
+          :smart_playlist,
+          rules: { "match" => "all", "junk" => "smuggled", "rules" => [] },
+        )
 
         expect(smart_playlist).not_to be_valid
         expect(smart_playlist.errors[:rules]).to include('has unexpected keys: "junk"')
@@ -397,9 +451,16 @@ RSpec.describe SmartPlaylist do
 
       it "accepts the keys a group is allowed to carry" do
         expect(
-          build(:smart_playlist, rules: { "match" => "any", "not" => true, "rules" => [
-                  { "field" => "genre", "operator" => "equals", "value" => "rock" },
-                ], },),
+          build(
+            :smart_playlist,
+            rules: {
+              "match" => "any",
+              "not" => true,
+              "rules" => [
+                { "field" => "genre", "operator" => "equals", "value" => "rock" },
+              ],
+            },
+          ),
         ).to be_valid
       end
     end
@@ -415,10 +476,15 @@ RSpec.describe SmartPlaylist do
 
       it "reports only the first few unexpected keys" do
         junk = Array.new(Rules::Excerpt::MAX_ENTRIES + 3) { |index| ["junk#{index}", 1] }.to_h
-        smart_playlist = with_rules([
-                                      { "field" => "genre", "operator" => "equals",
-                                        "value" => "rock", }.merge(junk),
-                                    ])
+        smart_playlist = with_rules(
+          [
+            {
+              "field" => "genre",
+              "operator" => "equals",
+              "value" => "rock",
+            }.merge(junk),
+          ],
+        )
 
         expect(smart_playlist).not_to be_valid
         expect(smart_playlist.errors[:rules].first.scan("junk").size)
@@ -428,11 +494,17 @@ RSpec.describe SmartPlaylist do
 
     describe "locating failures" do
       it "reports each failing rule separately rather than collapsing them" do
-        smart_playlist = with_rules([
-                                      { "field" => "year", "operator" => "equals", "value" => "banana" },
-                                      { "field" => "genre", "operator" => "equals", "value" => "rock" },
-                                      { "field" => "popularity", "operator" => "equals", "value" => "banana" },
-                                    ])
+        smart_playlist = with_rules(
+          [
+            { "field" => "year", "operator" => "equals", "value" => "banana" },
+            { "field" => "genre", "operator" => "equals", "value" => "rock" },
+            {
+              "field" => "popularity",
+              "operator" => "equals",
+              "value" => "banana",
+            },
+          ],
+        )
 
         expect(smart_playlist).not_to be_valid
         expect(smart_playlist.errors[:rules])
@@ -440,14 +512,18 @@ RSpec.describe SmartPlaylist do
       end
 
       it "numbers rules inside nested groups from their parent" do
-        smart_playlist = with_rules([
-                                      { "field" => "genre", "operator" => "equals", "value" => "rock" },
-                                      { "match" => "any",
-                                        "rules" => [
-                                          { "field" => "genre", "operator" => "equals", "value" => "jazz" },
-                                          { "field" => "year", "operator" => "equals", "value" => "banana" },
-                                        ], },
-                                    ])
+        smart_playlist = with_rules(
+          [
+            { "field" => "genre", "operator" => "equals", "value" => "rock" },
+            {
+              "match" => "any",
+              "rules" => [
+                { "field" => "genre", "operator" => "equals", "value" => "jazz" },
+                { "field" => "year", "operator" => "equals", "value" => "banana" },
+              ],
+            },
+          ],
+        )
 
         expect(smart_playlist).not_to be_valid
         expect(smart_playlist.errors[:rules]).to contain_exactly("must be a whole number at rule 2.2")
@@ -535,8 +611,11 @@ RSpec.describe SmartPlaylist do
 
       expect(looping).to be_valid
 
-      create(:smart_playlist, target_playlist: Playlist.find(second.id),
-                              source_playlists: [Playlist.find(first.id)],)
+      create(
+        :smart_playlist,
+        target_playlist: Playlist.find(second.id),
+        source_playlists: [Playlist.find(first.id)],
+      )
 
       expect(looping).not_to be_valid
     end
@@ -561,11 +640,22 @@ RSpec.describe SmartPlaylist do
     end
 
     def referencing(target, ids, source: nil)
-      build(:smart_playlist, target_playlist: target, user: user,
-                             source_playlists: [source || playlist],
-                             rules: { "match" => "all",
-                                      "rules" => [{ "field" => "playlist", "operator" => "not_in",
-                                                    "value" => ids, }], },)
+      build(
+        :smart_playlist,
+        target_playlist: target,
+        user: user,
+        source_playlists: [source || playlist],
+        rules: {
+          "match" => "all",
+          "rules" => [
+            {
+              "field" => "playlist",
+              "operator" => "not_in",
+              "value" => ids,
+            },
+          ],
+        },
+      )
     end
 
     it "accepts a playlist the user owns" do
@@ -643,10 +733,20 @@ RSpec.describe SmartPlaylist do
       user = create(:user)
       first = create(:playlist, :with_spotify, user: user, name: "Aardvark")
       second = create(:playlist, :with_spotify, user: user, name: "Zebra")
-      smart_playlist = create(:smart_playlist, user: user,
-                                               rules: { "match" => "all",
-                                                        "rules" => [{ "field" => "playlist", "operator" => "in",
-                                                                      "value" => [second.id, first.id], }], },)
+      smart_playlist = create(
+        :smart_playlist,
+        user: user,
+        rules: {
+          "match" => "all",
+          "rules" => [
+            {
+              "field" => "playlist",
+              "operator" => "in",
+              "value" => [second.id, first.id],
+            },
+          ],
+        },
+      )
 
       expect(smart_playlist.rule_playlists).to eq([first, second])
     end

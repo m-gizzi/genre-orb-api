@@ -8,8 +8,13 @@ RSpec.describe PlaylistTrackAdditionJob do
   let(:smart_playlist) { create(:smart_playlist, :with_rules, target_playlist: target) }
   let(:version) { PlaylistVersion.create_for_push!(target) }
   let(:session) do
-    create(:push_session, :running, smart_playlist: smart_playlist, playlist_version: version,
-                                    total_add_batches: 2,)
+    create(
+      :push_session,
+      :running,
+      smart_playlist: smart_playlist,
+      playlist_version: version,
+      total_add_batches: 2,
+    )
   end
 
   let(:add_url) { "#{Spotify::Client::BASE_URL}/playlists/#{target.spotify_id}/tracks" }
@@ -18,8 +23,10 @@ RSpec.describe PlaylistTrackAdditionJob do
 
   def stub_add(snapshot_id: "snap_1")
     stub_request(:post, add_url)
-      .to_return(status: 201, body: { "snapshot_id" => snapshot_id }.to_json,
-                 headers: { "Content-Type" => "application/json" },)
+      .to_return(status: 201,
+        body: { "snapshot_id" => snapshot_id }.to_json,
+        headers: { "Content-Type" => "application/json" },
+      )
   end
 
   def run(spotify_ids: %w[a b])
@@ -29,8 +36,10 @@ RSpec.describe PlaylistTrackAdditionJob do
   it "posts the batch's uris to the target playlist" do
     stub = stub_request(:post, add_url)
            .with(body: { uris: ["spotify:track:a", "spotify:track:b"] }.to_json)
-           .to_return(status: 201, body: { "snapshot_id" => "snap_1" }.to_json,
-                      headers: { "Content-Type" => "application/json" },)
+           .to_return(status: 201,
+             body: { "snapshot_id" => "snap_1" }.to_json,
+             headers: { "Content-Type" => "application/json" },
+           )
 
     run
 

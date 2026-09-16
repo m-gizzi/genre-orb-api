@@ -28,8 +28,13 @@ class MusicbrainzAdapter
     raise ArgumentError, "Cannot look up more than #{RESOURCE_BATCH_LIMIT} urls at once" if
       ids.size > RESOURCE_BATCH_LIMIT
 
-    body = client.get("url", params: { resource: ids.map { |id| "#{SPOTIFY_ARTIST_URL}#{id}" },
-                                       inc: "artist-rels", },)
+    body = client.get(
+      "url",
+      params: {
+        resource: ids.map { |id| "#{SPOTIFY_ARTIST_URL}#{id}" },
+        inc: "artist-rels",
+      },
+    )
     extract_matches(body)
   rescue Musicbrainz::NotFoundError
     # A batch of one uses the single-resource form, which 404s where the batch form

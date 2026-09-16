@@ -60,12 +60,27 @@ RSpec.describe "Api::V1::Playlists" do
       end
 
       it "sorts by last_synced_at descending (nulls last)" do
-        recent = create(:playlist, user: user, name: "Recent", available_on_spotify: true,
-                                   last_synced_at: 1.hour.ago,)
-        old = create(:playlist, user: user, name: "Old", available_on_spotify: true,
-                                last_synced_at: 3.days.ago,)
-        never = create(:playlist, user: user, name: "Never", available_on_spotify: true,
-                                  last_synced_at: nil,)
+        recent = create(
+          :playlist,
+          user: user,
+          name: "Recent",
+          available_on_spotify: true,
+          last_synced_at: 1.hour.ago,
+        )
+        old = create(
+          :playlist,
+          user: user,
+          name: "Old",
+          available_on_spotify: true,
+          last_synced_at: 3.days.ago,
+        )
+        never = create(
+          :playlist,
+          user: user,
+          name: "Never",
+          available_on_spotify: true,
+          last_synced_at: nil,
+        )
 
         get "/api/v1/playlists", params: { sort: "last_synced_at", order: "desc" }
 
@@ -73,12 +88,27 @@ RSpec.describe "Api::V1::Playlists" do
       end
 
       it "sorts by last_synced_at ascending (nulls first)" do
-        recent = create(:playlist, user: user, name: "Recent", available_on_spotify: true,
-                                   last_synced_at: 1.hour.ago,)
-        old = create(:playlist, user: user, name: "Old", available_on_spotify: true,
-                                last_synced_at: 3.days.ago,)
-        never = create(:playlist, user: user, name: "Never", available_on_spotify: true,
-                                  last_synced_at: nil,)
+        recent = create(
+          :playlist,
+          user: user,
+          name: "Recent",
+          available_on_spotify: true,
+          last_synced_at: 1.hour.ago,
+        )
+        old = create(
+          :playlist,
+          user: user,
+          name: "Old",
+          available_on_spotify: true,
+          last_synced_at: 3.days.ago,
+        )
+        never = create(
+          :playlist,
+          user: user,
+          name: "Never",
+          available_on_spotify: true,
+          last_synced_at: nil,
+        )
 
         get "/api/v1/playlists", params: { sort: "last_synced_at", order: "asc" }
 
@@ -86,10 +116,22 @@ RSpec.describe "Api::V1::Playlists" do
       end
 
       it "sorts by track_count descending" do
-        big = create(:playlist, :with_tracks, tracks_count: 5, user: user, name: "Big",
-                                              available_on_spotify: true,)
-        small = create(:playlist, :with_tracks, tracks_count: 1, user: user, name: "Small",
-                                                available_on_spotify: true,)
+        big = create(
+          :playlist,
+          :with_tracks,
+          tracks_count: 5,
+          user: user,
+          name: "Big",
+          available_on_spotify: true,
+        )
+        small = create(
+          :playlist,
+          :with_tracks,
+          tracks_count: 1,
+          user: user,
+          name: "Small",
+          available_on_spotify: true,
+        )
 
         get "/api/v1/playlists", params: { sort: "track_count", order: "desc" }
 
@@ -411,7 +453,7 @@ RSpec.describe "Api::V1::Playlists" do
       context "with invalid parameters" do
         it "ignores non-permitted params" do
           patch "/api/v1/playlists/#{playlist.id}",
-                params: { playlist: { spotify_id: "hacked", sync_enabled: true } }
+            params: { playlist: { spotify_id: "hacked", sync_enabled: true } }
 
           expect(playlist.reload.spotify_id).to be_nil
         end
@@ -428,8 +470,13 @@ RSpec.describe "Api::V1::Playlists" do
         let(:update_url) { "#{Spotify::Client::BASE_URL}/playlists/#{playlist.spotify_id}" }
 
         before do
-          create(:service_connection, user: user, service_user_id: "spotify_user_1",
-                                      access_token: "test_token", token_expires_at: 1.hour.from_now,)
+          create(
+            :service_connection,
+            user: user,
+            service_user_id: "spotify_user_1",
+            access_token: "test_token",
+            token_expires_at: 1.hour.from_now,
+          )
         end
 
         it "pushes a renamed playlist to Spotify" do
@@ -540,15 +587,22 @@ RSpec.describe "Api::V1::Playlists" do
 
     context "when authenticated with Spotify" do
       before do
-        create(:service_connection, user: user, service_user_id: "spotify_user_1",
-                                    access_token: "test_token", token_expires_at: 1.hour.from_now,)
+        create(
+          :service_connection,
+          user: user,
+          service_user_id: "spotify_user_1",
+          access_token: "test_token",
+          token_expires_at: 1.hour.from_now,
+        )
         sign_in user
       end
 
       it "creates the playlist on Spotify and returns 201" do
         stub_request(:post, create_url)
-          .to_return(status: 201, body: { "id" => "spotify_new_1" }.to_json,
-                     headers: { "Content-Type" => "application/json" },)
+          .to_return(status: 201,
+            body: { "id" => "spotify_new_1" }.to_json,
+            headers: { "Content-Type" => "application/json" },
+          )
 
         post "/api/v1/playlists", params: payload
 

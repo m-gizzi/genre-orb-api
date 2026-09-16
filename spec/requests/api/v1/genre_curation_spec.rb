@@ -68,7 +68,7 @@ RSpec.describe "Api::V1 genre curation" do
 
       it "404s for a track outside the user's library" do
         post "/api/v1/tracks/#{create(:track).id}/genres",
-             params: { genre: { genre_id: metal.id, action: "added" } }
+          params: { genre: { genre_id: metal.id, action: "added" } }
 
         expect(response).to have_http_status(:not_found)
       end
@@ -120,7 +120,7 @@ RSpec.describe "Api::V1 genre curation" do
 
     it "404s for an artist outside the user's library" do
       post "/api/v1/artists/#{create(:artist).id}/genres",
-           params: { genre: { genre_id: metal.id, action: "added" } }
+        params: { genre: { genre_id: metal.id, action: "added" } }
 
       expect(response).to have_http_status(:not_found)
     end
@@ -164,7 +164,7 @@ RSpec.describe "Api::V1 genre curation" do
       user.update!(genre_source_preferences: { "spotify" => { "enabled" => false } })
 
       patch "/api/v1/genre_preferences",
-            params: { genre_preferences: { sources: { lastfm: { min_confidence: 0.3 } } } }
+        params: { genre_preferences: { sources: { lastfm: { min_confidence: 0.3 } } } }
 
       sources = response.parsed_body["data"]["sources"]
       expect(sources["spotify"]["enabled"]).to be(false)
@@ -183,14 +183,14 @@ RSpec.describe "Api::V1 genre curation" do
 
     it "rejects a source nobody can configure" do
       patch "/api/v1/genre_preferences",
-            params: { genre_preferences: { sources: { user: { enabled: false } } } }
+        params: { genre_preferences: { sources: { user: { enabled: false } } } }
 
       expect(response).to have_http_status(:unprocessable_content)
     end
 
     it "rejects a confidence floor outside 0..1" do
       patch "/api/v1/genre_preferences",
-            params: { genre_preferences: { sources: { lastfm: { min_confidence: 4 } } } }
+        params: { genre_preferences: { sources: { lastfm: { min_confidence: 4 } } } }
 
       expect(response).to have_http_status(:unprocessable_content)
     end

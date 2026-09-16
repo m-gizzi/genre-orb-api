@@ -21,35 +21,53 @@ module Rules
     #              and reached through a foreign key rather than `tracks.id` —
     #              see #correlatable!
     SOURCES = {
-      "genre" => { scope: ->(genres) { genres.tracks.joins(:genre) },
-                   presence: ->(genres) { genres.tracks },
-                   column: -> { Genre.arel_table[:name] },
-                   id: :track_id, },
-      "artist" => { scope: ->(_genres) { TrackArtist.joins(:artist) },
-                    presence: ->(_genres) { TrackArtist.all },
-                    column: -> { Artist.arel_table[:name] },
-                    id: :track_id, },
-      "album" => { scope: ->(_genres) { Track.joins(:album) },
-                   column: -> { Album.arel_table[:title] },
-                   id: :id, },
-      "year" => { scope: ->(_genres) { Track.joins(:album) },
-                  column: -> { Album.arel_table[:release_year] },
-                  id: :id, },
-      "title" => { scope: ->(_genres) { Track.all },
-                   column: -> { Track.arel_table[:title] },
-                   id: :id, },
-      "duration" => { scope: ->(_genres) { Track.all },
-                      column: -> { Track.arel_table[:duration_ms] },
-                      id: :id, },
-      "popularity" => { scope: ->(_genres) { Track.all },
-                        column: -> { Track.arel_table[:popularity] },
-                        id: :id, },
-      "explicit" => { scope: ->(_genres) { Track.all },
-                      column: -> { Track.arel_table[:explicit] },
-                      id: :id, },
-      "playlist" => { scope: ->(_genres) { PlaylistVersionTrack.joins(playlist_version: :playlist_as_current) },
-                      column: -> { Playlist.arel_table[:id] },
-                      id: :track_id, },
+      "genre" => {
+        scope: ->(genres) { genres.tracks.joins(:genre) },
+        presence: ->(genres) { genres.tracks },
+        column: -> { Genre.arel_table[:name] },
+        id: :track_id,
+      },
+      "artist" => {
+        scope: ->(_genres) { TrackArtist.joins(:artist) },
+        presence: ->(_genres) { TrackArtist.all },
+        column: -> { Artist.arel_table[:name] },
+        id: :track_id,
+      },
+      "album" => {
+        scope: ->(_genres) { Track.joins(:album) },
+        column: -> { Album.arel_table[:title] },
+        id: :id,
+      },
+      "year" => {
+        scope: ->(_genres) { Track.joins(:album) },
+        column: -> { Album.arel_table[:release_year] },
+        id: :id,
+      },
+      "title" => {
+        scope: ->(_genres) { Track.all },
+        column: -> { Track.arel_table[:title] },
+        id: :id,
+      },
+      "duration" => {
+        scope: ->(_genres) { Track.all },
+        column: -> { Track.arel_table[:duration_ms] },
+        id: :id,
+      },
+      "popularity" => {
+        scope: ->(_genres) { Track.all },
+        column: -> { Track.arel_table[:popularity] },
+        id: :id,
+      },
+      "explicit" => {
+        scope: ->(_genres) { Track.all },
+        column: -> { Track.arel_table[:explicit] },
+        id: :id,
+      },
+      "playlist" => {
+        scope: ->(_genres) { PlaylistVersionTrack.joins(playlist_version: :playlist_as_current) },
+        column: -> { Playlist.arel_table[:id] },
+        id: :track_id,
+      },
     }.freeze
 
     def initialize(memberships, user)

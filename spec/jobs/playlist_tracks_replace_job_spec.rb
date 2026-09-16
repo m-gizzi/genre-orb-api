@@ -17,8 +17,14 @@ RSpec.describe PlaylistTracksReplaceJob do
   end
 
   let(:session) do
-    create(:push_session, :running, smart_playlist: smart_playlist, playlist_version: version,
-                                    strategy: :replace, total_remove_batches: 1,)
+    create(
+      :push_session,
+      :running,
+      smart_playlist: smart_playlist,
+      playlist_version: version,
+      strategy: :replace,
+      total_remove_batches: 1,
+    )
   end
 
   let(:tracks_url) { "#{Spotify::Client::BASE_URL}/playlists/#{target.spotify_id}/tracks" }
@@ -27,8 +33,10 @@ RSpec.describe PlaylistTracksReplaceJob do
 
   def stub_replace
     stub_request(:put, tracks_url)
-      .to_return(status: 200, body: { "snapshot_id" => "snap_5" }.to_json,
-                 headers: { "Content-Type" => "application/json" },)
+      .to_return(status: 200,
+        body: { "snapshot_id" => "snap_5" }.to_json,
+        headers: { "Content-Type" => "application/json" },
+      )
   end
 
   def run(spotify_ids: wanted.map(&:spotify_id))
@@ -38,8 +46,10 @@ RSpec.describe PlaylistTracksReplaceJob do
   it "clears and seeds the playlist in one call" do
     stub = stub_request(:put, tracks_url)
            .with(body: { uris: wanted.map { |track| "spotify:track:#{track.spotify_id}" } }.to_json)
-           .to_return(status: 200, body: { "snapshot_id" => "snap_5" }.to_json,
-                      headers: { "Content-Type" => "application/json" },)
+           .to_return(status: 200,
+             body: { "snapshot_id" => "snap_5" }.to_json,
+             headers: { "Content-Type" => "application/json" },
+           )
 
     run
 

@@ -35,8 +35,13 @@ FactoryBot.define do
 
       after(:create) do |artist, evaluator|
         evaluator.genres.each do |genre|
-          create(:artist_genre, artist: artist, genre: genre,
-                                source: evaluator.genre_source, confidence: evaluator.genre_confidence,)
+          create(
+            :artist_genre,
+            artist: artist,
+            genre: genre,
+            source: evaluator.genre_source,
+            confidence: evaluator.genre_confidence,
+          )
         end
       end
     end

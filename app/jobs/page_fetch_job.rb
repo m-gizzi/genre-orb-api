@@ -17,8 +17,11 @@ class PageFetchJob < SpotifyJob
   end
 
   def perform(sync_session_playlist_id:, page:)
-    playlist_session = SyncSessionPlaylist.includes(:playlist, :playlist_version,
-                                                    sync_session: :user,).find(sync_session_playlist_id)
+    playlist_session = SyncSessionPlaylist.includes(
+      :playlist,
+      :playlist_version,
+      sync_session: :user,
+    ).find(sync_session_playlist_id)
     user = playlist_session.sync_session.user
 
     if rate_limited?(user.id)

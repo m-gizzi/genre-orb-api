@@ -42,8 +42,14 @@ module SmartPlaylists
       version = push_session.playlist_version
       return unless version
 
-      push_session.update!(playlist_version: nil, total_remove_batches: 0, completed_remove_batches: 0,
-                           total_add_batches: 0, completed_add_batches: 0, add_phase_started_at: nil,)
+      push_session.update!(
+        playlist_version: nil,
+        total_remove_batches: 0,
+        completed_remove_batches: 0,
+        total_add_batches: 0,
+        completed_add_batches: 0,
+        add_phase_started_at: nil,
+      )
       version.destroy!
     end
 

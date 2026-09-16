@@ -9,8 +9,11 @@ RULE_VALUES = {
   "number" => { one: 2020, two: [2020, 2024] },
   "duration" => { one: 120_000, two: [60_000, 300_000] },
   "boolean" => { one: true },
-  "date" => { one: "2024-01-01", two: %w[2024-01-01 2024-06-30],
-              relative: { "count" => 30, "unit" => "days" }, },
+  "date" => {
+    one: "2024-01-01",
+    two: %w[2024-01-01 2024-06-30],
+    relative: { "count" => 30, "unit" => "days" },
+  },
   "playlist" => { many: [1, 2] },
 }.freeze
 
@@ -111,8 +114,12 @@ RSpec.describe Rules::ConditionCompiler do
     # and is_not_set nothing, with nothing in the SQL to look wrong. No field the
     # catalog declares can reach this, so the point is that adding one cannot.
     it "refuses to compile a presence check against a source rooted at tracks itself" do
-      rooted_at_tracks = { scope: ->(_genres) { Track.all }, presence: ->(_genres) { Track.all },
-                           column: -> { Track.arel_table[:title] }, id: :id, }
+      rooted_at_tracks = {
+        scope: ->(_genres) { Track.all },
+        presence: ->(_genres) { Track.all },
+        column: -> { Track.arel_table[:title] },
+        id: :id,
+      }
       stub_const("#{described_class}::SOURCES", described_class::SOURCES.merge("genre" => rooted_at_tracks))
 
       expect { compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }) }
@@ -120,8 +127,10 @@ RSpec.describe Rules::ConditionCompiler do
     end
 
     it "refuses to compile a presence check against a source with no presence relation" do
-      stub_const("#{described_class}::SOURCES",
-                 described_class::SOURCES.merge("genre" => described_class::SOURCES["album"]),)
+      stub_const(
+        "#{described_class}::SOURCES",
+        described_class::SOURCES.merge("genre" => described_class::SOURCES["album"]),
+      )
 
       expect { compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }) }
         .to raise_error(ArgumentError, /no correlatable source/)
@@ -160,8 +169,11 @@ RSpec.describe Rules::ConditionCompiler do
 
   describe "date_added" do
     it "filters the grouped memberships on the earliest add" do
-      node = { "field" => "date_added", "operator" => "in_the_last",
-               "value" => { "count" => 7, "unit" => "days" }, }
+      node = {
+        "field" => "date_added",
+        "operator" => "in_the_last",
+        "value" => { "count" => 7, "unit" => "days" },
+      }
 
       sql = compiler.call(node).to_sql
 

@@ -122,8 +122,10 @@ module Api
         params.expect(
           smart_playlist: [
             :target_playlist_id,
-            { source_playlist_ids: [],
-              target_playlist_attributes: %i[name description], },
+            {
+              source_playlist_ids: [],
+              target_playlist_attributes: %i[name description],
+            },
           ],
         )
       end

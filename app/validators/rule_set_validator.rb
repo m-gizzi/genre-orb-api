@@ -136,8 +136,12 @@ class RuleSetValidator < ActiveModel::EachValidator
     def supported_pairing?(field, operator, location)
       return true if Catalog.supports?(field, operator)
 
-      add(location, :unsupported_pairing,
-          operator: Rules::Excerpt.of(operator), field: Rules::Excerpt.of(field),)
+      add(
+        location,
+        :unsupported_pairing,
+        operator: Rules::Excerpt.of(operator),
+        field: Rules::Excerpt.of(field),
+      )
       false
     end
 

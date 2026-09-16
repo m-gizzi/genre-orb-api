@@ -66,8 +66,14 @@ RSpec.describe "Api::V1::Tracks" do
       it "filters by genre" do
         metal = create(:genre, name: "metal")
         loud = create(:track, :in_library, :with_genres, current_version: version, title: "Loud", genres: [metal])
-        create(:track, :in_library, :with_genres, current_version: version, title: "Quiet",
-                                                  genres: [create(:genre, name: "ambient")],)
+        create(
+          :track,
+          :in_library,
+          :with_genres,
+          current_version: version,
+          title: "Quiet",
+          genres: [create(:genre, name: "ambient")],
+        )
 
         get "/api/v1/tracks", params: { genre: "metal" }
 
@@ -102,10 +108,20 @@ RSpec.describe "Api::V1::Tracks" do
       end
 
       it "sorts by album release year and still reports an accurate count" do
-        newer = create(:track, :in_library, current_version: version, title: "Newer",
-                                            album: create(:album, release_year: 2021),)
-        older = create(:track, :in_library, current_version: version, title: "Older",
-                                            album: create(:album, release_year: 1999),)
+        newer = create(
+          :track,
+          :in_library,
+          current_version: version,
+          title: "Newer",
+          album: create(:album, release_year: 2021),
+        )
+        older = create(
+          :track,
+          :in_library,
+          current_version: version,
+          title: "Older",
+          album: create(:album, release_year: 1999),
+        )
 
         get "/api/v1/tracks", params: { sort: "year", order: "desc" }
 
@@ -121,8 +137,15 @@ RSpec.describe "Api::V1::Tracks" do
 
     it "returns a library track with nested associations" do
       album = create(:album, title: "Reign")
-      track = create(:track, :in_library, :with_genres, current_version: version, title: "Angel",
-                                                        album: album, genres: [create(:genre, name: "thrash")],)
+      track = create(
+        :track,
+        :in_library,
+        :with_genres,
+        current_version: version,
+        title: "Angel",
+        album: album,
+        genres: [create(:genre, name: "thrash")],
+      )
 
       get "/api/v1/tracks/#{track.id}"
 

@@ -32,11 +32,16 @@ RSpec.describe MusicbrainzAdapter do
 
   describe "#artists_by_spotify_url" do
     it "maps each spotify id to the mbid MusicBrainz links it to" do
-      stub_url_lookup(gojira_url, train_url,
-                      body: { "urls" => [
-                        { "resource" => gojira_url, "relations" => [artist_relation("mb-gojira")] },
-                        { "resource" => train_url, "relations" => [artist_relation("mb-train")] },
-                      ] },)
+      stub_url_lookup(
+        gojira_url,
+        train_url,
+        body: {
+          "urls" => [
+            { "resource" => gojira_url, "relations" => [artist_relation("mb-gojira")] },
+            { "resource" => train_url, "relations" => [artist_relation("mb-train")] },
+          ],
+        },
+      )
 
       expect(adapter.artists_by_spotify_url(%w[sp_gojira sp_train]))
         .to eq("sp_gojira" => "mb-gojira", "sp_train" => "mb-train")
@@ -45,18 +50,28 @@ RSpec.describe MusicbrainzAdapter do
     # Verified against the live API: several resource params return a paged envelope,
     # a single one returns the bare url object.
     it "handles the bare-object response a single resource returns" do
-      stub_url_lookup(gojira_url,
-                      body: { "id" => "url-1", "resource" => gojira_url,
-                              "relations" => [artist_relation("mb-gojira")], },)
+      stub_url_lookup(
+        gojira_url,
+        body: {
+          "id" => "url-1",
+          "resource" => gojira_url,
+          "relations" => [artist_relation("mb-gojira")],
+        },
+      )
 
       expect(adapter.artists_by_spotify_url(["sp_gojira"])).to eq("sp_gojira" => "mb-gojira")
     end
 
     it "omits an id MusicBrainz does not link" do
-      stub_url_lookup(gojira_url, train_url,
-                      body: { "urls" => [
-                        { "resource" => gojira_url, "relations" => [artist_relation("mb-gojira")] },
-                      ] },)
+      stub_url_lookup(
+        gojira_url,
+        train_url,
+        body: {
+          "urls" => [
+            { "resource" => gojira_url, "relations" => [artist_relation("mb-gojira")] },
+          ],
+        },
+      )
 
       expect(adapter.artists_by_spotify_url(%w[sp_gojira sp_train])).to eq("sp_gojira" => "mb-gojira")
     end
@@ -76,9 +91,13 @@ RSpec.describe MusicbrainzAdapter do
     end
 
     it "ignores a url whose only relation is not an artist" do
-      stub_url_lookup(gojira_url,
-                      body: { "resource" => gojira_url,
-                              "relations" => [{ "target-type" => "release", "release" => { "id" => "r-1" } }], },)
+      stub_url_lookup(
+        gojira_url,
+        body: {
+          "resource" => gojira_url,
+          "relations" => [{ "target-type" => "release", "release" => { "id" => "r-1" } }],
+        },
+      )
 
       expect(adapter.artists_by_spotify_url(["sp_gojira"])).to eq({})
     end
@@ -92,10 +111,12 @@ RSpec.describe MusicbrainzAdapter do
 
       adapter.artists_by_spotify_url(%w[sp_gojira sp_train])
 
-      expect(WebMock).to(have_requested(:get, %r{musicbrainz\.org/ws/2/url}).with do |request|
-        query = request.uri.query
-        query.scan("resource=").size == 2 && query.exclude?("resource%5B%5D")
-      end)
+      expect(WebMock).to(
+        have_requested(:get, %r{musicbrainz\.org/ws/2/url}).with do |request|
+          query = request.uri.query
+          query.scan("resource=").size == 2 && query.exclude?("resource%5B%5D")
+        end,
+      )
     end
 
     it "makes no request for an empty list" do
@@ -104,9 +125,13 @@ RSpec.describe MusicbrainzAdapter do
     end
 
     it "de-duplicates the ids it asks about" do
-      stub = stub_url_lookup(gojira_url,
-                             body: { "resource" => gojira_url,
-                                     "relations" => [artist_relation("mb-gojira")], },)
+      stub = stub_url_lookup(
+        gojira_url,
+        body: {
+          "resource" => gojira_url,
+          "relations" => [artist_relation("mb-gojira")],
+        },
+      )
 
       adapter.artists_by_spotify_url(%w[sp_gojira sp_gojira])
 
@@ -138,12 +163,17 @@ RSpec.describe MusicbrainzAdapter do
     end
 
     it "maps vote counts onto a saturating confidence" do
-      stub_mb("artist/mb-1", query: { inc: "genres", fmt: "json" },
-                             body: { "genres" => [
-                               { "name" => "progressive metal", "count" => 15 },
-                               { "name" => "death metal", "count" => 7 },
-                               { "name" => "post-metal", "count" => 1 },
-                             ] },)
+      stub_mb(
+        "artist/mb-1",
+        query: { inc: "genres", fmt: "json" },
+        body: {
+          "genres" => [
+            { "name" => "progressive metal", "count" => 15 },
+            { "name" => "death metal", "count" => 7 },
+            { "name" => "post-metal", "count" => 1 },
+          ],
+        },
+      )
 
       expect(adapter.artist_genres("mb-1")).to eq(
         [
@@ -155,15 +185,21 @@ RSpec.describe MusicbrainzAdapter do
     end
 
     it "treats a missing count as no confidence rather than raising" do
-      stub_mb("artist/mb-1", query: { inc: "genres", fmt: "json" },
-                             body: { "genres" => [{ "name" => "metal" }] },)
+      stub_mb(
+        "artist/mb-1",
+        query: { inc: "genres", fmt: "json" },
+        body: { "genres" => [{ "name" => "metal" }] },
+      )
 
       expect(adapter.artist_genres("mb-1")).to eq([{ name: "metal", confidence: 0.0 }])
     end
 
     it "skips a nameless genre" do
-      stub_mb("artist/mb-1", query: { inc: "genres", fmt: "json" },
-                             body: { "genres" => [{ "name" => "", "count" => 3 }] },)
+      stub_mb(
+        "artist/mb-1",
+        query: { inc: "genres", fmt: "json" },
+        body: { "genres" => [{ "name" => "", "count" => 3 }] },
+      )
 
       expect(adapter.artist_genres("mb-1")).to be_empty
     end
@@ -175,16 +211,24 @@ RSpec.describe MusicbrainzAdapter do
     end
 
     it "raises NotFoundError for an mbid MusicBrainz no longer resolves" do
-      stub_mb("artist/mb-gone", query: { inc: "genres", fmt: "json" },
-                                status: 404, body: { "error" => "Not Found" },)
+      stub_mb(
+        "artist/mb-gone",
+        query: { inc: "genres", fmt: "json" },
+        status: 404,
+        body: { "error" => "Not Found" },
+      )
 
       expect { adapter.artist_genres("mb-gone") }.to raise_error(Musicbrainz::NotFoundError)
     end
 
     # A malformed mbid is a 400, not a 404 — verified live.
     it "raises ApiError for a malformed mbid" do
-      stub_mb("artist/nope", query: { inc: "genres", fmt: "json" },
-                             status: 400, body: { "error" => "Invalid mbid." },)
+      stub_mb(
+        "artist/nope",
+        query: { inc: "genres", fmt: "json" },
+        status: 400,
+        body: { "error" => "Invalid mbid." },
+      )
 
       expect { adapter.artist_genres("nope") }.to raise_error(Musicbrainz::ApiError, /400/)
     end

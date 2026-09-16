@@ -7,8 +7,13 @@ RSpec.describe "Api::V1::SmartPlaylists" do
   let(:create_url) { "#{Spotify::Client::BASE_URL}/users/spotify_user_1/playlists" }
 
   def connect_spotify(owner = user)
-    create(:service_connection, user: owner, service_user_id: "spotify_user_1",
-                                access_token: "test_token", token_expires_at: 1.hour.from_now,)
+    create(
+      :service_connection,
+      user: owner,
+      service_user_id: "spotify_user_1",
+      access_token: "test_token",
+      token_expires_at: 1.hour.from_now,
+    )
   end
 
   describe "GET /api/v1/smart_playlists/schema" do
@@ -102,8 +107,16 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       end
 
       it "names each smart playlist after its target playlist" do
-        create(:smart_playlist, user: user, target_playlist: create(:playlist, :with_spotify, user: user,
-                                                                                              name: "Metal Mix",),)
+        create(
+          :smart_playlist,
+          user: user,
+          target_playlist: create(
+            :playlist,
+            :with_spotify,
+            user: user,
+            name: "Metal Mix",
+          ),
+        )
 
         get "/api/v1/smart_playlists"
 
@@ -116,10 +129,26 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       end
 
       it "sorts by target playlist name" do
-        create(:smart_playlist, user: user, target_playlist: create(:playlist, :with_spotify, user: user,
-                                                                                              name: "Zebra",),)
-        create(:smart_playlist, user: user, target_playlist: create(:playlist, :with_spotify, user: user,
-                                                                                              name: "Alpha",),)
+        create(
+          :smart_playlist,
+          user: user,
+          target_playlist: create(
+            :playlist,
+            :with_spotify,
+            user: user,
+            name: "Zebra",
+          ),
+        )
+        create(
+          :smart_playlist,
+          user: user,
+          target_playlist: create(
+            :playlist,
+            :with_spotify,
+            user: user,
+            name: "Alpha",
+          ),
+        )
 
         get "/api/v1/smart_playlists", params: { sort: "name", order: "asc" }
 
@@ -147,10 +176,26 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       end
 
       it "filters by target playlist name" do
-        create(:smart_playlist, user: user, target_playlist: create(:playlist, :with_spotify, user: user,
-                                                                                              name: "Metal Mix",),)
-        create(:smart_playlist, user: user, target_playlist: create(:playlist, :with_spotify, user: user,
-                                                                                              name: "Jazz",),)
+        create(
+          :smart_playlist,
+          user: user,
+          target_playlist: create(
+            :playlist,
+            :with_spotify,
+            user: user,
+            name: "Metal Mix",
+          ),
+        )
+        create(
+          :smart_playlist,
+          user: user,
+          target_playlist: create(
+            :playlist,
+            :with_spotify,
+            user: user,
+            name: "Jazz",
+          ),
+        )
 
         get "/api/v1/smart_playlists", params: { search: "metal" }
 
@@ -227,7 +272,7 @@ RSpec.describe "Api::V1::SmartPlaylists" do
 
       it "creates a draft smart playlist and returns 201" do
         post "/api/v1/smart_playlists",
-             params: { smart_playlist: { target_playlist_id: target.id, source_playlist_ids: [source.id] } }
+          params: { smart_playlist: { target_playlist_id: target.id, source_playlist_ids: [source.id] } }
 
         expect(response).to have_http_status(:created)
         expect(response.parsed_body["data"]).to include("is_enabled" => false, "is_ready" => false)
@@ -237,8 +282,12 @@ RSpec.describe "Api::V1::SmartPlaylists" do
 
       it "returns 404 for another user's target playlist" do
         post "/api/v1/smart_playlists",
-             params: { smart_playlist: { target_playlist_id: create(:playlist).id,
-                                         source_playlist_ids: [source.id], } }
+          params: {
+            smart_playlist: {
+              target_playlist_id: create(:playlist).id,
+              source_playlist_ids: [source.id],
+            },
+          }
 
         expect(response).to have_http_status(:not_found)
       end
@@ -247,14 +296,14 @@ RSpec.describe "Api::V1::SmartPlaylists" do
         create(:smart_playlist, target_playlist: target)
 
         post "/api/v1/smart_playlists",
-             params: { smart_playlist: { target_playlist_id: target.id, source_playlist_ids: [source.id] } }
+          params: { smart_playlist: { target_playlist_id: target.id, source_playlist_ids: [source.id] } }
 
         expect(response).to have_http_status(:unprocessable_content)
       end
 
       it "returns 422 when no sources are given" do
         post "/api/v1/smart_playlists",
-             params: { smart_playlist: { target_playlist_id: target.id, source_playlist_ids: [] } }
+          params: { smart_playlist: { target_playlist_id: target.id, source_playlist_ids: [] } }
 
         expect(response).to have_http_status(:unprocessable_content)
       end
@@ -284,8 +333,10 @@ RSpec.describe "Api::V1::SmartPlaylists" do
 
       it "creates the playlist on Spotify and returns 201" do
         stub_request(:post, create_url)
-          .to_return(status: 201, body: { "id" => "spotify_new_1" }.to_json,
-                     headers: { "Content-Type" => "application/json" },)
+          .to_return(status: 201,
+            body: { "id" => "spotify_new_1" }.to_json,
+            headers: { "Content-Type" => "application/json" },
+          )
 
         post "/api/v1/smart_playlists", params: payload
 
@@ -347,7 +398,7 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       replacement = create(:playlist, :with_spotify, user: user)
 
       patch "/api/v1/smart_playlists/#{smart_playlist.id}",
-            params: { smart_playlist: { source_playlist_ids: [replacement.id] } }
+        params: { smart_playlist: { source_playlist_ids: [replacement.id] } }
 
       expect(response).to have_http_status(:ok)
       expect(smart_playlist.reload.source_playlists).to contain_exactly(replacement)
@@ -383,7 +434,7 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       sources = smart_playlist.source_playlists.to_a
 
       patch "/api/v1/smart_playlists/#{smart_playlist.id}",
-            params: { smart_playlist: { source_playlist_ids: [replacement.id], is_enabled: true } }
+        params: { smart_playlist: { source_playlist_ids: [replacement.id], is_enabled: true } }
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(smart_playlist.reload.source_playlists).to match_array(sources)
@@ -402,7 +453,7 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       sources = smart_playlist.source_playlists.to_a
 
       patch "/api/v1/smart_playlists/#{smart_playlist.id}",
-            params: { smart_playlist: { source_playlist_ids: [create(:playlist).id] } }
+        params: { smart_playlist: { source_playlist_ids: [create(:playlist).id] } }
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(smart_playlist.reload.source_playlists).to match_array(sources)
@@ -412,7 +463,7 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       mine = create(:playlist, :with_spotify, user: user)
 
       patch "/api/v1/smart_playlists/#{smart_playlist.id}",
-            params: { smart_playlist: { source_playlist_ids: [mine.id, create(:playlist).id] } }
+        params: { smart_playlist: { source_playlist_ids: [mine.id, create(:playlist).id] } }
 
       expect(response).to have_http_status(:ok)
       expect(smart_playlist.reload.source_playlists).to contain_exactly(mine)
@@ -420,8 +471,10 @@ RSpec.describe "Api::V1::SmartPlaylists" do
 
     it "saves a rule that excludes another of the caller's playlists" do
       excluded = create(:playlist, :with_spotify, user: user)
-      rules = { "match" => "all",
-                "rules" => [{ "field" => "playlist", "operator" => "not_in", "value" => [excluded.id] }], }
+      rules = {
+        "match" => "all",
+        "rules" => [{ "field" => "playlist", "operator" => "not_in", "value" => [excluded.id] }],
+      }
 
       patch "/api/v1/smart_playlists/#{smart_playlist.id}", params: { smart_playlist: { rules: rules } }, as: :json
 
@@ -431,8 +484,10 @@ RSpec.describe "Api::V1::SmartPlaylists" do
 
     it "returns 422 for a playlist id that arrived as text rather than a number" do
       excluded = create(:playlist, :with_spotify, user: user)
-      rules = { "match" => "all",
-                "rules" => [{ "field" => "playlist", "operator" => "not_in", "value" => [excluded.id.to_s] }], }
+      rules = {
+        "match" => "all",
+        "rules" => [{ "field" => "playlist", "operator" => "not_in", "value" => [excluded.id.to_s] }],
+      }
 
       patch "/api/v1/smart_playlists/#{smart_playlist.id}", params: { smart_playlist: { rules: rules } }, as: :json
 
@@ -441,8 +496,10 @@ RSpec.describe "Api::V1::SmartPlaylists" do
     end
 
     it "returns 422 for a rule naming another user's playlist" do
-      rules = { "match" => "all",
-                "rules" => [{ "field" => "playlist", "operator" => "not_in", "value" => [create(:playlist).id] }], }
+      rules = {
+        "match" => "all",
+        "rules" => [{ "field" => "playlist", "operator" => "not_in", "value" => [create(:playlist).id] }],
+      }
       original = smart_playlist.rules
 
       patch "/api/v1/smart_playlists/#{smart_playlist.id}", params: { smart_playlist: { rules: rules } }, as: :json
@@ -466,26 +523,36 @@ RSpec.describe "Api::V1::SmartPlaylists" do
         "match" => "all",
         "rules" => [
           { "field" => "artist", "operator" => "in", "value" => %w[Gojira Meshuggah] },
-          { "field" => "date_added", "operator" => "in_the_last",
-            "value" => { "count" => 30, "unit" => "days" }, },
-          { "match" => "any", "not" => true,
-            "rules" => [{ "field" => "year", "operator" => "between", "value" => [2020, 2024] }], },
+          {
+            "field" => "date_added",
+            "operator" => "in_the_last",
+            "value" => { "count" => 30, "unit" => "days" },
+          },
+          {
+            "match" => "any",
+            "not" => true,
+            "rules" => [{ "field" => "year", "operator" => "between", "value" => [2020, 2024] }],
+          },
         ],
       }
 
       patch "/api/v1/smart_playlists/#{smart_playlist.id}",
-            params: { smart_playlist: { rules: rules } }, as: :json
+        params: { smart_playlist: { rules: rules } },
+        as: :json
 
       expect(response).to have_http_status(:ok)
       expect(smart_playlist.reload.rules).to eq(rules)
     end
 
     it "returns 422 for an operator the field does not support" do
-      rules = { "match" => "all",
-                "rules" => [{ "field" => "genre", "operator" => "greater_than", "value" => "rock" }], }
+      rules = {
+        "match" => "all",
+        "rules" => [{ "field" => "genre", "operator" => "greater_than", "value" => "rock" }],
+      }
 
       patch "/api/v1/smart_playlists/#{smart_playlist.id}",
-            params: { smart_playlist: { rules: rules } }, as: :json
+        params: { smart_playlist: { rules: rules } },
+        as: :json
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.parsed_body["errors"].pluck("message").join)
@@ -494,12 +561,16 @@ RSpec.describe "Api::V1::SmartPlaylists" do
 
     it "refuses to store keys outside the schema rather than round-tripping them" do
       original = smart_playlist.rules
-      rules = { "match" => "all", "rules" => [
-        { "field" => "genre", "operator" => "equals", "value" => "rock", "junk" => "x" * 500 },
-      ], }
+      rules = {
+        "match" => "all",
+        "rules" => [
+          { "field" => "genre", "operator" => "equals", "value" => "rock", "junk" => "x" * 500 },
+        ],
+      }
 
       patch "/api/v1/smart_playlists/#{smart_playlist.id}",
-            params: { smart_playlist: { rules: rules } }, as: :json
+        params: { smart_playlist: { rules: rules } },
+        as: :json
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.parsed_body["errors"].pluck("message").join)
@@ -509,8 +580,10 @@ RSpec.describe "Api::V1::SmartPlaylists" do
 
     it "returns 422 for an oversized rule set" do
       condition = { "field" => "genre", "operator" => "equals", "value" => "rock" }
-      rules = { "match" => "all",
-                "rules" => Array.new(Rules::FieldCatalog::MAX_NODES + 1) { condition }, }
+      rules = {
+        "match" => "all",
+        "rules" => Array.new(Rules::FieldCatalog::MAX_NODES + 1) { condition },
+      }
 
       patch "/api/v1/smart_playlists/#{smart_playlist.id}", params: { smart_playlist: { rules: rules } }
 
@@ -518,14 +591,17 @@ RSpec.describe "Api::V1::SmartPlaylists" do
     end
 
     it "returns 422 naming the rule that failed" do
-      rules = { "match" => "all",
-                "rules" => [
-                  { "field" => "genre", "operator" => "equals", "value" => "rock" },
-                  { "field" => "year", "operator" => "greater_than", "value" => "banana" },
-                ], }
+      rules = {
+        "match" => "all",
+        "rules" => [
+          { "field" => "genre", "operator" => "equals", "value" => "rock" },
+          { "field" => "year", "operator" => "greater_than", "value" => "banana" },
+        ],
+      }
 
       patch "/api/v1/smart_playlists/#{smart_playlist.id}",
-            params: { smart_playlist: { rules: rules } }, as: :json
+        params: { smart_playlist: { rules: rules } },
+        as: :json
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.parsed_body["errors"].pluck("message"))
@@ -533,14 +609,17 @@ RSpec.describe "Api::V1::SmartPlaylists" do
     end
 
     it "returns every failing rule, not just the first" do
-      rules = { "match" => "all",
-                "rules" => [
-                  { "field" => "year", "operator" => "greater_than", "value" => "banana" },
-                  { "field" => "popularity", "operator" => "equals", "value" => 500 },
-                ], }
+      rules = {
+        "match" => "all",
+        "rules" => [
+          { "field" => "year", "operator" => "greater_than", "value" => "banana" },
+          { "field" => "popularity", "operator" => "equals", "value" => 500 },
+        ],
+      }
 
       patch "/api/v1/smart_playlists/#{smart_playlist.id}",
-            params: { smart_playlist: { rules: rules } }, as: :json
+        params: { smart_playlist: { rules: rules } },
+        as: :json
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.parsed_body["errors"].pluck("message")).to contain_exactly(
@@ -557,14 +636,14 @@ RSpec.describe "Api::V1::SmartPlaylists" do
 
     it "returns 400 when source_playlist_ids is not a list of ids" do
       patch "/api/v1/smart_playlists/#{smart_playlist.id}",
-            params: { smart_playlist: { source_playlist_ids: { "0" => "1" } } }
+        params: { smart_playlist: { source_playlist_ids: { "0" => "1" } } }
 
       expect(response).to have_http_status(:bad_request)
     end
 
     it "returns 404 for another user's smart playlist" do
       patch "/api/v1/smart_playlists/#{create(:smart_playlist).id}",
-            params: { smart_playlist: { is_enabled: false } }
+        params: { smart_playlist: { is_enabled: false } }
 
       expect(response).to have_http_status(:not_found)
     end
@@ -605,22 +684,31 @@ RSpec.describe "Api::V1::SmartPlaylists" do
     let(:rock) { create(:track, :with_genres, genre_names: ["rock"], title: "Paranoid") }
     let(:source) { create(:playlist, :holding, user: user, tracks: [metal, rock]) }
     let(:metal_rules) do
-      { "match" => "all",
-        "rules" => [{ "field" => "genre", "operator" => "equals", "value" => "metal" }], }
+      {
+        "match" => "all",
+        "rules" => [{ "field" => "genre", "operator" => "equals", "value" => "metal" }],
+      }
     end
     let(:rock_rules) do
-      { "match" => "all",
-        "rules" => [{ "field" => "genre", "operator" => "equals", "value" => "rock" }], }
+      {
+        "match" => "all",
+        "rules" => [{ "field" => "genre", "operator" => "equals", "value" => "rock" }],
+      }
     end
     let(:smart_playlist) do
-      create(:smart_playlist, target_playlist: create(:playlist, :with_spotify, user: user),
-                              source_playlists: [source], rules: metal_rules,)
+      create(
+        :smart_playlist,
+        target_playlist: create(:playlist, :with_spotify, user: user),
+        source_playlists: [source],
+        rules: metal_rules,
+      )
     end
 
     def evaluate(id, rules: nil, query: "")
       if rules
         post "/api/v1/smart_playlists/#{id}/evaluate#{query}",
-             params: { smart_playlist: { rules: rules } }, as: :json
+          params: { smart_playlist: { rules: rules } },
+          as: :json
       else
         post "/api/v1/smart_playlists/#{id}/evaluate#{query}"
       end
@@ -683,8 +771,11 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       end
 
       it "returns the whole pool for an empty rule set, and records nothing" do
-        draft = create(:smart_playlist, source_playlists: [source],
-                                        target_playlist: create(:playlist, :with_spotify, user: user),)
+        draft = create(
+          :smart_playlist,
+          source_playlists: [source],
+          target_playlist: create(:playlist, :with_spotify, user: user),
+        )
 
         evaluate(draft.id)
 
@@ -705,9 +796,15 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       end
 
       it "rejects an invalid draft with the validator's located message" do
-        draft = { "match" => "all",
-                  "rules" => [{ "match" => "all",
-                                "rules" => [{ "field" => "nope", "operator" => "equals", "value" => "x" }], }], }
+        draft = {
+          "match" => "all",
+          "rules" => [
+            {
+              "match" => "all",
+              "rules" => [{ "field" => "nope", "operator" => "equals", "value" => "x" }],
+            },
+          ],
+        }
 
         evaluate(smart_playlist.id, rules: draft)
 
@@ -717,9 +814,16 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       end
 
       it "refuses to preview a draft naming another user's playlist" do
-        draft = { "match" => "all",
-                  "rules" => [{ "field" => "playlist", "operator" => "not_in",
-                                "value" => [create(:playlist).id], }], }
+        draft = {
+          "match" => "all",
+          "rules" => [
+            {
+              "field" => "playlist",
+              "operator" => "not_in",
+              "value" => [create(:playlist).id],
+            },
+          ],
+        }
 
         evaluate(smart_playlist.id, rules: draft)
 
@@ -729,8 +833,10 @@ RSpec.describe "Api::V1::SmartPlaylists" do
 
       it "previews a draft that excludes one of the caller's own playlists" do
         excluded = create(:playlist, :holding, user: user, tracks: [metal])
-        draft = { "match" => "all",
-                  "rules" => [{ "field" => "playlist", "operator" => "not_in", "value" => [excluded.id] }], }
+        draft = {
+          "match" => "all",
+          "rules" => [{ "field" => "playlist", "operator" => "not_in", "value" => [excluded.id] }],
+        }
 
         evaluate(smart_playlist.id, rules: draft)
 
@@ -741,12 +847,22 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       it "paginates, newest-added first" do
         older = create(:track, title: "Older")
         newer = create(:track, title: "Newer")
-        paged = create(:smart_playlist,
-                       target_playlist: create(:playlist, :with_spotify, user: user),
-                       source_playlists: [create(:playlist, :holding, user: user,
-                                                                      memberships: [[older, 10.days.ago],
-                                                                                    [newer, 1.day.ago],],)],
-                       rules: SmartPlaylist::EMPTY_RULES.deep_dup,)
+        paged = create(
+          :smart_playlist,
+          target_playlist: create(:playlist, :with_spotify, user: user),
+          source_playlists: [
+            create(
+              :playlist,
+              :holding,
+              user: user,
+              memberships: [
+                [older, 10.days.ago],
+                [newer, 1.day.ago],
+              ],
+            ),
+          ],
+          rules: SmartPlaylist::EMPTY_RULES.deep_dup,
+        )
 
         evaluate(paged.id, query: "?per_page=1")
 
@@ -755,12 +871,16 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       end
 
       it "records on the first page only, so paging does not rewrite the count" do
-        both_genres = { "match" => "all",
-                        "rules" => [{ "field" => "genre", "operator" => "in", "value" => %w[metal rock] }], }
-        paged = create(:smart_playlist,
-                       target_playlist: create(:playlist, :with_spotify, user: user),
-                       source_playlists: [create(:playlist, :holding, user: user, tracks: [metal, rock])],
-                       rules: both_genres,)
+        both_genres = {
+          "match" => "all",
+          "rules" => [{ "field" => "genre", "operator" => "in", "value" => %w[metal rock] }],
+        }
+        paged = create(
+          :smart_playlist,
+          target_playlist: create(:playlist, :with_spotify, user: user),
+          source_playlists: [create(:playlist, :holding, user: user, tracks: [metal, rock])],
+          rules: both_genres,
+        )
 
         evaluate(paged.id, query: "?per_page=1&page=2")
 
@@ -968,10 +1088,20 @@ RSpec.describe "Api::V1::SmartPlaylists" do
       end
 
       it "carries the progress and diff counts the banner renders" do
-        session = create(:push_session, :with_batches, remove_batches: 1, add_batches: 1,
-                                                       completed_remove_batches: 1, tracks_added: 7, tracks_removed: 2,
-                                                       smart_playlist: create(:smart_playlist, :with_rules,
-                                                                              user: user,),)
+        session = create(
+          :push_session,
+          :with_batches,
+          remove_batches: 1,
+          add_batches: 1,
+          completed_remove_batches: 1,
+          tracks_added: 7,
+          tracks_removed: 2,
+          smart_playlist: create(
+            :smart_playlist,
+            :with_rules,
+            user: user,
+          ),
+        )
 
         get "/api/v1/smart_playlists/push_status"
 

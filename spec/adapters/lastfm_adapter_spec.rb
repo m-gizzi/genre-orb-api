@@ -16,8 +16,13 @@ RSpec.describe LastfmAdapter do
   end
 
   def top_tags(tags, artist: "Gojira")
-    { "toptags" => { "tag" => tags, "@attr" => { "artist" => artist },
-                     "url" => "https://www.last.fm/music/#{artist}", } }
+    {
+      "toptags" => {
+        "tag" => tags,
+        "@attr" => { "artist" => artist },
+        "url" => "https://www.last.fm/music/#{artist}",
+      },
+    }
   end
 
   describe "#artist_top_tags" do
@@ -39,9 +44,15 @@ RSpec.describe LastfmAdapter do
     end
 
     it "scales the 0..100 tag count onto confidence" do
-      stub_lastfm(query: { artist: "Gojira", autocorrect: "1" },
-                  body: top_tags([{ "name" => "Death Metal", "count" => 97 },
-                                  { "name" => "progressive metal", "count" => 40 },]),)
+      stub_lastfm(
+        query: { artist: "Gojira", autocorrect: "1" },
+        body: top_tags(
+          [
+            { "name" => "Death Metal", "count" => 97 },
+            { "name" => "progressive metal", "count" => 40 },
+          ],
+        ),
+      )
 
       expect(adapter.artist_top_tags(name: "Gojira").genres).to eq(
         [{ name: "Death Metal", confidence: 0.97 }, { name: "progressive metal", confidence: 0.4 }],
@@ -69,8 +80,10 @@ RSpec.describe LastfmAdapter do
 
     # Last.fm collapses a one-element list into a bare object.
     it "handles a single tag returned as an object rather than a list" do
-      stub_lastfm(query: { artist: "Gojira", autocorrect: "1" },
-                  body: top_tags({ "name" => "metal", "count" => 50 }),)
+      stub_lastfm(
+        query: { artist: "Gojira", autocorrect: "1" },
+        body: top_tags({ "name" => "metal", "count" => 50 }),
+      )
 
       expect(adapter.artist_top_tags(name: "Gojira").genres).to eq([{ name: "metal", confidence: 0.5 }])
     end
@@ -88,8 +101,10 @@ RSpec.describe LastfmAdapter do
     end
 
     it "skips a nameless tag" do
-      stub_lastfm(query: { artist: "Gojira", autocorrect: "1" },
-                  body: top_tags([{ "name" => "", "count" => 90 }]),)
+      stub_lastfm(
+        query: { artist: "Gojira", autocorrect: "1" },
+        body: top_tags([{ "name" => "", "count" => 90 }]),
+      )
 
       expect(adapter.artist_top_tags(name: "Gojira").genres).to be_empty
     end
@@ -99,29 +114,37 @@ RSpec.describe LastfmAdapter do
   # the status line alone says nothing.
   describe "errors carried in a 200 body" do
     it "maps error 6 to NotFoundError" do
-      stub_lastfm(query: { artist: "Nobody", autocorrect: "1" },
-                  body: { "error" => 6, "message" => "The artist you supplied could not be found" },)
+      stub_lastfm(
+        query: { artist: "Nobody", autocorrect: "1" },
+        body: { "error" => 6, "message" => "The artist you supplied could not be found" },
+      )
 
       expect { adapter.artist_top_tags(name: "Nobody") }.to raise_error(Lastfm::NotFoundError, /error 6/)
     end
 
     it "maps error 29 to RateLimitError" do
-      stub_lastfm(query: { artist: "Gojira", autocorrect: "1" },
-                  body: { "error" => 29, "message" => "Rate limit exceeded" },)
+      stub_lastfm(
+        query: { artist: "Gojira", autocorrect: "1" },
+        body: { "error" => 29, "message" => "Rate limit exceeded" },
+      )
 
       expect { adapter.artist_top_tags(name: "Gojira") }.to raise_error(Lastfm::RateLimitError)
     end
 
     it "maps an invalid api key to ConfigurationError, which is not a row failure" do
-      stub_lastfm(query: { artist: "Gojira", autocorrect: "1" },
-                  body: { "error" => 10, "message" => "Invalid API key" },)
+      stub_lastfm(
+        query: { artist: "Gojira", autocorrect: "1" },
+        body: { "error" => 10, "message" => "Invalid API key" },
+      )
 
       expect { adapter.artist_top_tags(name: "Gojira") }.to raise_error(Lastfm::ConfigurationError)
     end
 
     it "maps an unrecognised error number to ApiError" do
-      stub_lastfm(query: { artist: "Gojira", autocorrect: "1" },
-                  body: { "error" => 8, "message" => "Operation failed" },)
+      stub_lastfm(
+        query: { artist: "Gojira", autocorrect: "1" },
+        body: { "error" => 8, "message" => "Operation failed" },
+      )
 
       expect { adapter.artist_top_tags(name: "Gojira") }.to raise_error(Lastfm::ApiError, /error 8/)
     end

@@ -48,8 +48,14 @@ RSpec.describe PushSession do
 
   describe "#progress" do
     it "sums both phases" do
-      session = create(:push_session, :with_batches, remove_batches: 2, add_batches: 3,
-                                                     completed_remove_batches: 2, completed_add_batches: 1,)
+      session = create(
+        :push_session,
+        :with_batches,
+        remove_batches: 2,
+        add_batches: 3,
+        completed_remove_batches: 2,
+        completed_add_batches: 1,
+      )
 
       expect(session.progress).to eq(total: 5, completed: 3, percent: 60)
     end

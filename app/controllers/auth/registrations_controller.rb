@@ -16,7 +16,7 @@ module Auth
 
     def render_errors(resource)
       render json: { error: "Sign up failed", errors: resource.errors.full_messages },
-             status: :unprocessable_content
+        status: :unprocessable_content
     end
 
     def user_data(user)

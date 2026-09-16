@@ -15,8 +15,12 @@ RSpec.describe Spotify::PlaylistMetadataFetcher do
   describe "#call" do
     let(:spotify_playlists) do
       [
-        { "id" => "playlist_1", "name" => "My Playlist", "description" => "From Spotify",
-          "snapshot_id" => "snap1", },
+        {
+          "id" => "playlist_1",
+          "name" => "My Playlist",
+          "description" => "From Spotify",
+          "snapshot_id" => "snap1",
+        },
         { "id" => "playlist_2", "name" => "Another", "description" => "", "snapshot_id" => "snap2" },
       ]
     end

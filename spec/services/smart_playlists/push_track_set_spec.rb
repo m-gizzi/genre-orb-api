@@ -40,18 +40,33 @@ RSpec.describe SmartPlaylists::PushTrackSet do
       track = create(:track)
       first = create(:playlist, :holding, user: user, tracks: [track])
       second = create(:playlist, :holding, user: user, tracks: [track])
-      smart_playlist = create(:smart_playlist, target_playlist: target, rules: any_rules,
-                                               source_playlists: [first, second],)
+      smart_playlist = create(
+        :smart_playlist,
+        target_playlist: target,
+        rules: any_rules,
+        source_playlists: [first, second],
+      )
 
       expect(track_set(smart_playlist).entries.map(&:track_id)).to eq([track.id])
     end
 
     it "is empty when the rules match nothing" do
       source = create(:playlist, :holding, user: user, tracks: [create(:track)])
-      smart_playlist = create(:smart_playlist, target_playlist: target, source_playlists: [source],
-                                               rules: { "match" => "all",
-                                                        "rules" => [{ "field" => "title", "operator" => "equals",
-                                                                      "value" => "nope", }], },)
+      smart_playlist = create(
+        :smart_playlist,
+        target_playlist: target,
+        source_playlists: [source],
+        rules: {
+          "match" => "all",
+          "rules" => [
+            {
+              "field" => "title",
+              "operator" => "equals",
+              "value" => "nope",
+            },
+          ],
+        },
+      )
 
       expect(track_set(smart_playlist).entries).to be_empty
     end

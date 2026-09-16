@@ -5,9 +5,9 @@ class Playlist < ApplicationRecord
 
   belongs_to :user, inverse_of: :playlists
   belongs_to :current_version,
-             class_name: "PlaylistVersion",
-             optional: true,
-             inverse_of: :playlist_as_current
+    class_name: "PlaylistVersion",
+    optional: true,
+    inverse_of: :playlist_as_current
 
   before_destroy :clear_current_version
 
@@ -20,10 +20,10 @@ class Playlist < ApplicationRecord
   has_many :smart_playlists, through: :smart_playlist_sources
 
   has_one :smart_playlist_as_target,
-          class_name: "SmartPlaylist",
-          foreign_key: :target_playlist_id,
-          dependent: :destroy,
-          inverse_of: :target_playlist
+    class_name: "SmartPlaylist",
+    foreign_key: :target_playlist_id,
+    dependent: :destroy,
+    inverse_of: :target_playlist
 
   validates :name, presence: true
   validates :description, length: { maximum: SPOTIFY_DESCRIPTION_LIMIT }, allow_nil: true
