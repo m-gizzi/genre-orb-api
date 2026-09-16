@@ -75,12 +75,16 @@ RSpec.describe Rules::ConditionCompiler do
     end
 
     it "names each track once however many rows it has" do
+      # An addition puts a DISTINCT of its own inside the effective-genre union, so
+      # the assertion below names the dedup this guards rather than any dedup at all.
+      create(:artist_genre_override, :added, user: user)
+
       sql = compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }).to_sql
 
       # Correlating to the track under test is what makes this once-per-track;
       # the id-set form needed a DISTINCT to collapse the duplicates instead.
       expect(sql).to include(%("track_genres"."track_id" = "tracks"."id"))
-      expect(sql).not_to include("DISTINCT")
+      expect(sql).not_to include(%(DISTINCT "track_genres"."track_id"))
     end
 
     it "does not reach the named entity it has no value to compare against" do
@@ -102,10 +106,25 @@ RSpec.describe Rules::ConditionCompiler do
       expect(negative).to eq("NOT (#{positive})")
     end
 
-    it "keeps the id-set form for a field rooted at tracks itself" do
-      sql = compiler.call({ "field" => "title", "operator" => "is_set", "value" => nil }).to_sql
+    # A source rooted at `tracks` would correlate a row to itself, and
+    # `tracks.id = tracks.id` holds for every track — is_set matching everything
+    # and is_not_set nothing, with nothing in the SQL to look wrong. No field the
+    # catalog declares can reach this, so the point is that adding one cannot.
+    it "refuses to compile a presence check against a source rooted at tracks itself" do
+      rooted_at_tracks = { scope: ->(_genres) { Track.all }, presence: ->(_genres) { Track.all },
+                           column: -> { Track.arel_table[:title] }, id: :id, }
+      stub_const("#{described_class}::SOURCES", described_class::SOURCES.merge("genre" => rooted_at_tracks))
 
-      expect(sql).to start_with('"tracks"."id" IN')
+      expect { compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }) }
+        .to raise_error(ArgumentError, /no correlatable source/)
+    end
+
+    it "refuses to compile a presence check against a source with no presence relation" do
+      stub_const("#{described_class}::SOURCES",
+                 described_class::SOURCES.merge("genre" => described_class::SOURCES["album"]),)
+
+      expect { compiler.call({ "field" => "genre", "operator" => "is_set", "value" => nil }) }
+        .to raise_error(ArgumentError, /no correlatable source/)
     end
 
     it "keeps the id-set form for a value comparison, which is selective enough to join once" do

@@ -16,8 +16,10 @@ module Rules
     #   scope    — a relation with one row per (track, candidate value)
     #   column   — the attribute the predicate compares
     #   id       — the column naming the track within `scope`
-    #   presence — `scope` without the join a value comparison needs, for the
-    #              fields whose vocabulary offers is_set / is_not_set
+    #   presence — `scope` without the join a value comparison needs. Required
+    #              for every field whose vocabulary offers is_set / is_not_set,
+    #              and reached through a foreign key rather than `tracks.id` —
+    #              see #correlatable!
     SOURCES = {
       "genre" => { scope: ->(genres) { genres.tracks.joins(:genre) },
                    presence: ->(genres) { genres.tracks },
@@ -57,10 +59,9 @@ module Rules
 
     def call(node)
       condition = Condition.new(node)
-      source = SOURCES[condition.field]
-      return id_set(condition) unless condition.presence_check? && source&.key?(:presence)
+      return id_set(condition) unless condition.presence_check?
 
-      present = exists(source)
+      present = exists(condition.field)
       condition.negated? ? Arel::Nodes::Not.new(present) : present
     end
 
@@ -82,11 +83,10 @@ module Rules
     # case: its id set is small and selective, and one hash semi-join beats a probe
     # per candidate track, so those keep the id-set form.
     #
-    # Only the `presence:` relations can be correlated at all — the fields without
-    # one are scoped to `tracks` itself, where this would compare a row to itself.
-    # Correlating also supplies the bound `present_rows` takes from
-    # `candidate_track_ids`, so that narrowing is not repeated here.
-    def exists(source)
+    # Correlating is also the bound the pool used to supply, so no narrowing to
+    # the evaluator's candidate tracks is repeated here.
+    def exists(field)
+      source = correlatable!(field)
       rows = source.fetch(:presence).call(genres)
       correlated = rows.where(rows.klass.arel_table[source[:id]].eq(Track.arel_table[:id]))
                        .select("1")
@@ -94,30 +94,27 @@ module Rules
       Arel::Nodes::Exists.new(correlated.arel)
     end
 
+    # Only a source rooted outside `tracks` can be correlated. One rooted at
+    # `tracks` itself would compare a row to itself: `EXISTS (SELECT 1 FROM tracks
+    # WHERE tracks.id = tracks.id)` is true for every track, so is_set would match
+    # everything and is_not_set nothing, with no symptom to notice. Giving a field
+    # presence operators therefore means giving its source a `presence:` relation
+    # reached through a foreign key — and this refuses to compile rather than
+    # answer wrongly if that pairing is ever broken.
+    def correlatable!(field)
+      source = SOURCES.fetch(field)
+      return source if source[:presence] && source[:id] != :id
+
+      raise ArgumentError, "#{field} has presence operators but no correlatable source"
+    end
+
     def track_ids(condition)
       return date_added_ids(condition) if condition.field == DATE_ADDED
 
       source = SOURCES.fetch(condition.field)
-      matching(source, condition).distinct.select(source[:id])
-    end
-
-    def matching(source, condition)
-      return present_rows(source) if condition.presence_check?
-
-      source[:scope].call(genres).where(Predicates.call(condition, source[:column].call))
-    end
-
-    # A presence check compares nothing, so it needs neither the join reaching
-    # the named entity nor the whole table behind it. Narrowing to the pool the
-    # evaluator already bounds the outer query to cannot change the answer, and
-    # keeps an unfiltered `NOT IN` off every other user's rows.
-    def present_rows(source)
-      source.fetch(:presence, source[:scope]).call(genres)
-            .where(source[:id] => candidate_track_ids)
-    end
-
-    def candidate_track_ids
-      memberships.reselect(PlaylistVersionTrack.arel_table[:track_id])
+      source[:scope].call(genres)
+                    .where(Predicates.call(condition, source[:column].call))
+                    .distinct.select(source[:id])
     end
 
     # date_added is the one field that is not a track attribute — `added_at`

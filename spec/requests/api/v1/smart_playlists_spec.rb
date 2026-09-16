@@ -810,6 +810,29 @@ RSpec.describe "Api::V1::SmartPlaylists" do
         )
       end
 
+      # The genre load is the effective-genre UNION, which overrides can make slow.
+      # Run after the guard returns it would be past COMMIT, where the statement
+      # timeout no longer applies — so it would hang rather than render the 422.
+      it "loads genres inside the guard, while the statement timeout still applies" do
+        events = []
+        allow(Genres::Loader).to receive(:new).and_wrap_original do |build, *args|
+          build.call(*args).tap do |loader|
+            allow(loader).to receive(:for_tracks).and_wrap_original do |load, *tracks|
+              events << :genres
+              load.call(*tracks)
+            end
+          end
+        end
+        allow(SmartPlaylists::QueryTimeout).to receive(:guard).and_wrap_original do |guard, *args, &block|
+          guard.call(*args, &block).tap { events << :guard_returned }
+        end
+
+        evaluate(smart_playlist.id)
+
+        expect(response).to have_http_status(:ok)
+        expect(events).to eq(%i[genres guard_returned])
+      end
+
       it "does not dress a timeout in another action up as an evaluation timeout" do
         allow(SmartPlaylists::Filter).to receive(:new).and_raise(ActiveRecord::QueryCanceled)
 
