@@ -17,6 +17,8 @@ class SyncSessionPlaylist < ApplicationRecord
       skipped: 4,
     }
 
+  scope :active, -> { where(status: %i[pending fetching_pages]) }
+
   enum :skip_reason,
     {
       snapshot_unchanged: 0,

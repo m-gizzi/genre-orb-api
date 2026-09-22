@@ -84,6 +84,7 @@ Metrics/BlockLength:
     - "spec/**/*"
     - "config/routes.rb"
     - "config/environments/*.rb"
+    - "config/initializers/*.rb"
 
 Metrics/MethodLength:
   Max: 15
