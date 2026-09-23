@@ -20,6 +20,7 @@ module PlaylistVersions
         SELECT v.id,
                v.playlist_id,
                v.created_at,
+               v.track_count,
                ROW_NUMBER() OVER (
                  PARTITION BY v.playlist_id
                  ORDER BY v.version_number DESC
@@ -27,7 +28,7 @@ module PlaylistVersions
         FROM playlist_versions v
         WHERE v.playlist_id IN (?)
       )
-      SELECT ranked.id
+      SELECT ranked.id, ranked.track_count
       FROM ranked
       INNER JOIN playlists ON playlists.id = ranked.playlist_id
       WHERE ranked.rn > ?
@@ -45,7 +46,7 @@ module PlaylistVersions
     def call
       return [] if playlist_ids.empty?
 
-      PlaylistVersion.connection.select_values(statement)
+      PlaylistVersion.connection.select_rows(statement)
     end
 
     private

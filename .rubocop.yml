@@ -84,7 +84,7 @@ Metrics/BlockLength:
     - "spec/**/*"
     - "config/routes.rb"
     - "config/environments/*.rb"
-    - "config/initializers/*.rb"
+    - "config/initializers/sidekiq_cron.rb"
 
 Metrics/MethodLength:
   Max: 15

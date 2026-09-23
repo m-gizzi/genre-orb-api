@@ -5,12 +5,22 @@ require "rails_helper"
 RSpec.describe PlaylistVersions::PruneCandidates do
   let(:playlist) { create(:playlist) }
 
-  def version(number, on: playlist, created_at: 1.day.ago)
-    create(:playlist_version, playlist: on, version_number: number, created_at: created_at)
+  def version(number, on: playlist, created_at: 1.day.ago, track_count: 0)
+    create(
+      :playlist_version,
+      playlist: on,
+      version_number: number,
+      created_at: created_at,
+      track_count: track_count,
+    )
   end
 
-  def candidates(ids = [playlist.id], keep: 3, before: 1.hour.ago)
+  def pairs(ids = [playlist.id], keep: 3, before: 1.hour.ago)
     described_class.new(ids, keep: keep, before: before).call
+  end
+
+  def candidates(...)
+    pairs(...).map(&:first)
   end
 
   it "returns the versions ranked past the retention window" do
@@ -82,5 +92,12 @@ RSpec.describe PlaylistVersions::PruneCandidates do
     (1..5).each { |n| version(n) }
 
     expect(candidates([])).to be_empty
+  end
+
+  it "returns each candidate's track count so batches can be sized by rows" do
+    stale = version(1, track_count: 9_001)
+    (2..4).each { |n| version(n) }
+
+    expect(pairs).to contain_exactly([stale.id, 9_001])
   end
 end

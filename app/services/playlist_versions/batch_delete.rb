@@ -17,15 +17,23 @@ module PlaylistVersions
       FOR UPDATE SKIP LOCKED
     SQL
 
-    CONFLICTS = [ActiveRecord::InvalidForeignKey, ActiveRecord::LockWaitTimeout].freeze
+    LOCK_TIMEOUT_MS = 5_000
+    STATEMENT_TIMEOUT_MS = 30_000
 
-    Result = Struct.new(:versions, :tracks, :conflicted, keyword_init: true) do
-      def self.none
-        new(versions: 0, tracks: 0, conflicted: false)
+    CONFLICTS = [
+      ActiveRecord::InvalidForeignKey,
+      ActiveRecord::LockWaitTimeout,
+      ActiveRecord::Deadlocked,
+      ActiveRecord::QueryCanceled,
+    ].freeze
+
+    Result = Struct.new(:versions, :tracks, :conflicted, :contended, keyword_init: true) do
+      def self.none(contended: 0)
+        new(versions: 0, tracks: 0, conflicted: false, contended: contended)
       end
 
       def self.conflict
-        new(versions: 0, tracks: 0, conflicted: true)
+        new(versions: 0, tracks: 0, conflicted: true, contended: 0)
       end
     end
 
@@ -45,31 +53,34 @@ module PlaylistVersions
     attr_reader :ids
 
     def purge
-      PlaylistVersion.connection.execute(lock_timeout)
-      doomed = survivors
-      return Result.none if doomed.empty?
+      SqlTimeout.apply(statement: STATEMENT_TIMEOUT_MS, lock: LOCK_TIMEOUT_MS)
+      locked = locked_ids
+      contended = ids.size - locked.size
+      doomed = survivors(locked)
+      return Result.none(contended: contended) if doomed.empty?
 
       SessionReferences.release(doomed)
       tracks = PlaylistVersionTrack.where(playlist_version_id: doomed).delete_all
-      Result.new(versions: PlaylistVersion.where(id: doomed).delete_all, tracks: tracks, conflicted: false)
+      Result.new(
+        versions: PlaylistVersion.where(id: doomed).delete_all,
+        tracks: tracks,
+        conflicted: false,
+        contended: contended,
+      )
     end
 
-    def survivors
-      locked = locked_ids
+    def survivors(locked)
       return locked if locked.empty?
 
-      locked - (Playlist.where(current_version_id: locked).pluck(:current_version_id) +
-        SessionReferences.pinned_among(locked))
+      pinned = SessionReferences.pinned_among(locked)
+      current = Playlist.where(current_version_id: locked).pluck(:current_version_id).to_set
+      locked.reject { |id| pinned.include?(id) || current.include?(id) }
     end
 
     def locked_ids
       PlaylistVersion.connection.select_values(
         ActiveRecord::Base.sanitize_sql_array([LOCK_CANDIDATES, ids]),
       )
-    end
-
-    def lock_timeout
-      ActiveRecord::Base.sanitize_sql_array(["SET LOCAL lock_timeout = ?", "5s"])
     end
   end
 end

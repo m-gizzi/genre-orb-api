@@ -4,16 +4,18 @@ module PlaylistVersions
   class Pruner
     VERSIONS_KEPT = 3
     PLAYLIST_CHUNK = 200
-    VERSION_BATCH = 200
+    TRACK_BUDGET = 20_000
+    VERSION_BATCH = 25
     DEFAULT_BUDGET = 120.seconds
 
     GRACE = 1.hour
 
     Result = Struct.new(
-      :playlists,
+      :scanned,
       :versions,
       :tracks,
       :pinned,
+      :contended,
       :conflicts,
       :exhausted,
       :skipped,
@@ -22,15 +24,15 @@ module PlaylistVersions
       def to_s
         return "skipped=true" if skipped
 
-        "playlists=#{playlists} versions=#{versions} tracks=#{tracks} " \
-          "pinned=#{pinned} conflicts=#{conflicts} exhausted=#{exhausted}"
+        "scanned=#{scanned} versions=#{versions} tracks=#{tracks} pinned=#{pinned} " \
+          "contended=#{contended} conflicts=#{conflicts} exhausted=#{exhausted}"
       end
     end
 
     def initialize(deadline: DEFAULT_BUDGET.from_now, keep: VERSIONS_KEPT)
       @deadline = deadline
       @keep = keep
-      @tally = { playlists: 0, versions: 0, tracks: 0, pinned: 0, conflicts: 0 }
+      @tally = { scanned: 0, versions: 0, tracks: 0, pinned: 0, contended: 0, conflicts: 0 }
     end
 
     def call
@@ -45,17 +47,22 @@ module PlaylistVersions
     attr_reader :deadline, :keep, :tally
 
     def sweep
-      cursor = 0
+      cursor = SweepCursor.read
 
       loop do
         playlist_ids = next_playlist_ids(cursor)
-        return false if playlist_ids.empty?
+        if playlist_ids.empty?
+          SweepCursor.clear
+          return false
+        end
+        if past_deadline?
+          SweepCursor.write(cursor)
+          return true
+        end
 
         cursor = playlist_ids.last
-        tally[:playlists] += playlist_ids.size
+        tally[:scanned] += playlist_ids.size
         prune(playlist_ids)
-
-        return true if past_deadline?
       end
     end
 
@@ -65,7 +72,7 @@ module PlaylistVersions
 
     def prune(playlist_ids)
       candidates = PruneCandidates.new(playlist_ids, keep: keep, before: GRACE.ago).call
-      unpinned(candidates).each_slice(VERSION_BATCH) do |ids|
+      batches(unpinned(candidates)).each do |ids|
         break if past_deadline?
 
         delete_batch(ids)
@@ -74,20 +81,37 @@ module PlaylistVersions
 
     # Subtracted in Ruby rather than joined in SQL: as a NOT IN it would match nothing the
     # moment a nullable baseline_version_id put a NULL in the set, and as correlated NOT
-    # EXISTS clauses it would be four extra subplans per chunk. The set is small — a
-    # partial unique index caps active pushes at one per smart playlist. BatchDelete
-    # checks again under the lock; this only stops pinned ids wasting batch slots.
+    # EXISTS clauses it would be four extra subplans per chunk. BatchDelete checks again
+    # under the lock; this only stops pinned ids wasting batch slots.
     def unpinned(candidates)
-      pinned = SessionReferences.pinned_ids
-      kept, dropped = candidates.partition { |id| pinned.exclude?(id) }
+      pinned = SessionReferences.pinned_among(candidates.map(&:first))
+      kept, dropped = candidates.partition { |id, _track_count| pinned.exclude?(id) }
       tally[:pinned] += dropped.size
       kept
+    end
+
+    # Packs `[id, track_count]` pairs into batches bounded by the rows they will actually
+    # delete. A version whose own track count already exceeds the budget still gets a
+    # batch — a lone oversized version has to go through somehow, and BatchDelete's
+    # statement timeout is what bounds it from there.
+    def batches(candidates)
+      packed = candidates.each_with_object([]) do |(id, track_count), acc|
+        acc << { ids: [], rows: 0 } if acc.empty? || full?(acc.last, track_count)
+        acc.last[:ids] << id
+        acc.last[:rows] += track_count
+      end
+      packed.pluck(:ids)
+    end
+
+    def full?(batch, track_count)
+      batch[:ids].size >= VERSION_BATCH || batch[:rows] + track_count > TRACK_BUDGET
     end
 
     def delete_batch(ids)
       outcome = BatchDelete.new(ids).call
       tally[:versions] += outcome.versions
       tally[:tracks] += outcome.tracks
+      tally[:contended] += outcome.contended
       tally[:conflicts] += 1 if outcome.conflicted
     end
 

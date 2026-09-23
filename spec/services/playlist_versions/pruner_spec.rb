@@ -5,12 +5,15 @@ require "rails_helper"
 RSpec.describe PlaylistVersions::Pruner do
   let(:playlist) { create(:playlist) }
 
+  # track_count mirrors the rows, the way a finalized version's does in production — the
+  # pruner sizes its batches off the column rather than counting rows itself.
   def version(number, on: playlist, tracks: 0)
     create(
       :playlist_version,
       playlist: on,
       version_number: number,
       created_at: 1.day.ago,
+      track_count: tracks,
     ).tap do |built|
       tracks.times { |i| create(:playlist_version_track, playlist_version: built, position: i) }
     end
@@ -202,6 +205,116 @@ RSpec.describe PlaylistVersions::Pruner do
       prune(deadline: 1.second.ago)
 
       expect(prune.versions).to eq(1)
+    end
+
+    it "does not call itself exhausted when it ran out of playlists rather than time" do
+      with_stale_version
+
+      expect(prune.exhausted).to be(false)
+    end
+
+    it "counts the playlists it scanned, not the ones it pruned" do
+      with_stale_version
+      create(:playlist)
+
+      expect(prune.scanned).to eq(2)
+    end
+  end
+
+  describe "resuming where the last run stopped" do
+    let(:store) { {} }
+    let(:redis) { instance_double(RedisClient) }
+
+    before do
+      allow(redis).to receive(:call) do |command, key, value, *|
+        case command
+        when "GET" then store[key]
+        when "SET" then store[key] = value.to_s
+        when "DEL" then store.delete(key)
+        end
+      end
+      stub_app_redis(redis)
+    end
+
+    it "keeps its place rather than resetting it when it stops short" do
+      with_stale_version
+      create(:playlist)
+      PlaylistVersions::SweepCursor.write(playlist.id)
+
+      prune(deadline: 1.second.ago)
+
+      expect(PlaylistVersions::SweepCursor.read).to eq(playlist.id)
+    end
+
+    it "skips playlists at or below a cursor a previous run left behind" do
+      stale = with_stale_version
+      PlaylistVersions::SweepCursor.write(playlist.id)
+
+      prune
+
+      expect(PlaylistVersion.exists?(stale.id)).to be(true)
+    end
+
+    it "clears the cursor once a sweep reaches the end" do
+      with_stale_version
+      PlaylistVersions::SweepCursor.write(playlist.id)
+
+      prune
+
+      expect(PlaylistVersions::SweepCursor.read).to eq(0)
+    end
+
+    it "prunes the skipped playlist on the run after the cursor clears" do
+      stale = with_stale_version
+      PlaylistVersions::SweepCursor.write(playlist.id)
+
+      prune
+      prune
+
+      expect(PlaylistVersion.exists?(stale.id)).to be(false)
+    end
+  end
+
+  describe "sizing a batch by the rows it will delete" do
+    it "splits versions whose combined tracks exceed the budget" do
+      stub_const("#{described_class}::TRACK_BUDGET", 4)
+      first = version(1, tracks: 3)
+      second = version(2, tracks: 3)
+      (3..5).each { |n| version(n) }
+
+      expect { prune }.to change(PlaylistVersion, :count).by(-2)
+      expect(PlaylistVersion.where(id: [first.id, second.id])).to be_empty
+    end
+
+    it "sends each oversized version through on its own" do
+      stub_const("#{described_class}::TRACK_BUDGET", 1)
+      batched = []
+      allow(PlaylistVersions::BatchDelete).to receive(:new).and_wrap_original do |original, ids|
+        batched << ids
+        original.call(ids)
+      end
+      version(1, tracks: 3)
+      version(2, tracks: 3)
+      (3..5).each { |n| version(n) }
+
+      prune
+
+      expect(batched.map(&:size)).to eq([1, 1])
+    end
+
+    it "keeps small versions together up to the version cap" do
+      stub_const("#{described_class}::VERSION_BATCH", 2)
+      batched = []
+      allow(PlaylistVersions::BatchDelete).to receive(:new).and_wrap_original do |original, ids|
+        batched << ids
+        original.call(ids)
+      end
+      (1..3).each { |n| version(n) }
+      (4..6).each { |n| version(n) }
+
+      prune
+
+      expect(batched.map(&:size)).to eq([2, 1])
     end
   end
 
