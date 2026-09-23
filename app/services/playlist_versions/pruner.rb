@@ -4,8 +4,6 @@ module PlaylistVersions
   class Pruner
     VERSIONS_KEPT = 3
     PLAYLIST_CHUNK = 200
-    TRACK_BUDGET = 20_000
-    VERSION_BATCH = 25
     DEFAULT_BUDGET = 120.seconds
 
     GRACE = 1.hour
@@ -72,7 +70,7 @@ module PlaylistVersions
 
     def prune(playlist_ids)
       candidates = PruneCandidates.new(playlist_ids, keep: keep, before: GRACE.ago).call
-      batches(unpinned(candidates)).each do |ids|
+      BatchPlan.new(unpinned(candidates)).call.each do |ids|
         break if past_deadline?
 
         delete_batch(ids)
@@ -88,23 +86,6 @@ module PlaylistVersions
       kept, dropped = candidates.partition { |id, _track_count| pinned.exclude?(id) }
       tally[:pinned] += dropped.size
       kept
-    end
-
-    # Packs `[id, track_count]` pairs into batches bounded by the rows they will actually
-    # delete. A version whose own track count already exceeds the budget still gets a
-    # batch — a lone oversized version has to go through somehow, and BatchDelete's
-    # statement timeout is what bounds it from there.
-    def batches(candidates)
-      packed = candidates.each_with_object([]) do |(id, track_count), acc|
-        acc << { ids: [], rows: 0 } if acc.empty? || full?(acc.last, track_count)
-        acc.last[:ids] << id
-        acc.last[:rows] += track_count
-      end
-      packed.pluck(:ids)
-    end
-
-    def full?(batch, track_count)
-      batch[:ids].size >= VERSION_BATCH || batch[:rows] + track_count > TRACK_BUDGET
     end
 
     def delete_batch(ids)

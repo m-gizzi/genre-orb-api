@@ -275,46 +275,23 @@ RSpec.describe PlaylistVersions::Pruner do
     end
   end
 
+  # BatchPlan's own spec covers the packing. This is the wiring: the track counts the
+  # pruner feeds it are the ones the candidates actually carry, and the batches it
+  # returns are what BatchDelete receives.
   describe "sizing a batch by the rows it will delete" do
-    it "splits versions whose combined tracks exceed the budget" do
-      stub_const("#{described_class}::TRACK_BUDGET", 4)
+    it "hands BatchDelete the batches the plan called for" do
+      stub_const("#{PlaylistVersions::BatchPlan}::TRACK_BUDGET", 4)
+      batched = []
+      allow(PlaylistVersions::BatchDelete).to receive(:new).and_wrap_original do |original, ids|
+        batched << ids
+        original.call(ids)
+      end
       first = version(1, tracks: 3)
       second = version(2, tracks: 3)
       (3..5).each { |n| version(n) }
 
       expect { prune }.to change(PlaylistVersion, :count).by(-2)
-      expect(PlaylistVersion.where(id: [first.id, second.id])).to be_empty
-    end
-
-    it "sends each oversized version through on its own" do
-      stub_const("#{described_class}::TRACK_BUDGET", 1)
-      batched = []
-      allow(PlaylistVersions::BatchDelete).to receive(:new).and_wrap_original do |original, ids|
-        batched << ids
-        original.call(ids)
-      end
-      version(1, tracks: 3)
-      version(2, tracks: 3)
-      (3..5).each { |n| version(n) }
-
-      prune
-
-      expect(batched.map(&:size)).to eq([1, 1])
-    end
-
-    it "keeps small versions together up to the version cap" do
-      stub_const("#{described_class}::VERSION_BATCH", 2)
-      batched = []
-      allow(PlaylistVersions::BatchDelete).to receive(:new).and_wrap_original do |original, ids|
-        batched << ids
-        original.call(ids)
-      end
-      (1..3).each { |n| version(n) }
-      (4..6).each { |n| version(n) }
-
-      prune
-
-      expect(batched.map(&:size)).to eq([2, 1])
+      expect(batched).to eq([[first.id], [second.id]])
     end
   end
 
