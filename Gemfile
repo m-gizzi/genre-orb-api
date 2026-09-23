@@ -8,7 +8,7 @@ gem "devise"
 gem "faraday"
 gem "faraday-net_http_persistent"
 # TODO: Lift this once activesupport and faraday ship json 3 support.
-gem "json", "< 3"
+gem "json", "< 4"
 gem "kamal", require: false
 gem "omniauth"
 gem "omniauth-rails_csrf_protection"
