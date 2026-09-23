@@ -43,7 +43,7 @@ class SyncSession < ApplicationRecord
   def reconcile!
     with_lock do
       return unless active?
-      return if sync_session_playlists.exists?(status: %i[pending fetching_pages])
+      return if sync_session_playlists.active.exists?
 
       update!(status: terminal_status, completed_at: Time.current)
     end

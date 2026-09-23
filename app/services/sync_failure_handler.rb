@@ -17,7 +17,7 @@ class SyncFailureHandler
     end
 
     def fail_session(sync_session, error_message:)
-      sync_session.sync_session_playlists.where(status: %i[pending fetching_pages]).find_each do |ps|
+      sync_session.sync_session_playlists.active.find_each do |ps|
         ps.update!(status: :failed, error_message: error_message, completed_at: Time.current)
       end
 

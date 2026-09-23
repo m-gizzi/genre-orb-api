@@ -24,5 +24,11 @@ Rails.application.config.after_initialize do
       "args" => ["lastfm"],
       "description" => "Drips artist genre enrichment from Last.fm",
     },
+    "playlist_version_prune" => {
+      "cron" => "0 6 * * *",
+      "class" => "PlaylistVersionPruneJob",
+      "queue" => "default",
+      "description" => "Trims each playlist's version history to the most recent few",
+    },
   )
 end
